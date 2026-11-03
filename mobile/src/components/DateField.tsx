@@ -5,7 +5,10 @@ import { colors, fonts, radius } from '../theme';
 type Parts = { day: string; month: string; year: string };
 
 /** Valida las tres partes y devuelve la fecha ISO (AAAA-MM-DD) o el motivo del error. */
-export function parseDateParts({ day, month, year }: Parts): { iso: string; error?: string } {
+export function parseDateParts(
+  { day, month, year }: Parts,
+  { allowFuture = false }: { allowFuture?: boolean } = {},
+): { iso: string; error?: string } {
   if (!day && !month && !year) return { iso: '' };
   if (!day || !month || year.length !== 4) return { iso: '', error: 'Completa día, mes y año.' };
   const d = Number(day);
@@ -15,7 +18,7 @@ export function parseDateParts({ day, month, year }: Parts): { iso: string; erro
   if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
     return { iso: '', error: 'Esa fecha no existe.' };
   }
-  if (y < 1900 || date > new Date()) return { iso: '', error: 'Revisa el año.' };
+  if (y < 1900 || (!allowFuture && date > new Date())) return { iso: '', error: 'Revisa el año.' };
   return { iso: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` };
 }
 

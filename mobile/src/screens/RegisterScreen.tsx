@@ -82,7 +82,8 @@ export function RegisterScreen({ navigation }: Props) {
         value={name}
         onChangeText={setName}
         maxLength={120}
-        autoComplete="name"
+        autoComplete="off"
+        textContentType="none"
         error={(submitted && !name.trim() ? 'Ingresa tu nombre.' : undefined) ?? fieldErrors.name}
       />
       <FormField
@@ -92,7 +93,10 @@ export function RegisterScreen({ navigation }: Props) {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
-        autoComplete="email"
+        autoComplete="off"
+        textContentType="none"
+        autoCorrect={false}
+        spellCheck={false}
         maxLength={150}
         error={(submitted && !isEmail(email) ? 'Ingresa un correo válido.' : undefined) ?? fieldErrors.email}
       />
@@ -102,7 +106,11 @@ export function RegisterScreen({ navigation }: Props) {
         value={password}
         onChangeText={setPassword}
         secureTextEntry={!showPassword}
-        autoComplete="new-password"
+        autoCapitalize="none"
+        autoComplete="off"
+        textContentType="none"
+        autoCorrect={false}
+        spellCheck={false}
         maxLength={72}
         error={fieldErrors.password}
         right={
@@ -131,7 +139,11 @@ export function RegisterScreen({ navigation }: Props) {
         value={confirm}
         onChangeText={setConfirm}
         secureTextEntry={!showPassword}
-        autoComplete="new-password"
+        autoCapitalize="none"
+        autoComplete="off"
+        textContentType="none"
+        autoCorrect={false}
+        spellCheck={false}
         error={mismatch ? 'Las contraseñas no coinciden.' : undefined}
         onSubmitEditing={handleSubmit}
       />

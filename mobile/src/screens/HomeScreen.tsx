@@ -28,7 +28,7 @@ import {
 import { ApiError } from '../services/http';
 import { colors, fonts, gradients, heroIsDark, radius, shadow } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
-import { careRoleLabel, initialsOf } from '../utils/format';
+import { careRoleLabel, initialsOf, todayIso } from '../utils/format';
 
 const monthShort = new Intl.DateTimeFormat('es-PE', { month: 'short' });
 const weekdayLong = new Intl.DateTimeFormat('es-PE', { weekday: 'long' });
@@ -40,13 +40,14 @@ type Props = CompositeScreenProps<
 
 /** Próxima consulta (hoy o después) o, si no hay, la más reciente; con el nombre de la persona. */
 function pickAppointment(consultations: Consultation[], subjects: CareSubject[]) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const sorted = [...consultations].sort((a, b) => a.date.localeCompare(b.date));
   const upcoming = sorted.find((c) => c.date >= today);
   const chosen = upcoming ?? sorted[sorted.length - 1];
   if (!chosen) return null;
   const subject = subjects.find((s) => s.id === chosen.careSubjectId);
-  return { consultation: chosen, subjectName: subject?.name ?? '', isUpcoming: !!upcoming };
+  const upcomingCount = sorted.filter((c) => c.date >= today).length;
+  return { consultation: chosen, subjectName: subject?.name ?? '', isUpcoming: !!upcoming, upcomingCount };
 }
 
 function greeting() {
@@ -190,16 +191,10 @@ export function HomeScreen({ navigation }: Props) {
 
       <FadeIn delay={320}>
         <PressableScale
-          onPress={() =>
-            appointment &&
-            navigation.navigate('SubjectDetail', {
-              subjectId: appointment.consultation.careSubjectId,
-              name: appointment.subjectName,
-            })
-          }
-          disabled={!appointment}
+          onPress={() => navigation.navigate('UpcomingConsultations')}
           style={[styles.tile, styles.appointment]}
           accessibilityRole="button"
+          accessibilityLabel="Ver próximas citas"
         >
           <View style={styles.dateBlock}>
             {appointment ? (
@@ -215,7 +210,13 @@ export function HomeScreen({ navigation }: Props) {
           </View>
           <View style={styles.flex}>
             <Text style={[styles.tileLabel, { color: colors.muted }]}>
-              {appointment ? (appointment.isUpcoming ? 'Próxima cita' : 'Última consulta') : 'Próxima cita'}
+              {appointment
+                ? appointment.isUpcoming
+                  ? appointment.upcomingCount > 1
+                    ? `Próxima cita · ${appointment.upcomingCount} en total`
+                    : 'Próxima cita'
+                  : 'Última consulta'
+                : 'Próxima cita'}
             </Text>
             <Text style={styles.appointmentTitle} numberOfLines={1}>
               {appointment ? appointment.consultation.reason : 'Sin citas registradas'}
@@ -226,7 +227,7 @@ export function HomeScreen({ navigation }: Props) {
                 : 'Anótalas en el perfil de cada uno'}
             </Text>
           </View>
-          {appointment ? <Ionicons name="chevron-forward" size={20} color={colors.ink} /> : null}
+          <Ionicons name="chevron-forward" size={20} color={colors.ink} />
         </PressableScale>
       </FadeIn>
 
@@ -293,6 +294,7 @@ export function HomeScreen({ navigation }: Props) {
             subjects.refresh();
             invitations.reload();
             notifications.reload();
+            consultations.reload();
           }}
           tintColor={colors.primary}
         />

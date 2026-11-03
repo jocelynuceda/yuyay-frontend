@@ -156,9 +156,39 @@ const palettes = {
     },
     heroIsDark: false,
   },
+  /** Porcelain Cream, Blush Fizz, Cherry Vibes, Crushed Aluminum y Cola Shadow. */
+  cherry: {
+    colors: {
+      primary: '#B15B64',
+      ink: '#3E2C26',
+      accent: '#E6B3B8',
+      soft: '#D8D1CC',
+      cream: '#F6DDE0',
+      surface: '#F3EEEC',
+      muted: '#775E54',
+      danger: '#A8323E',
+      dangerBg: '#FBE6E8',
+      accentText: '#8E3F48',
+      softText: '#775E54',
+      onAccent: '#3E2C26',
+      onHero: '#3E2C26',
+      onHeroSoft: '#775E54',
+      border: 'rgba(62, 44, 38, 0.08)',
+      line: 'rgba(62, 44, 38, 0.12)',
+      primaryTint: 'rgba(177, 91, 100, 0.1)',
+      accentTint: 'rgba(230, 179, 184, 0.35)',
+      placeholder: 'rgba(119, 94, 84, 0.55)',
+    },
+    gradients: {
+      hero: ['#E6B3B8', '#EDC8CB', '#F3EEEC'],
+      strong: ['#B15B64', '#C67880'],
+      dark: ['#3E2C26', '#5A443B', '#775E54'],
+    },
+    heroIsDark: false,
+  },
 } as const;
 
-/** Paleta en uso: 'vintage', 'cobalto', 'verdigris', 'amatista' o 'aurora' */
+/** Paleta en uso: 'vintage', 'cobalto', 'verdigris', 'amatista', 'aurora' o 'cherry' */
 const ACTIVE_PALETTE: keyof typeof palettes = 'aurora';
 
 const palette = palettes[ACTIVE_PALETTE];

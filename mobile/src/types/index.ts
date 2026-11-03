@@ -40,6 +40,89 @@ export interface CareRelationship {
   role: CareRole;
   status: 'PENDING' | 'ACTIVE' | 'REVOKED';
   relationshipLabel: string | null;
+  invitedAt: string | null;
+  acceptedAt: string | null;
+}
+
+export interface InviteCaregiverInput {
+  email: string;
+  role: CareRole;
+  relationshipLabel?: string;
+}
+
+export interface HandoffItem {
+  healthEntryId: number;
+  categoryCode: string;
+  versionNumber: number;
+  title: string;
+  details: string | null;
+  dose: string | null;
+  frequency: string | null;
+  occurredOn: string | null;
+  confidenceLevel: ConfidenceLevel;
+  notes: string | null;
+  declaredAt: string;
+}
+
+export interface Handoff {
+  id: number;
+  careSubjectId: number;
+  reason: string;
+  questions: string | null;
+  createdAt: string;
+}
+
+export interface HandoffDetail extends Handoff {
+  items: HandoffItem[];
+}
+
+export interface HandoffInput {
+  reason: string;
+  questions?: string;
+  healthEntryIds: number[];
+}
+
+export interface HandoffSession {
+  id: number;
+  expiresAt: string;
+  sessionWindowMinutes: number;
+  firstOpenedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface HandoffSessionCreated {
+  id: number;
+  token: string;
+  expiresAt: string;
+  sessionWindowMinutes: number;
+}
+
+export interface Delegation {
+  id: number;
+  careSubjectId: number;
+  grantedBy: { id: number; name: string; email: string };
+  granteeName: string;
+  granteeEmail: string;
+  categoryCodes: string[];
+  validUntil: string;
+  exchangedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  active: boolean;
+}
+
+export interface DelegationInput {
+  granteeName: string;
+  granteeEmail: string;
+  categoryCodes: string[];
+  validUntil: string;
+}
+
+export interface DelegationCreated {
+  delegation: Delegation;
+  token: string;
+  shareLink: string;
 }
 
 export interface HealthCategory {
@@ -91,6 +174,12 @@ export interface Consultation {
   createdAt: string;
 }
 
+export interface ConsultationInput {
+  date: string;
+  reason: string;
+  notes?: string;
+}
+
 export interface Notification {
   id: number;
   type: NotificationType;
@@ -126,4 +215,15 @@ export type HomeStackParamList = {
   SubjectDetail: { subjectId: number; name: string };
   NewSubject: undefined;
   NewEntry: { subjectId: number; categoryCode?: string };
+  Caregivers: { subjectId: number; isPrincipal: boolean };
+  InviteCaregiver: { subjectId: number };
+  Handoffs: { subjectId: number };
+  NewHandoff: { subjectId: number };
+  HandoffView: { handoffId: number };
+  Delegations: { subjectId: number; isPrincipal: boolean };
+  NewDelegation: { subjectId: number };
+  Consultations: { subjectId: number; isPrincipal: boolean };
+  NewConsultation: { subjectId: number };
+  UpcomingConsultations: undefined;
+  NearbyClinics: undefined;
 };

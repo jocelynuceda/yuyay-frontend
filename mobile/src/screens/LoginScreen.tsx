@@ -64,7 +64,10 @@ export function LoginScreen({ navigation }: Props) {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
-        autoComplete="email"
+        autoComplete="off"
+        textContentType="none"
+        autoCorrect={false}
+        spellCheck={false}
         error={emailError}
       />
       <FormField
@@ -73,7 +76,11 @@ export function LoginScreen({ navigation }: Props) {
         value={password}
         onChangeText={setPassword}
         secureTextEntry={!showPassword}
-        autoComplete="current-password"
+        autoCapitalize="none"
+        autoComplete="off"
+        textContentType="none"
+        autoCorrect={false}
+        spellCheck={false}
         error={passwordError}
         right={
           <TextInput.Icon

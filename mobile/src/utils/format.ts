@@ -5,6 +5,12 @@ function parse(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
 }
 
+/** Fecha de hoy en hora local como AAAA-MM-DD (toISOString usaría UTC y podría ser mañana). */
+export function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export const formatDate = (value?: string | null) => (value ? dateFormatter.format(parse(value)) : '—');
 
 export function ageFrom(birthDate?: string | null) {

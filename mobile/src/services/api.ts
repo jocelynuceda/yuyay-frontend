@@ -4,9 +4,19 @@ import type {
   CareRelationship,
   CareSubject,
   Consultation,
+  ConsultationInput,
+  Delegation,
+  DelegationCreated,
+  DelegationInput,
+  Handoff,
+  HandoffDetail,
+  HandoffInput,
+  HandoffSession,
+  HandoffSessionCreated,
   HealthCategory,
   HealthEntry,
   HealthEntryInput,
+  InviteCaregiverInput,
   Notification,
   User,
 } from '../types';
@@ -39,6 +49,11 @@ export const getCareRelationships = (subjectId: number) =>
 export const getConsultations = (subjectId: number) =>
   http.get<Consultation[]>(`/care-subjects/${subjectId}/consultations`).then((r) => r.data);
 
+export const createConsultation = (subjectId: number, data: ConsultationInput) =>
+  http.post<Consultation>(`/care-subjects/${subjectId}/consultations`, clean(data)).then((r) => r.data);
+
+export const deleteConsultation = (consultationId: number) => http.delete(`/consultations/${consultationId}`);
+
 export const getPendingInvitations = () =>
   http.get<CareRelationship[]>('/me/relationships/pending').then((r) => r.data);
 
@@ -61,3 +76,43 @@ export const getNotifications = () => http.get<Notification[]>('/notifications')
 
 export const markNotificationRead = (id: number) =>
   http.patch<Notification>(`/notifications/${id}/read`).then((r) => r.data);
+
+/* ---------- Cuidadores ---------- */
+
+export const inviteCaregiver = (subjectId: number, data: InviteCaregiverInput) =>
+  http.post<CareRelationship>(`/care-subjects/${subjectId}/relationships`, clean(data)).then((r) => r.data);
+
+export const removeCaregiver = (subjectId: number, relationshipId: number) =>
+  http.delete(`/care-subjects/${subjectId}/relationships/${relationshipId}`);
+
+/* ---------- Resumen de traspaso ---------- */
+
+export const getHandoffs = (subjectId: number) =>
+  http.get<Handoff[]>(`/care-subjects/${subjectId}/handoffs`).then((r) => r.data);
+
+export const createHandoff = (subjectId: number, data: HandoffInput) =>
+  http.post<HandoffDetail>(`/care-subjects/${subjectId}/handoffs`, clean(data)).then((r) => r.data);
+
+export const getHandoff = (handoffId: number) => http.get<HandoffDetail>(`/handoffs/${handoffId}`).then((r) => r.data);
+
+export const deleteHandoff = (handoffId: number) => http.delete(`/handoffs/${handoffId}`);
+
+export const getHandoffSessions = (handoffId: number) =>
+  http.get<HandoffSession[]>(`/handoffs/${handoffId}/sessions`).then((r) => r.data);
+
+export const createHandoffSession = (handoffId: number, expiresInHours: number, sessionWindowMinutes: number) =>
+  http
+    .post<HandoffSessionCreated>(`/handoffs/${handoffId}/sessions`, { expiresInHours, sessionWindowMinutes })
+    .then((r) => r.data);
+
+export const revokeHandoffSession = (sessionId: number) => http.delete(`/handoff-sessions/${sessionId}`);
+
+/* ---------- Delegar acceso ---------- */
+
+export const getDelegations = (subjectId: number) =>
+  http.get<Delegation[]>(`/care-subjects/${subjectId}/delegations`).then((r) => r.data);
+
+export const createDelegation = (subjectId: number, data: DelegationInput) =>
+  http.post<DelegationCreated>(`/care-subjects/${subjectId}/delegations`, data).then((r) => r.data);
+
+export const revokeDelegation = (delegationId: number) => http.delete(`/delegations/${delegationId}`);

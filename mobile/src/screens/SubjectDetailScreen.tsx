@@ -16,6 +16,8 @@ import { ageFrom, careRoleLabel, formatDate, initialsOf } from '../utils/format'
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'SubjectDetail'>;
 
+type QuickAction = { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void };
+
 export function SubjectDetailScreen({ route, navigation }: Props) {
   const { subjectId } = route.params;
   // Categorías desplegadas en el perfil clínico (se pueden abrir varias)
@@ -36,6 +38,15 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
   const all = entries.data ?? [];
   const entriesOf = (code: string) => all.filter((e) => e.categoryCode === code);
   const caregivers = relationships.data?.filter((r) => r.status === 'ACTIVE').length;
+  const isPrincipal = s.myRole === 'PRINCIPAL';
+
+  const quickActions: QuickAction[] = [
+    { icon: 'calendar-outline', label: 'Citas', onPress: () => navigation.navigate('Consultations', { subjectId, isPrincipal }) },
+    { icon: 'people-outline', label: 'Cuidadores', onPress: () => navigation.navigate('Caregivers', { subjectId, isPrincipal }) },
+    { icon: 'clipboard-outline', label: 'Resumen', onPress: () => navigation.navigate('Handoffs', { subjectId }) },
+    { icon: 'key-outline', label: 'Delegar', onPress: () => navigation.navigate('Delegations', { subjectId, isPrincipal }) },
+    { icon: 'location-outline', label: 'Clínicas', onPress: () => navigation.navigate('NearbyClinics') },
+  ];
 
   function toggle(code: string) {
     setOpen((prev) => {
@@ -81,6 +92,22 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
           <PillAction label="Nuevo registro" onPress={() => navigation.navigate('NewEntry', { subjectId })} />
         </View>
       </ProfileCard>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quick}>
+        {quickActions.map((a) => (
+          <Pressable
+            key={a.label}
+            onPress={a.onPress}
+            style={({ pressed }) => [styles.quickItem, pressed && { opacity: 0.8 }]}
+            accessibilityRole="button"
+          >
+            <View style={styles.quickIcon}>
+              <Ionicons name={a.icon} size={22} color={colors.primary} />
+            </View>
+            <Text style={styles.quickLabel}>{a.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
 
       <View>
         <Text style={styles.section}>Perfil clínico</Text>
@@ -154,6 +181,27 @@ const styles = StyleSheet.create({
   },
   notesText: { flex: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.ink },
   cta: { marginTop: 14 },
+  quick: { gap: 10, paddingTop: 16, paddingBottom: 2 },
+  quickItem: {
+    width: 76,
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    ...shadow,
+    shadowOpacity: 0.05,
+    elevation: 1,
+  },
+  quickIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
   section: { fontFamily: fonts.display, fontSize: 22, color: colors.ink, marginTop: 18, marginBottom: 10 },
   clinical: {
     backgroundColor: colors.white,

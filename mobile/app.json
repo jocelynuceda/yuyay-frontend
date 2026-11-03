@@ -24,7 +24,13 @@
     },
     "plugins": [
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Yuyay usa tu ubicación para mostrarte clínicas y hospitales cercanos."
+        }
+      ]
     ]
   }
 }
