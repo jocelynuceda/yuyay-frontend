@@ -1,4 +1,5 @@
 import { http } from './http';
+import { collectPages, type Page } from './pagination';
 import type {
   AuthResponse,
   CareRelationship,
@@ -62,17 +63,21 @@ export const acceptInvitation = (relationshipId: number) =>
 
 export const getHealthCategories = () => http.get<HealthCategory[]>('/health-categories').then((r) => r.data);
 
+export const getHealthEntriesPage = (subjectId: number, page = 0, category?: string) =>
+  http.get<Page<HealthEntry> | HealthEntry[]>(`/care-subjects/${subjectId}/health-entries`, {
+    params: { page, size: 100, category, sort: 'createdAt,desc' },
+  }).then((r) => r.data);
+
 export const getHealthEntries = (subjectId: number, category?: string) =>
-  http
-    .get<HealthEntry[]>(`/care-subjects/${subjectId}/health-entries`, {
-      params: category ? { category } : undefined,
-    })
-    .then((r) => r.data);
+  collectPages((page) => getHealthEntriesPage(subjectId, page, category));
 
 export const createHealthEntry = (subjectId: number, data: HealthEntryInput) =>
   http.post<HealthEntry>(`/care-subjects/${subjectId}/health-entries`, clean(data)).then((r) => r.data);
 
-export const getNotifications = () => http.get<Notification[]>('/notifications').then((r) => r.data);
+export const getNotificationsPage = (page = 0, unread?: boolean) =>
+  http.get<Page<Notification> | Notification[]>('/notifications', { params: { page, size: 100, unread } }).then((r) => r.data);
+
+export const getNotifications = () => collectPages((page) => getNotificationsPage(page));
 
 export const markNotificationRead = (id: number) =>
   http.patch<Notification>(`/notifications/${id}/read`).then((r) => r.data);

@@ -11,13 +11,15 @@ import { ApiError } from '../services/http';
 import { colors, fonts, radius } from '../theme';
 import type { AuthStackParamList } from '../types';
 import { isEmail } from '../utils/format';
+import { utf8Bytes } from '../utils/password';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
-/** Mismas reglas que el backend: 8–72 caracteres, al menos una letra y un número. */
+/** Mismas reglas que el backend: Al menos 8 caracteres, hasta 72 bytes UTF-8, una letra y un número. */
 function passwordChecks(password: string) {
   return [
     { ok: password.length >= 8, label: '8 caracteres' },
+    { ok: utf8Bytes(password) <= 72, label: 'Longitud admitida' },
     { ok: /[A-Za-z]/.test(password), label: 'Una letra' },
     { ok: /\d/.test(password), label: 'Un número' },
   ];
@@ -112,7 +114,7 @@ export function RegisterScreen({ navigation }: Props) {
         autoCorrect={false}
         spellCheck={false}
         maxLength={72}
-        error={fieldErrors.password}
+        error={utf8Bytes(password) > 72 ? 'La contraseña es demasiado larga. Usa menos caracteres o símbolos.' : fieldErrors.password}
         right={
           <TextInput.Icon
             icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
