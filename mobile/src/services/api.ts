@@ -8,6 +8,8 @@ import type {
   HealthCategory,
   HealthEntry,
   HealthEntryInput,
+  HealthEntryUpdate,
+  HealthEntryVersion,
   Notification,
   User,
 } from '../types';
@@ -59,7 +61,17 @@ export const getHealthEntries = (subjectId: number, category?: string) =>
 export const createHealthEntry = (subjectId: number, data: HealthEntryInput) =>
   http.post<HealthEntry>(`/care-subjects/${subjectId}/health-entries`, clean(data)).then((r) => r.data);
 
-export const getNotificationsPage = (page = 0, unread?: boolean) =>
+export const getHealthEntry = (subjectId: number, entryId: number) =>
+  http.get<HealthEntry>(`/care-subjects/${subjectId}/health-entries/${entryId}`).then((r) => r.data);
+
+export const updateHealthEntry = (subjectId: number, entryId: number, data: HealthEntryUpdate) =>
+  http.patch<HealthEntry>(`/care-subjects/${subjectId}/health-entries/${entryId}`, clean(data)).then((r) => r.data);
+
+/** De la versión más nueva a la más antigua. */
+export const getHealthEntryVersions = (subjectId: number, entryId: number) =>
+  http.get<HealthEntryVersion[]>(`/care-subjects/${subjectId}/health-entries/${entryId}/versions`).then((r) => r.data);
+
+export const getNotificationsPage =(page = 0, unread?: boolean) =>
   http.get<Page<Notification> | Notification[]>('/notifications', { params: { page, size: 100, unread } }).then((r) => r.data);
 
 export const getNotifications = () => collectPages((page) => getNotificationsPage(page));
