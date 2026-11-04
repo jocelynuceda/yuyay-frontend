@@ -7,7 +7,7 @@ export const categoryMeta: Record<
   { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string; plural: string }
 > = {
   ALLERGY: { icon: 'flower-outline', bg: colors.accent, fg: colors.ink, plural: 'Alergias' },
-  CONDITION: { icon: 'pulse-outline', bg: colors.soft, fg: colors.accentText, plural: 'Condiciones' },
+  CONDITION: { icon: 'pulse-outline', bg: colors.soft, fg: colors.softText, plural: 'Condiciones' },
   MEDICATION: { icon: 'medkit-outline', bg: colors.primaryTint, fg: colors.primary, plural: 'Medicación' },
   IMMUNIZATION: { icon: 'shield-checkmark-outline', bg: colors.primary, fg: colors.white, plural: 'Vacunas' },
   EPISODE: { icon: 'flash-outline', bg: colors.amberBg, fg: colors.amberText, plural: 'Episodios' },

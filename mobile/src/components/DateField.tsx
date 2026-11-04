@@ -22,17 +22,25 @@ export function parseDateParts(
   return { iso: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` };
 }
 
+/** Separa una fecha AAAA-MM-DD en las tres casillas de DateField. */
+export function datePartsOf(iso: string): Parts {
+  const [year, month, day] = iso.split('-');
+  return { day, month, year };
+}
+
 /** Fecha en tres casillas numéricas (día, mes, año) que avanzan solas al completarse. */
 export function DateField({
   label,
   onChange,
   error,
+  initial,
 }: {
   label: string;
   onChange: (parts: Parts) => void;
   error?: string;
+  initial?: Parts;
 }) {
-  const [parts, setParts] = useState<Parts>({ day: '', month: '', year: '' });
+  const [parts, setParts] = useState<Parts>(initial ?? { day: '', month: '', year: '' });
   const monthRef = useRef<TextInputInstance>(null);
   const yearRef = useRef<TextInputInstance>(null);
 

@@ -1,7 +1,14 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { AccessLogDetailScreen } from '../screens/AccessLogDetailScreen';
+import { AccessLogScreen } from '../screens/AccessLogScreen';
 import { CaregiversScreen } from '../screens/CaregiversScreen';
+import { ConsultationChangesScreen } from '../screens/ConsultationChangesScreen';
 import { ConsultationsScreen } from '../screens/ConsultationsScreen';
 import { DelegationsScreen } from '../screens/DelegationsScreen';
+import { DocumentsScreen } from '../screens/DocumentsScreen';
+import { EditEntryScreen } from '../screens/EditEntryScreen';
+import { EditSubjectScreen } from '../screens/EditSubjectScreen';
+import { EntryHistoryScreen } from '../screens/EntryHistoryScreen';
 import { HandoffsScreen } from '../screens/HandoffsScreen';
 import { HandoffViewScreen } from '../screens/HandoffViewScreen';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -12,6 +19,8 @@ import { NewDelegationScreen } from '../screens/NewDelegationScreen';
 import { NewEntryScreen } from '../screens/NewEntryScreen';
 import { NewHandoffScreen } from '../screens/NewHandoffScreen';
 import { NewSubjectScreen } from '../screens/NewSubjectScreen';
+import { ReviewOcrScreen } from '../screens/ReviewOcrScreen';
+import { VoiceNotesScreen } from '../screens/VoiceNotesScreen';
 import { SubjectDetailScreen } from '../screens/SubjectDetailScreen';
 import { UpcomingConsultationsScreen } from '../screens/UpcomingConsultationsScreen';
 import { colors, fonts } from '../theme';
@@ -47,6 +56,11 @@ export function HomeStackNavigator() {
         options={{ title: 'Nueva persona', presentation: 'modal' }}
       />
       <Stack.Screen
+        name="EditSubject"
+        component={EditSubjectScreen}
+        options={{ title: 'Editar datos', presentation: 'modal' }}
+      />
+      <Stack.Screen
         name="NewEntry"
         component={NewEntryScreen}
         options={{ title: 'Nuevo registro', presentation: 'modal' }}
@@ -55,8 +69,27 @@ export function HomeStackNavigator() {
       <Stack.Screen
         name="NewConsultation"
         component={NewConsultationScreen}
-        options={{ title: 'Nueva cita', presentation: 'modal' }}
+        options={({ route }) => ({
+          title: route.params.consultation ? 'Editar cita' : 'Nueva cita',
+          presentation: 'modal',
+        })}
       />
+      <Stack.Screen
+        name="ConsultationChanges"
+        component={ConsultationChangesScreen}
+        options={{ title: 'Cambios desde la cita' }}
+      />
+      <Stack.Screen
+        name="EditEntry"
+        component={EditEntryScreen}
+        options={{ title: 'Editar registro', presentation: 'modal' }}
+      />
+      <Stack.Screen name="EntryHistory" component={EntryHistoryScreen} options={{ title: 'Historial' }} />
+      <Stack.Screen name="AccessLog" component={AccessLogScreen} options={{ title: 'Bitácora' }} />
+      <Stack.Screen name="AccessLogDetail" component={AccessLogDetailScreen} options={{ title: 'Detalle' }} />
+      <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Documentos' }} />
+      <Stack.Screen name="ReviewOcr" component={ReviewOcrScreen} options={{ title: 'Revisar documento' }} />
+      <Stack.Screen name="VoiceNotes" component={VoiceNotesScreen} options={{ title: 'Notas de voz' }} />
       <Stack.Screen
         name="UpcomingConsultations"
         component={UpcomingConsultationsScreen}

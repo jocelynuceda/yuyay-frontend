@@ -5,6 +5,9 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 export type Role = 'USER' | 'ADMIN';
 export type CareRole = 'PRINCIPAL' | 'CAREGIVER';
 export type ConfidenceLevel = 'CONFIRMED' | 'UNCERTAIN';
+export type ChangeType = 'CREATED' | 'UPDATED' | 'DELETED';
+export type OcrStatus = 'PENDING' | 'DONE' | 'FAILED';
+export type AccessAction = 'VIEW' | 'CREATE' | 'UPDATE' | 'DELETE' | 'OPEN_HANDOFF_LINK' | 'EXCHANGE_DELEGATION';
 export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION';
 
 export interface User {
@@ -125,6 +128,17 @@ export interface DelegationCreated {
   shareLink: string;
 }
 
+/** Sesión de quien abrió un acceso delegado: no tiene cuenta, solo este token temporal. */
+export interface DelegateSession {
+  accessToken: string;
+  expiresAt: string;
+  careSubjectName: string;
+  granteeName: string;
+  categoryCodes: string[];
+  /** Código con el que se abrió: al volver al mismo enlace se reutiliza esta sesión. */
+  sourceToken: string;
+}
+
 export interface HealthCategory {
   id: number;
   code: string;
@@ -135,6 +149,7 @@ export interface HealthCategory {
 export interface HealthEntryVersion {
   id: number;
   versionNumber: number;
+  changeType: ChangeType;
   title: string;
   details: string | null;
   dose: string | null;
@@ -142,6 +157,7 @@ export interface HealthEntryVersion {
   occurredOn: string | null;
   confidenceLevel: ConfidenceLevel;
   notes: string | null;
+  sourceAttachmentId: number | null;
   declaredBy: { id: number; name: string };
   declaredAt: string;
 }
@@ -162,6 +178,43 @@ export interface HealthEntryInput {
   dose?: string;
   frequency?: string;
   confidenceLevel: ConfidenceLevel;
+  sourceAttachmentId?: number;
+}
+
+/** PATCH reemplaza la versión completa: lo que no se envía queda vacío en la nueva versión. */
+export interface HealthEntryUpdate {
+  title: string;
+  details?: string | null;
+  dose?: string | null;
+  frequency?: string | null;
+  occurredOn?: string | null;
+  notes?: string | null;
+  confidenceLevel: ConfidenceLevel;
+}
+
+export interface Attachment {
+  id: number;
+  careSubjectId: number;
+  uploadedByName: string;
+  originalFilename: string;
+  contentType: string;
+  sizeBytes: number;
+  ocrStatus: OcrStatus;
+  ocrText: string | null;
+  ocrError: string | null;
+  uploadedAt: string;
+}
+
+export interface AccessLog {
+  id: number;
+  userId: number | null;
+  delegationId: number | null;
+  action: AccessAction;
+  targetType: string | null;
+  targetId: number | null;
+  visitorName: string | null;
+  visitorRole: string | null;
+  occurredAt: string;
 }
 
 export interface Consultation {
@@ -169,6 +222,8 @@ export interface Consultation {
   careSubjectId: number;
   createdByUserId: number;
   date: string;
+  /** Hora opcional, como "15:30:00". */
+  time: string | null;
   reason: string;
   notes: string | null;
   createdAt: string;
@@ -176,8 +231,15 @@ export interface Consultation {
 
 export interface ConsultationInput {
   date: string;
+  time?: string;
   reason: string;
   notes?: string;
+}
+
+/** En PATCH lo ausente no cambia: para quitar la hora se envía clearTime. */
+export interface ConsultationUpdate extends Required<Omit<ConsultationInput, 'time'>> {
+  time?: string;
+  clearTime: boolean;
 }
 
 export interface Notification {
@@ -198,6 +260,11 @@ export interface ApiErrorBody {
 
 /* ---------- Navegación ---------- */
 
+export type RootStackParamList = {
+  Main: undefined;
+  Delegate: { token?: string } | undefined;
+};
+
 export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
@@ -214,7 +281,17 @@ export type HomeStackParamList = {
   Home: undefined;
   SubjectDetail: { subjectId: number; name: string };
   NewSubject: undefined;
-  NewEntry: { subjectId: number; categoryCode?: string };
+  EditSubject: { subject: CareSubject };
+  NewEntry: {
+    subjectId: number;
+    categoryCode?: string;
+    details?: string;
+    sourceAttachmentId?: number;
+    /** Vuelve a la pantalla anterior en lugar de saltarse la revisión del documento */
+    returnToSource?: boolean;
+  };
+  EditEntry: { subjectId: number; entryId: number };
+  EntryHistory: { subjectId: number; entryId: number };
   Caregivers: { subjectId: number; isPrincipal: boolean };
   InviteCaregiver: { subjectId: number };
   Handoffs: { subjectId: number };
@@ -222,8 +299,14 @@ export type HomeStackParamList = {
   HandoffView: { handoffId: number };
   Delegations: { subjectId: number; isPrincipal: boolean };
   NewDelegation: { subjectId: number };
-  Consultations: { subjectId: number; isPrincipal: boolean };
-  NewConsultation: { subjectId: number };
+  Consultations: { subjectId: number; subjectName: string; isPrincipal: boolean };
+  NewConsultation: { subjectId: number; consultation?: Consultation };
+  ConsultationChanges: { subjectId: number; consultationId: number; since: string };
+  AccessLog: { subjectId: number };
+  AccessLogDetail: { subjectId: number; log: AccessLog; actor: string };
+  Documents: { subjectId: number };
+  ReviewOcr: { subjectId: number; attachmentId: number };
+  VoiceNotes: { subjectId: number };
   UpcomingConsultations: undefined;
   NearbyClinics: undefined;
 };

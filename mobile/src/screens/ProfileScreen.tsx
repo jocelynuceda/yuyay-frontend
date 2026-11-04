@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ProfileCard } from '../components/ProfileCard';
 import { useAuth } from '../hooks/useAuth';
@@ -7,13 +8,14 @@ import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getCareSubjects, getNotifications } from '../services/api';
 import { colors, fonts, radius, shadow } from '../theme';
-import type { TabNavigatorParamList } from '../types';
+import type { RootStackParamList, TabNavigatorParamList } from '../types';
 import { formatDate, initialsOf } from '../utils/format';
 
 type Props = BottomTabScreenProps<TabNavigatorParamList, 'Profile'>;
 
 export function ProfileScreen({ navigation }: Props) {
   const { user, logout } = useAuth();
+  const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
   const subjects = useFetch(getCareSubjects);
   const notifications = useFetch(getNotifications);
   useRefreshOnFocus(() => {
@@ -25,8 +27,8 @@ export function ProfileScreen({ navigation }: Props) {
   const unread = notifications.data?.filter((n) => !n.read).length;
   const memberYear = new Date(user.createdAt).getFullYear();
 
-  const actions: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; featured?: boolean }[] = [
-    { icon: 'people', label: 'Personas', onPress: () => navigation.navigate('HomeTab', { screen: 'Home' }) },
+  const actions: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; featured?: boolean; purple?: boolean }[] = [
+    { icon: 'people', label: 'Personas', onPress: () => navigation.navigate('HomeTab', { screen: 'Home' }), purple: true },
     { icon: 'notifications', label: 'Avisos', onPress: () => navigation.navigate('Notifications') },
     {
       icon: 'person-add',
@@ -66,12 +68,19 @@ export function ProfileScreen({ navigation }: Props) {
           <Pressable
             key={a.label}
             onPress={a.onPress}
-            style={({ pressed }) => [styles.action, a.featured && styles.actionFeatured, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [
+              styles.action,
+              a.featured && styles.actionFeatured,
+              a.purple && styles.actionPurple,
+              pressed && { opacity: 0.85 },
+            ]}
             accessibilityRole="button"
             accessibilityLabel={a.label}
           >
-            <Ionicons name={a.icon} size={30} color={a.featured ? colors.white : colors.accentText} />
-            <Text style={[styles.actionLabel, a.featured && styles.actionLabelFeatured]}>{a.label}</Text>
+            <Ionicons name={a.icon} size={30} color={a.featured ? colors.white : a.purple ? colors.onPeopleAction : colors.softText} />
+            <Text style={[styles.actionLabel, a.purple && styles.actionLabelPeople, a.featured && styles.actionLabelFeatured]}>
+              {a.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -93,6 +102,15 @@ export function ProfileScreen({ navigation }: Props) {
       </View>
 
       <Text style={styles.groupLabel}>Cuenta</Text>
+      <Pressable
+        onPress={() => rootNavigation.navigate('Delegate')}
+        hitSlop={8}
+        accessibilityRole="button"
+        style={styles.logout}
+      >
+        <Ionicons name="key-outline" size={20} color={colors.primary} />
+        <Text style={[styles.logoutText, { color: colors.primary }]}>Tengo un código de acceso</Text>
+      </Pressable>
       <Pressable onPress={logout} hitSlop={8} accessibilityRole="button" style={styles.logout}>
         <Ionicons name="log-out-outline" size={20} color={colors.danger} />
         <Text style={styles.logoutText}>Cerrar sesión</Text>
@@ -122,7 +140,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },
-  actionLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.accentText },
+  actionPurple: { backgroundColor: colors.peopleAction },
+  actionLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.softText },
+  actionLabelPeople: { color: colors.onPeopleAction },
   actionLabelFeatured: { color: colors.white },
   card: {
     backgroundColor: colors.white,

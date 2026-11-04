@@ -126,20 +126,20 @@ const palettes = {
     },
     heroIsDark: false,
   },
-  /** Alice Blue, Thistle, Pearl Aqua, Dusk Blue y Deep Navy (la paleta original de Yuyay). */
+  /** Alice Blue, Wisteria Blue, Pearl Aqua, Dusk Blue y Deep Navy (la paleta original de Yuyay). */
   aurora: {
     colors: {
       primary: '#3E5BA3',
       ink: '#0C0D45',
       accent: '#75CBD1',
-      soft: '#F2D2FF',
-      cream: '#F2D2FF',
+      soft: '#80A4D4',
+      cream: '#80A4D4',
       surface: '#DAE8FB',
       muted: '#5B6187',
       danger: '#D6336C',
       dangerBg: '#FDECF2',
       accentText: '#1F7B82',
-      softText: '#5E2C7A',
+      softText: '#1A1F66',
       onAccent: '#0C0D45',
       onHero: '#0C0D45',
       onHeroSoft: '#2A3A6B',
@@ -186,14 +186,66 @@ const palettes = {
     },
     heroIsDark: false,
   },
+  /**
+   * Light Cyan y Frosted Blue en versión pastel, Wisteria Blue y Medium Slate Blue, sin Honeydew. No trae tonos oscuros:
+   * ink, muted y los *Text son derivados, y primary es un Slate Blue algo más oscuro para el texto blanco.
+   */
+  frosted: {
+    colors: {
+      primary: '#6A64C2',
+      ink: '#1E2158',
+      accent: '#80A4D4',
+      soft: '#C4E8EF',
+      cream: '#E4F5F8',
+      surface: '#F0FAFC',
+      muted: '#4A5680',
+      danger: '#B02A63',
+      dangerBg: '#FCE8F0',
+      accentText: '#1F4F7A',
+      softText: '#2E2C7E',
+      onAccent: '#1E2158',
+      onHero: '#1E2158',
+      onHeroSoft: '#262A6B',
+      border: 'rgba(30, 33, 88, 0.08)',
+      line: 'rgba(30, 33, 88, 0.12)',
+      primaryTint: 'rgba(123, 117, 201, 0.14)',
+      accentTint: 'rgba(128, 164, 212, 0.28)',
+      placeholder: 'rgba(74, 86, 128, 0.55)',
+      tabPill: '#C4E8EF',
+      onTabPill: '#1F4F7A',
+      noticeTile: '#6A64C2',
+      peopleStar: '#C4E8EF',
+      peopleAction: '#C4E8EF',
+      onPeopleAction: '#2E2C7E',
+      emptyStar: '#6A64C2',
+    },
+    gradients: {
+      hero: ['#80A4D4', '#A3C6E2', '#C4E8EF'],
+      strong: ['#5F59B8', '#6A64C2'],
+      dark: ['#1E2158', '#3D3A96', '#6A64C2'],
+    },
+    heroIsDark: false,
+  },
 } as const;
 
-/** Paleta en uso: 'vintage', 'cobalto', 'verdigris', 'amatista', 'aurora' o 'cherry' */
-const ACTIVE_PALETTE: keyof typeof palettes = 'aurora';
+/** Paleta en uso: 'vintage', 'cobalto', 'verdigris', 'amatista', 'aurora', 'cherry' o 'frosted' */
+const ACTIVE_PALETTE: keyof typeof palettes = 'frosted';
 
 const palette = palettes[ACTIVE_PALETTE];
 
+/** Combinaciones por defecto de estas piezas; una paleta puede definir las suyas. */
+const defaultPieces = {
+  tabPill: '#7B75C9',
+  onTabPill: '#FFFFFF',
+  noticeTile: '#7B75C9',
+  peopleStar: '#DDF5E3',
+  peopleAction: '#7B75C9',
+  onPeopleAction: '#FFFFFF',
+  emptyStar: '#FFFFFF',
+};
+
 export const colors = {
+  ...defaultPieces,
   ...palette.colors,
   white: '#FFFFFF',
   amberBg: '#FDEFC8',

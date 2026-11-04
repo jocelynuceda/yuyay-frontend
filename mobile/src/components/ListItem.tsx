@@ -10,7 +10,7 @@ export function ListItem({
   initials,
   icon,
   iconBg = colors.soft,
-  iconFg = colors.primary,
+  iconFg = colors.softText,
   right,
   footer,
   onPress,
@@ -27,42 +27,48 @@ export function ListItem({
   onPress?: () => void;
   dimmed?: boolean;
 }) {
-  const body = (
+  const identity = (
     <>
-      <View style={styles.row}>
-        <View style={[styles.avatar, { backgroundColor: iconBg }]}>
-          {initials ? (
-            <Text style={[styles.initials, { color: iconFg }]}>{initials}</Text>
-          ) : (
-            <Ionicons name={icon ?? 'ellipse-outline'} size={20} color={iconFg} />
-          )}
-        </View>
-        <View style={styles.flex}>
-          <Text style={styles.title} numberOfLines={2}>
-            {title}
-          </Text>
-          {subtitle ? (
-            <Text style={styles.subtitle} numberOfLines={2}>
-              {subtitle}
-            </Text>
-          ) : null}
-        </View>
-        {right}
-        {onPress ? <Ionicons name="chevron-forward" size={18} color={colors.muted} /> : null}
+      <View style={[styles.avatar, { backgroundColor: iconBg }]}>
+        {initials ? (
+          <Text style={[styles.initials, { color: iconFg }]}>{initials}</Text>
+        ) : (
+          <Ionicons name={icon ?? 'ellipse-outline'} size={20} color={iconFg} />
+        )}
       </View>
-      {footer}
+      <View style={styles.flex}>
+        <Text style={styles.title} numberOfLines={2}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text style={styles.subtitle} numberOfLines={2}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
     </>
   );
 
-  if (!onPress) return <View style={[styles.card, dimmed && styles.dimmed]}>{body}</View>;
+  // `right` y `footer` quedan fuera del Pressable: pueden traer sus propios botones
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, dimmed && styles.dimmed, pressed && { opacity: 0.85 }]}
-      accessibilityRole="button"
-    >
-      {body}
-    </Pressable>
+    <View style={[styles.card, dimmed && styles.dimmed]}>
+      <View style={styles.row}>
+        {onPress ? (
+          <Pressable
+            onPress={onPress}
+            style={({ pressed }) => [styles.identity, pressed && { opacity: 0.7 }]}
+            accessibilityRole="button"
+          >
+            {identity}
+            {right ? null : <Ionicons name="chevron-forward" size={18} color={colors.muted} />}
+          </Pressable>
+        ) : (
+          <View style={styles.identity}>{identity}</View>
+        )}
+        {right}
+      </View>
+      {footer}
+    </View>
   );
 }
 
@@ -103,6 +109,7 @@ const styles = StyleSheet.create({
   },
   dimmed: { opacity: 0.6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  identity: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   initials: { fontFamily: fonts.display, fontSize: 16 },
   title: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },

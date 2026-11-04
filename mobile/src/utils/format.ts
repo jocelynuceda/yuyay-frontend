@@ -13,6 +13,28 @@ export function todayIso() {
 
 export const formatDate = (value?: string | null) => (value ? dateFormatter.format(parse(value)) : '—');
 
+const dateTimeFormatter = new Intl.DateTimeFormat('es-PE', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+/** Fecha y hora, para saber cuándo pasó algo exactamente. */
+export const formatDateTime = (value?: string | null) => (value ? dateTimeFormatter.format(parse(value)) : '—');
+
+const timeFormatter = new Intl.DateTimeFormat('es-PE', { hour: 'numeric', minute: '2-digit' });
+
+/** Hora guardada ("15:30:00") como la lee una persona. */
+export function formatTime(value: string) {
+  const [hour, minute] = value.split(':').map(Number);
+  return timeFormatter.format(new Date(2000, 0, 1, hour, minute));
+}
+
+/** Clave para ordenar citas: por fecha y, dentro del día, por hora. */
+export const appointmentOrder = (c: { date: string; time: string | null }) => `${c.date} ${c.time ?? ''}`;
+
 export function ageFrom(birthDate?: string | null) {
   if (!birthDate) return null;
   const birth = parse(birthDate);

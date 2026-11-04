@@ -1,16 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, gradients, heroIsDark, radius, shadow } from '../theme';
+import { FormScroll } from './FormScroll';
 import { Logo } from './Logo';
 import { Sparkle } from './Sparkle';
 import { SparkleBuddy } from './SparkleBuddy';
@@ -42,64 +35,61 @@ export function AuthLayout({
 
   return (
     <View style={styles.flex}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      <FormScroll
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <LinearGradient
+          colors={gradients.hero}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.hero, { paddingTop: insets.top + 16 }]}
         >
-          <LinearGradient
-            colors={gradients.hero}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.hero, { paddingTop: insets.top + 16 }]}
-          >
-            {/* Estrellas decorativas de fondo */}
-            <View style={styles.decoLayer} pointerEvents="none">
-              <View style={[styles.deco, { top: insets.top + 54, right: 28 }]}>
-                <Sparkle size={18} color="rgba(255,255,255,0.7)" />
-              </View>
-              <View style={[styles.deco, { bottom: 86, right: 132 }]}>
-                <Sparkle size={12} color={colors.cream} />
-              </View>
-              <View style={[styles.glow, { top: -60, left: -40 }]} />
+          {/* Estrellas decorativas de fondo */}
+          <View style={styles.decoLayer} pointerEvents="none">
+            <View style={[styles.deco, { top: insets.top + 54, right: 28 }]}>
+              <Sparkle size={18} color="rgba(255,255,255,0.7)" />
             </View>
-
-            <Logo light={heroIsDark} />
-
-            <View style={styles.heroRow}>
-              <View style={styles.heroText}>
-                <Text style={styles.title}>{title}</Text>
-                <Text style={styles.subtitle}>{subtitle}</Text>
-              </View>
-              <SparkleBuddy size={128} />
+            <View style={[styles.deco, { bottom: 86, right: 132 }]}>
+              <Sparkle size={12} color={colors.cream} />
             </View>
-          </LinearGradient>
-
-          <View style={styles.card}>
-            <View style={styles.segment} accessibilityRole="tablist">
-              {modes.map((m) => {
-                const active = m.key === mode;
-                return (
-                  <Pressable
-                    key={m.key}
-                    onPress={() => !active && onSwitchMode(m.key)}
-                    style={[styles.segmentItem, active && styles.segmentActive]}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: active }}
-                  >
-                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{m.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <View style={styles.form}>{children}</View>
+            <View style={[styles.glow, { top: -60, left: -40 }]} />
           </View>
 
-          {footer ? <View style={styles.footer}>{footer}</View> : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <Logo light={heroIsDark} />
+
+          <View style={styles.heroRow}>
+            <View style={styles.heroText}>
+              <Text style={styles.title}>{title}</Text>
+              <Text style={styles.subtitle}>{subtitle}</Text>
+            </View>
+            <SparkleBuddy size={128} />
+          </View>
+        </LinearGradient>
+
+        <View style={styles.card}>
+          <View style={styles.segment} accessibilityRole="tablist">
+            {modes.map((m) => {
+              const active = m.key === mode;
+              return (
+                <Pressable
+                  key={m.key}
+                  onPress={() => !active && onSwitchMode(m.key)}
+                  style={[styles.segmentItem, active && styles.segmentActive]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{m.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.form}>{children}</View>
+        </View>
+
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      </FormScroll>
     </View>
   );
 }

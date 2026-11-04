@@ -15,7 +15,7 @@ export function EmptyState({
   return (
     <View style={styles.box}>
       <View style={styles.icon}>
-        <Sparkle size={24} />
+        <Sparkle size={24} color={colors.emptyStar} />
       </View>
       <Text style={styles.title}>{title}</Text>
       {description ? <Text style={styles.description}>{description}</Text> : null}

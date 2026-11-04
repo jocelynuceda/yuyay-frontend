@@ -13,7 +13,7 @@ import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoadingView } from './src/components/LoadingView';
 import { AuthProvider } from './src/contexts/AuthContext';
-import { RootNavigator } from './src/navigation/RootNavigator';
+import { linking, RootNavigator } from './src/navigation/RootNavigator';
 import { colors, paperTheme } from './src/theme';
 
 const navigationTheme = {
@@ -39,7 +39,7 @@ export default function App() {
       <PaperProvider theme={paperTheme}>
         {fontsLoaded ? (
           <AuthProvider>
-            <NavigationContainer theme={navigationTheme}>
+            <NavigationContainer theme={navigationTheme} linking={linking}>
               <RootNavigator />
             </NavigationContainer>
           </AuthProvider>

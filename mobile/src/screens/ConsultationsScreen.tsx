@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
 import { IconButton, ListItem } from '../components/ListItem';
@@ -13,12 +14,12 @@ import { ApiError } from '../services/http';
 import { colors, fonts } from '../theme';
 import type { Consultation, HomeStackParamList } from '../types';
 import { confirmAction } from '../utils/confirm';
-import { formatDate, todayIso } from '../utils/format';
+import { appointmentOrder, formatDate, formatTime, todayIso } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Consultations'>;
 
 export function ConsultationsScreen({ route, navigation }: Props) {
-  const { subjectId, isPrincipal } = route.params;
+  const { subjectId, subjectName, isPrincipal } = route.params;
   const [error, setError] = useState<string | null>(null);
   const consultations = useFetch(() => getConsultations(subjectId), [subjectId]);
   useRefreshOnFocus(consultations.reload);
@@ -28,8 +29,12 @@ export function ConsultationsScreen({ route, navigation }: Props) {
   const today = todayIso();
   const all = consultations.data ?? [];
   // Próximas: la más cercana primero. Pasadas: la más reciente primero.
-  const upcoming = all.filter((c) => c.date >= today).sort((a, b) => a.date.localeCompare(b.date));
-  const past = all.filter((c) => c.date < today).sort((a, b) => b.date.localeCompare(a.date));
+  const upcoming = all
+    .filter((c) => c.date >= today)
+    .sort((a, b) => appointmentOrder(a).localeCompare(appointmentOrder(b)));
+  const past = all
+    .filter((c) => c.date < today)
+    .sort((a, b) => appointmentOrder(b).localeCompare(appointmentOrder(a)));
 
   async function handleDelete(c: Consultation) {
     if (!(await confirmAction('Borrar cita', `"${c.reason}" del ${formatDate(c.date)}.`, 'Borrar'))) return;
@@ -49,7 +54,23 @@ export function ConsultationsScreen({ route, navigation }: Props) {
       iconBg={upcomingItem ? colors.accentTint : colors.surface}
       iconFg={upcomingItem ? colors.accentText : colors.muted}
       title={c.reason}
-      subtitle={[formatDate(c.date), c.notes].filter(Boolean).join(' · ')}
+      subtitle={[formatDate(c.date), c.time && formatTime(c.time), c.notes].filter(Boolean).join(' · ')}
+      onPress={isPrincipal ? () => navigation.navigate('NewConsultation', { subjectId, consultation: c }) : undefined}
+      footer={
+        upcomingItem ? (
+          <AddToCalendar consultation={c} subjectName={subjectName} />
+        ) : (
+          <Pressable
+            onPress={() =>
+              navigation.navigate('ConsultationChanges', { subjectId, consultationId: c.id, since: c.date })
+            }
+            hitSlop={6}
+            accessibilityRole="button"
+          >
+            <Text style={styles.changes}>Ver cambios desde esta cita</Text>
+          </Pressable>
+        )
+      }
       right={
         isPrincipal ? (
           <IconButton icon="trash-outline" label={`Borrar ${c.reason}`} color={colors.danger} onPress={() => handleDelete(c)} />
@@ -97,5 +118,6 @@ export function ConsultationsScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
+  changes: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary, marginTop: 10, marginLeft: 56 },
   section: { fontFamily: fonts.display, fontSize: 20, color: colors.ink, marginTop: 8 },
 });

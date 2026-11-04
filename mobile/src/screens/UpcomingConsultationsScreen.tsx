@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
 import { ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
@@ -9,7 +10,7 @@ import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getCareSubjects, getConsultations } from '../services/api';
 import { colors, fonts, radius } from '../theme';
 import type { HomeStackParamList } from '../types';
-import { initialsOf, todayIso } from '../utils/format';
+import { appointmentOrder, formatTime, initialsOf, todayIso } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'UpcomingConsultations'>;
 
@@ -32,7 +33,7 @@ async function loadUpcoming() {
   return lists
     .flat()
     .filter((c) => c.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date))
+    .sort((a, b) => appointmentOrder(a).localeCompare(appointmentOrder(b)))
     .map((c) => ({ ...c, subject: subjects.find((s) => s.id === c.careSubjectId)! }));
 }
 
@@ -74,11 +75,17 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
                 <ListItem
                   initials={initialsOf(c.subject.name)}
                   title={c.reason}
-                  subtitle={`${c.subject.name} · ${daysUntil(c.date, today)}, ${weekdayLong.format(date)}`}
-                  footer={c.notes ? <Text style={styles.notes}>{c.notes}</Text> : null}
+                  subtitle={`${c.subject.name} · ${daysUntil(c.date, today)}, ${weekdayLong.format(date)}${c.time ? `, ${formatTime(c.time)}` : ''}`}
+                  footer={
+                    <>
+                      {c.notes ? <Text style={styles.notes}>{c.notes}</Text> : null}
+                      <AddToCalendar consultation={c} subjectName={c.subject.name} />
+                    </>
+                  }
                   onPress={() =>
                     navigation.navigate('Consultations', {
                       subjectId: c.subject.id,
+                      subjectName: c.subject.name,
                       isPrincipal: c.subject.myRole === 'PRINCIPAL',
                     })
                   }

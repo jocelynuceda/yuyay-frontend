@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { EmptyState } from '../components/EmptyState';
 import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
+import { FormScroll } from '../components/FormScroll';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
@@ -63,84 +64,82 @@ export function NewHandoffScreen({ route, navigation }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={formStyles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={formStyles.container} keyboardShouldPersistTaps="handled">
-        <StatusMessage message={error ?? entries.error} />
+    <FormScroll contentContainerStyle={formStyles.container}>
+      <StatusMessage message={error ?? entries.error} />
 
-        <FormCard title="Motivo">
-          <FormField
-            label="¿Por qué van al médico?"
-            icon="stethoscope"
-            value={reason}
-            onChangeText={setReason}
-            maxLength={200}
-            error={reasonError}
-          />
-        </FormCard>
+      <FormCard title="Motivo">
+        <FormField
+          label="¿Por qué van al médico?"
+          icon="stethoscope"
+          value={reason}
+          onChangeText={setReason}
+          maxLength={200}
+          error={reasonError}
+        />
+      </FormCard>
 
-        <FormCard title="Preguntas para el médico (opcional)">
-          <TextArea
-            value={questions}
-            onChangeText={setQuestions}
-            placeholder="¿Puede tomar el nuevo jarabe con sus pastillas? ¿Cada cuánto el control?"
-          />
-        </FormCard>
+      <FormCard title="Preguntas para el médico (opcional)">
+        <TextArea
+          value={questions}
+          onChangeText={setQuestions}
+          placeholder="¿Puede tomar el nuevo jarabe con sus pastillas? ¿Cada cuánto el control?"
+        />
+      </FormCard>
 
-        <FormCard title={`Registros a incluir (${selected.size})`}>
-          {all.length === 0 ? (
-            <EmptyState title="No hay registros" description="Agrega registros de salud para poder resumirlos." />
-          ) : (
-            (categories.data ?? []).map((c) => {
-              const items = all.filter((e) => e.categoryCode === c.code);
-              if (items.length === 0) return null;
-              const meta = categoryMeta[c.code] ?? fallbackCategory;
-              const ids = items.map((e) => e.id);
-              const allOn = ids.every((id) => selected.has(id));
-              return (
-                <View key={c.code} style={styles.group}>
-                  <Pressable onPress={() => toggle(ids)} style={styles.groupHeader} accessibilityRole="button">
-                    <View style={[styles.groupIcon, { backgroundColor: meta.bg }]}>
-                      <Ionicons name={meta.icon} size={16} color={meta.fg} />
-                    </View>
-                    <Text style={styles.groupTitle}>{meta.plural}</Text>
-                    <Text style={styles.groupToggle}>{allOn ? 'Quitar todos' : 'Marcar todos'}</Text>
-                  </Pressable>
-                  {items.map((e) => {
-                    const on = selected.has(e.id);
-                    return (
-                      <Pressable
-                        key={e.id}
-                        onPress={() => toggle([e.id])}
-                        style={styles.item}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: on }}
-                      >
-                        <Ionicons
-                          name={on ? 'checkbox' : 'square-outline'}
-                          size={22}
-                          color={on ? colors.primary : colors.muted}
-                        />
-                        <View style={formStyles.flex}>
-                          <Text style={styles.itemTitle}>{e.latestVersion.title}</Text>
-                          {e.latestVersion.dose || e.latestVersion.frequency ? (
-                            <Text style={styles.itemMeta}>
-                              {[e.latestVersion.dose, e.latestVersion.frequency].filter(Boolean).join(' · ')}
-                            </Text>
-                          ) : null}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              );
-            })
-          )}
-          {pickError ? <Text style={formStyles.error}>{pickError}</Text> : null}
-        </FormCard>
+      <FormCard title={`Registros a incluir (${selected.size})`}>
+        {all.length === 0 ? (
+          <EmptyState title="No hay registros" description="Agrega registros de salud para poder resumirlos." />
+        ) : (
+          (categories.data ?? []).map((c) => {
+            const items = all.filter((e) => e.categoryCode === c.code);
+            if (items.length === 0) return null;
+            const meta = categoryMeta[c.code] ?? fallbackCategory;
+            const ids = items.map((e) => e.id);
+            const allOn = ids.every((id) => selected.has(id));
+            return (
+              <View key={c.code} style={styles.group}>
+                <Pressable onPress={() => toggle(ids)} style={styles.groupHeader} accessibilityRole="button">
+                  <View style={[styles.groupIcon, { backgroundColor: meta.bg }]}>
+                    <Ionicons name={meta.icon} size={16} color={meta.fg} />
+                  </View>
+                  <Text style={styles.groupTitle}>{meta.plural}</Text>
+                  <Text style={styles.groupToggle}>{allOn ? 'Quitar todos' : 'Marcar todos'}</Text>
+                </Pressable>
+                {items.map((e) => {
+                  const on = selected.has(e.id);
+                  return (
+                    <Pressable
+                      key={e.id}
+                      onPress={() => toggle([e.id])}
+                      style={styles.item}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: on }}
+                    >
+                      <Ionicons
+                        name={on ? 'checkbox' : 'square-outline'}
+                        size={22}
+                        color={on ? colors.primary : colors.muted}
+                      />
+                      <View style={formStyles.flex}>
+                        <Text style={styles.itemTitle}>{e.latestVersion.title}</Text>
+                        {e.latestVersion.dose || e.latestVersion.frequency ? (
+                          <Text style={styles.itemMeta}>
+                            {[e.latestVersion.dose, e.latestVersion.frequency].filter(Boolean).join(' · ')}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            );
+          })
+        )}
+        {pickError ? <Text style={formStyles.error}>{pickError}</Text> : null}
+      </FormCard>
 
-        <SubmitButton label="Crear resumen" onPress={handleSave} loading={saving} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <SubmitButton label="Crear resumen" onPress={handleSave} loading={saving} />
+    </FormScroll>
   );
 }
 
