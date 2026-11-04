@@ -1,13 +1,15 @@
-import { createContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
 import * as api from '../services/api';
-import { refreshSession, setSessionExpiredHandler, tokenStore } from '../services/http';
+import { NoSessionError, refreshSession, session, setSessionHandlers } from '../services/http';
 import type { AuthResponse, User } from '../types';
 
-type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
+type AuthStatus = 'loading' | 'authenticated' | 'anonymous' | 'recoverable' | 'logout-failed';
 
 export interface AuthContextValue {
   status: AuthStatus;
   user: User | null;
+  recoveryError: string | null;
+  retrySession: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -18,41 +20,78 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<User | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Al abrir la app se intenta recuperar la sesión con el refresh token guardado
-    refreshSession()
-      .then((res) => {
-        setUser(res.user);
-        setStatus('authenticated');
-      })
-      .catch(() => setStatus('anonymous'));
-
-    setSessionExpiredHandler(() => {
-      setUser(null);
-      setStatus('anonymous');
+  const restore = useCallback((active: () => boolean = () => true) => {
+    const expected = session.generation;
+    return refreshSession().then((result) => {
+      if (!active() || expected !== session.generation) return;
+      setUser(result.user);
+      setStatus('authenticated');
+    }).catch((error: unknown) => {
+      if (!active()) return;
+      if (error instanceof NoSessionError) {
+        if (expected === session.generation) setStatus('anonymous');
+      } else if (expected === session.generation) {
+        setRecoveryError(error instanceof Error ? error.message : 'No pudimos recuperar la sesión.');
+        setStatus('recoverable');
+      }
     });
   }, []);
 
-  async function startSession(res: AuthResponse) {
-    await tokenStore.save(res);
-    setUser(res.user);
+  useEffect(() => {
+    let active = true;
+    const unsubscribe = setSessionHandlers(() => {
+      setUser(null);
+      setStatus('anonymous');
+    }, (message) => {
+      setRecoveryError(message);
+      setStatus('recoverable');
+    });
+    void restore(() => active);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [restore]);
+
+  async function startSession(request: () => Promise<AuthResponse>) {
+    const expected = session.generation;
+    const result = await request();
+    if (expected !== session.generation) throw new NoSessionError();
+    const saving = session.replace(result);
+    const savingGeneration = session.generation;
+    await saving;
+    if (savingGeneration !== session.generation) throw new NoSessionError();
+    setUser(result.user);
     setStatus('authenticated');
+    setRecoveryError(null);
   }
 
   const value: AuthContextValue = {
-    status,
-    user,
-    login: async (email, password) => startSession(await api.login(email, password)),
-    register: async (name, email, password) => startSession(await api.register(name, email, password)),
+    status, user, recoveryError,
+    retrySession: () => {
+      if (status === 'logout-failed') return value.logout();
+      setStatus('loading');
+      setRecoveryError(null);
+      return restore();
+    },
+    login: (email, password) => startSession(() => api.login(email, password)),
+    register: (name, email, password) => startSession(() => api.register(name, email, password)),
     logout: async () => {
-      const refreshToken = await tokenStore.getRefresh();
-      await tokenStore.clear();
+      const removal = session.logout();
+      const expected = session.generation;
       setUser(null);
       setStatus('anonymous');
-      if (refreshToken) api.logout(refreshToken).catch(() => {});
+      setRecoveryError(null);
+      try {
+        await removal;
+      } catch {
+        if (expected !== session.generation) return;
+        setRecoveryError('No pudimos borrar la sesión guardada. Reintenta el cierre de sesión.');
+        setStatus('logout-failed');
+      }
     },
   };
-
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
