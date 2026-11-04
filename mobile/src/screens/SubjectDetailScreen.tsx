@@ -26,7 +26,7 @@ import {
 } from '../services/api';
 import { colors, fonts, radius, shadow } from '../theme';
 import type { HomeStackParamList } from '../types';
-import { categoryMeta, fallbackCategory } from '../utils/categories';
+import { categoryMeta, EXAM_CATEGORY, fallbackCategory } from '../utils/categories';
 import { ageFrom, careRoleLabel, formatDate, initialsOf } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'SubjectDetail'>;
@@ -143,6 +143,7 @@ function SubjectProfile({
     { icon: 'clipboard-outline', label: 'Resumen', onPress: () => navigation.navigate('Handoffs', { subjectId }) },
     { icon: 'key-outline', label: 'Delegar', onPress: () => navigation.navigate('Delegations', { subjectId, isPrincipal }) },
     { icon: 'document-attach-outline', label: 'Documentos', onPress: () => navigation.navigate('Documents', { subjectId }) },
+    { icon: 'flask-outline', label: 'Exámenes', onPress: () => navigation.navigate('Exams', { subjectId }) },
     { icon: 'mic-outline', label: 'Notas de voz', onPress: () => navigation.navigate('VoiceNotes', { subjectId }) },
     { icon: 'location-outline', label: 'Clínicas', onPress: () => navigation.navigate('NearbyClinics') },
     // El backend reserva la bitácora al principal
@@ -234,7 +235,7 @@ function SubjectProfile({
       <View>
         <Text style={styles.section}>Perfil clínico</Text>
         <View style={styles.clinical}>
-          {(categories.data ?? []).map((c, i) => {
+          {(categories.data ?? []).filter((c) => c.code !== EXAM_CATEGORY).map((c, i) => {
             const meta = categoryMeta[c.code] ?? fallbackCategory;
             const expanded = open.has(c.code);
             const items = entriesOf(c.code);

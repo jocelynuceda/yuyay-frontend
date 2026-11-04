@@ -108,6 +108,7 @@ export interface Delegation {
   granteeName: string;
   granteeEmail: string;
   categoryCodes: string[];
+  includeConsultations: boolean;
   validUntil: string;
   exchangedAt: string | null;
   revokedAt: string | null;
@@ -119,6 +120,7 @@ export interface DelegationInput {
   granteeName: string;
   granteeEmail: string;
   categoryCodes: string[];
+  includeConsultations: boolean;
   validUntil: string;
 }
 
@@ -135,6 +137,8 @@ export interface DelegateSession {
   careSubjectName: string;
   granteeName: string;
   categoryCodes: string[];
+  /** Falta en las sesiones guardadas antes de que existiera esta opción. */
+  includeConsultations?: boolean;
   /** Código con el que se abrió: al volver al mismo enlace se reutiliza esta sesión. */
   sourceToken: string;
 }
@@ -177,6 +181,7 @@ export interface HealthEntryInput {
   details?: string;
   dose?: string;
   frequency?: string;
+  occurredOn?: string;
   confidenceLevel: ConfidenceLevel;
   sourceAttachmentId?: number;
 }
@@ -228,6 +233,9 @@ export interface Consultation {
   notes: string | null;
   createdAt: string;
 }
+
+/** Lo que ve un acceso delegado: las notas no se comparten. */
+export type DelegateConsultation = Pick<Consultation, 'id' | 'date' | 'time' | 'reason'>;
 
 export interface ConsultationInput {
   date: string;
@@ -283,6 +291,7 @@ export type HomeStackParamList = {
   SubjectDetail: { subjectId: number; name: string };
   NewSubject: undefined;
   EditSubject: { subject: CareSubject };
+  Exams: { subjectId: number };
   NewEntry: {
     subjectId: number;
     categoryCode?: string;

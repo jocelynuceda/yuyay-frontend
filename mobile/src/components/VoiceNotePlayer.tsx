@@ -14,8 +14,8 @@ export function VoiceNotePlayer({
   onDelete,
 }: {
   note: Attachment;
-  onCreateEntry: () => void;
-  onDelete: () => void;
+  onCreateEntry?: () => void;
+  onDelete?: () => void;
 }) {
   const player = useAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
@@ -84,14 +84,20 @@ export function VoiceNotePlayer({
           <Text style={styles.time}>{failed ? 'No pudimos cargar el audio.' : time}</Text>
         </View>
       </View>
-      <View style={styles.actions}>
-        <Pressable onPress={onCreateEntry} hitSlop={8} accessibilityRole="button">
-          <Text style={styles.action}>Crear registro</Text>
-        </Pressable>
-        <Pressable onPress={onDelete} hitSlop={8} accessibilityRole="button">
-          <Text style={[styles.action, styles.danger]}>Borrar</Text>
-        </Pressable>
-      </View>
+      {onCreateEntry || onDelete ? (
+        <View style={styles.actions}>
+          {onCreateEntry ? (
+            <Pressable onPress={onCreateEntry} hitSlop={8} accessibilityRole="button">
+              <Text style={styles.action}>Crear registro</Text>
+            </Pressable>
+          ) : null}
+          {onDelete ? (
+            <Pressable onPress={onDelete} hitSlop={8} accessibilityRole="button">
+              <Text style={[styles.action, styles.danger]}>Borrar</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }

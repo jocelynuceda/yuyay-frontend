@@ -32,7 +32,7 @@ export function ConsultationChangesScreen({ route }: Props) {
       <StatusMessage message={changes.error} />
       {list.length === 0 ? <EmptyState title="Sin cambios" description="Nada cambió desde esta cita." /> : null}
       {list.map((v) => (
-        <VersionCard key={v.id} version={v} />
+        <VersionCard key={v.id} subjectId={subjectId} version={v} />
       ))}
     </ScrollView>
   );

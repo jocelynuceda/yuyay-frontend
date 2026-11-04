@@ -25,6 +25,8 @@ import { SubjectDetailScreen } from '../screens/SubjectDetailScreen';
 import { UpcomingConsultationsScreen } from '../screens/UpcomingConsultationsScreen';
 import { colors, fonts } from '../theme';
 import type { HomeStackParamList } from '../types';
+import { ExamsScreen } from '../screens/ExamsScreen';
+import { EXAM_CATEGORY } from '../utils/categories';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -63,8 +65,12 @@ export function HomeStackNavigator() {
       <Stack.Screen
         name="NewEntry"
         component={NewEntryScreen}
-        options={{ title: 'Nuevo registro', presentation: 'modal' }}
+        options={({ route }) => ({
+          title: route.params.categoryCode === EXAM_CATEGORY ? 'Nuevo examen' : 'Nuevo registro',
+          presentation: 'modal',
+        })}
       />
+      <Stack.Screen name="Exams" component={ExamsScreen} options={{ title: 'Exámenes' }} />
       <Stack.Screen name="Consultations" component={ConsultationsScreen} options={{ title: 'Citas' }} />
       <Stack.Screen
         name="NewConsultation"

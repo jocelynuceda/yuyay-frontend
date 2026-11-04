@@ -17,6 +17,9 @@ import { formatDate, isEmail, todayIso } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewDelegation'>;
 
+/** Las citas se eligen junto a las categorías, pero no son una categoría de salud. */
+const CONSULTATIONS = 'CONSULTATIONS';
+
 export function NewDelegationScreen({ route, navigation }: Props) {
   const { subjectId } = route.params;
   const categories = useFetch(getHealthCategories);
@@ -36,7 +39,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   const errors = {
     name: !name.trim() ? 'Ingresa su nombre.' : undefined,
     email: !isEmail(email) ? 'Ingresa un correo válido.' : undefined,
-    codes: codes.length === 0 ? 'Elige al menos una categoría.' : undefined,
+    codes: codes.length === 0 ? 'Elige al menos una opción.' : undefined,
     date: dateError ?? (date.iso < today ? 'Debe ser hoy o una fecha futura.' : undefined),
   };
 
@@ -53,7 +56,8 @@ export function NewDelegationScreen({ route, navigation }: Props) {
       const res = await createDelegation(subjectId, {
         granteeName: name.trim(),
         granteeEmail: email.trim(),
-        categoryCodes: codes,
+        categoryCodes: codes.filter((code) => code !== CONSULTATIONS),
+        includeConsultations: codes.includes(CONSULTATIONS),
         // Vale hasta el final del día elegido, en hora local
         validUntil: new Date(`${date.iso}T23:59:59`).toISOString(),
       });
@@ -127,10 +131,16 @@ export function NewDelegationScreen({ route, navigation }: Props) {
 
       <FormCard title="¿Qué podrá ver?">
         <ChoiceChips
-          options={(categories.data ?? []).map((c) => ({ value: c.code, label: categoryMeta[c.code]?.plural ?? c.name }))}
+          options={[
+            ...(categories.data ?? []).map((c) => ({ value: c.code, label: categoryMeta[c.code]?.plural ?? c.name })),
+            { value: CONSULTATIONS, label: 'Citas' },
+          ]}
           selected={codes}
           onToggle={toggleCode}
         />
+        {codes.includes(CONSULTATIONS) ? (
+          <Text style={styles.help}>Verá la fecha, la hora y el motivo de las citas, pero no sus notas.</Text>
+        ) : null}
         {submitted && errors.codes ? <Text style={formStyles.error}>{errors.codes}</Text> : null}
       </FormCard>
 

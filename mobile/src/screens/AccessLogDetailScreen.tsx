@@ -136,7 +136,7 @@ export function AccessLogDetailScreen({ route }: Props) {
             <EntryChanges version={target.data.version} previous={target.data.previous} />
           ) : null}
           <Text style={styles.section}>{log.action === 'UPDATE' ? 'Cómo quedó' : 'Registro'}</Text>
-          <VersionCard version={target.data.version} />
+          <VersionCard subjectId={subjectId} version={target.data.version} />
         </>
       ) : null}
 

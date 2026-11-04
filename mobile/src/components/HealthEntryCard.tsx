@@ -1,23 +1,33 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { HealthEntry } from '../types';
 import { colors, fonts, radius, shadow } from '../theme';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
-import { formatDateTime } from '../utils/format';
+import { formatDate, formatDateTime } from '../utils/format';
 import { Badge } from './Badge';
+import { VersionAttachment } from './VersionAttachment';
 
 export function HealthEntryCard({
   entry,
   onEdit,
   onHistory,
+  attachmentOpen = false,
 }: {
   entry: HealthEntry;
   onEdit?: () => void;
   onHistory?: () => void;
+  /** Muestra la foto o el audio sin esperar a que se toque «Ver adjunto». */
+  attachmentOpen?: boolean;
 }) {
+  const [showAttachment, setShowAttachment] = useState(attachmentOpen);
   const v = entry.latestVersion;
   const tone = categoryMeta[entry.categoryCode] ?? fallbackCategory;
-  const facts = [v.dose && `Dosis: ${v.dose}`, v.frequency && v.frequency].filter(Boolean).join(' · ');
+  // Un acceso delegado no tiene acciones ni permiso para abrir adjuntos
+  const canSeeAttachment = !!v.sourceAttachmentId && !!onHistory;
+  const facts = [v.occurredOn && formatDate(v.occurredOn), v.dose && `Dosis: ${v.dose}`, v.frequency && v.frequency]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <View style={styles.card}>
@@ -39,10 +49,20 @@ export function HealthEntryCard({
       <Text style={styles.footer}>
         {v.versionNumber > 1 ? 'Actualizado' : 'Creado'} por {v.declaredBy.name} · {formatDateTime(v.declaredAt)}
       </Text>
+      {canSeeAttachment && showAttachment ? (
+        <VersionAttachment subjectId={entry.careSubjectId} attachmentId={v.sourceAttachmentId!} />
+      ) : null}
       {onEdit || onHistory ? (
         <View style={styles.actions}>
           {onEdit ? <CardAction icon="create-outline" label="Editar" onPress={onEdit} /> : null}
           {onHistory ? <CardAction icon="time-outline" label="Historial" onPress={onHistory} /> : null}
+          {canSeeAttachment ? (
+            <CardAction
+              icon="attach-outline"
+              label={showAttachment ? 'Ocultar adjunto' : 'Ver adjunto'}
+              onPress={() => setShowAttachment((open) => !open)}
+            />
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -97,7 +117,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   details: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, marginTop: 10, lineHeight: 20 },
-  actions: { flexDirection: 'row', gap: 18, marginTop: 10 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 10 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   actionText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary },
   footer: {

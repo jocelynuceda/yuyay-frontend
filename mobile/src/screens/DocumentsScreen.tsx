@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { Platform, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
 import { Badge, type BadgeTone } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
@@ -11,6 +11,7 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getAttachments, uploadAttachment } from '../services/api';
+import { imageFormData, imagePickerOptions } from '../services/attachmentFiles';
 import { ApiError } from '../services/http';
 import { colors, fonts } from '../theme';
 import type { HomeStackParamList, OcrStatus } from '../types';
@@ -27,23 +28,6 @@ export const ocrBadge: Record<OcrStatus, { label: string; tone: BadgeTone }> = {
 
 /** Cada cuánto se revisa si el backend terminó de leer los documentos. */
 export const OCR_POLL_MS = 3000;
-
-const pickerOptions: ImagePicker.ImagePickerOptions = {
-  mediaTypes: ['images'],
-  quality: 0.7,
-  // El backend solo acepta JPEG y PNG: evita que iOS entregue HEIC
-  preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-};
-
-function toFormData(asset: ImagePicker.ImagePickerAsset) {
-  const form = new FormData();
-  const type = asset.mimeType ?? 'image/jpeg';
-  const name = asset.fileName ?? `documento.${type === 'image/png' ? 'png' : 'jpg'}`;
-  if (Platform.OS === 'web' && asset.file) form.append('file', asset.file, name);
-  // En iOS y Android FormData recibe la ruta del archivo en lugar de un Blob
-  else form.append('file', { uri: asset.uri, name, type } as unknown as Blob);
-  return form;
-}
 
 export function DocumentsScreen({ route, navigation }: Props) {
   const { subjectId } = route.params;
@@ -70,7 +54,7 @@ export function DocumentsScreen({ route, navigation }: Props) {
     setUploading(true);
     setError(null);
     try {
-      const attachment = await uploadAttachment(subjectId, toFormData(asset));
+      const attachment = await uploadAttachment(subjectId, imageFormData(asset));
       navigation.navigate('ReviewOcr', { subjectId, attachmentId: attachment.id });
     } catch (e) {
       if (e instanceof ApiError && e.status === 502) {
@@ -89,11 +73,11 @@ export function DocumentsScreen({ route, navigation }: Props) {
       setError('Activa el permiso de cámara en los ajustes del celular para tomar la foto.');
       return;
     }
-    await upload(await ImagePicker.launchCameraAsync(pickerOptions));
+    await upload(await ImagePicker.launchCameraAsync(imagePickerOptions));
   }
 
   async function pickImage() {
-    await upload(await ImagePicker.launchImageLibraryAsync(pickerOptions));
+    await upload(await ImagePicker.launchImageLibraryAsync(imagePickerOptions));
   }
 
   // Las notas de voz tienen su propia pantalla

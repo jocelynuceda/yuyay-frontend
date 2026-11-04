@@ -1,5 +1,5 @@
 import { AxiosError, create } from 'axios';
-import type { DelegateSession, HealthEntry } from '../types';
+import type { DelegateConsultation, DelegateSession, HealthEntry } from '../types';
 import { ApiError, toApiError } from './client';
 import { API_URL, secureStorage } from './http';
 
@@ -32,6 +32,7 @@ export async function openDelegation(code: string): Promise<DelegateSession> {
     careSubjectName: data.careSubjectName,
     granteeName: data.granteeName,
     categoryCodes: data.categoryCodes,
+    includeConsultations: data.includeConsultations,
     sourceToken: code,
   };
   await secureStorage.set(SESSION_KEY, JSON.stringify(session));
@@ -52,6 +53,13 @@ export const clearDelegateSession = () => secureStorage.remove(SESSION_KEY);
 export const getDelegateEntries = (session: DelegateSession) =>
   delegateHttp
     .get<HealthEntry[]>('/delegate/health-entries', {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+    })
+    .then((r) => r.data);
+
+export const getDelegateConsultations = (session: DelegateSession) =>
+  delegateHttp
+    .get<DelegateConsultation[]>('/delegate/consultations', {
       headers: { Authorization: `Bearer ${session.accessToken}` },
     })
     .then((r) => r.data);

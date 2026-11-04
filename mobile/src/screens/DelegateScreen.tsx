@@ -11,17 +11,18 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import {
   clearDelegateSession,
+  getDelegateConsultations,
   getDelegateEntries,
   loadDelegateSession,
   openDelegation,
   parseAccessCode,
 } from '../services/delegate';
 import { ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { colors, fonts, radius } from '../theme';
 import type { DelegateSession, RootStackParamList } from '../types';
 import { categoryMeta } from '../utils/categories';
 import { confirmAction } from '../utils/confirm';
-import { formatDate } from '../utils/format';
+import { formatDate, formatTime } from '../utils/format';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Delegate'>;
 
@@ -90,12 +91,18 @@ function AccessForm({ initialCode, onOpen }: { initialCode: string; onOpen: (ses
 
 function SharedInfo({ session, onExit }: { session: DelegateSession; onExit: () => void }) {
   const entries = useFetch(() => getDelegateEntries(session), [session.accessToken]);
+  const consultations = useFetch(
+    () => (session.includeConsultations ? getDelegateConsultations(session) : Promise.resolve([])),
+    [session.accessToken],
+  );
 
-  if (entries.loading && !entries.data) return <LoadingView />;
+  if ((entries.loading && !entries.data) || (consultations.loading && !consultations.data)) return <LoadingView />;
 
   const groups = session.categoryCodes
     .map((code) => ({ code, items: (entries.data ?? []).filter((e) => e.categoryCode === code) }))
     .filter((g) => g.items.length > 0);
+
+  const appointments = consultations.data ?? [];
 
   async function handleExit() {
     const ok = await confirmAction(
@@ -112,7 +119,14 @@ function SharedInfo({ session, onExit }: { session: DelegateSession; onExit: () 
     <ScrollView
       contentContainerStyle={styles.list}
       refreshControl={
-        <RefreshControl refreshing={entries.refreshing} onRefresh={entries.refresh} tintColor={colors.primary} />
+        <RefreshControl
+          refreshing={entries.refreshing || consultations.refreshing}
+          onRefresh={() => {
+            entries.refresh();
+            consultations.refresh();
+          }}
+          tintColor={colors.primary}
+        />
       }
     >
       <View>
@@ -122,9 +136,25 @@ function SharedInfo({ session, onExit }: { session: DelegateSession; onExit: () 
         </Text>
       </View>
 
-      <StatusMessage message={entries.error} />
+      <StatusMessage message={entries.error ?? consultations.error} />
 
-      {entries.data && groups.length === 0 ? <EmptyState title="Aún no hay registros para mostrar" /> : null}
+      {entries.data && groups.length === 0 && appointments.length === 0 ? (
+        <EmptyState title="Aún no hay información para mostrar" />
+      ) : null}
+
+      {appointments.length > 0 ? (
+        <View style={styles.appointments}>
+          <Text style={styles.sectionTight}>Citas</Text>
+          {appointments.map((c) => (
+            <View key={c.id} style={styles.appointment}>
+              <Text style={styles.appointmentReason}>{c.reason}</Text>
+              <Text style={styles.appointmentDate}>
+                {[formatDate(c.date), c.time && formatTime(c.time)].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {groups.map((g) => (
         <View key={g.code}>
@@ -147,6 +177,11 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.display, fontSize: 24, color: colors.ink },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
   section: { fontFamily: fonts.display, fontSize: 20, color: colors.ink, marginBottom: 10 },
+  sectionTight: { fontFamily: fonts.display, fontSize: 20, color: colors.ink },
+  appointments: { gap: 10 },
+  appointment: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 16, gap: 4 },
+  appointmentReason: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
+  appointmentDate: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   exit: { alignSelf: 'center', paddingVertical: 8 },
   exitText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },
 });

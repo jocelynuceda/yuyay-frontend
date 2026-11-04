@@ -30,7 +30,7 @@ export function EntryHistoryScreen({ route }: Props) {
       <StatusMessage message={versions.error} />
       {list.length === 0 ? <EmptyState title="Sin versiones" /> : null}
       {list.map((v, i) => (
-        <VersionCard key={v.id} version={v} current={i === 0} />
+        <VersionCard key={v.id} subjectId={subjectId} version={v} current={i === 0} />
       ))}
     </ScrollView>
   );

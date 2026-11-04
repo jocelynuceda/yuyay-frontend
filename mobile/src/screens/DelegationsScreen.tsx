@@ -59,7 +59,7 @@ export function DelegationsScreen({ route, navigation }: Props) {
       }
     >
       <Text style={styles.intro}>
-        Da acceso temporal a alguien sin cuenta (una enfermera, un familiar de viaje) solo a las categorías que elijas.
+        Da acceso temporal a alguien sin cuenta (una enfermera, un familiar de viaje) solo a lo que elijas.
       </Text>
 
       {isPrincipal ? (
@@ -77,7 +77,10 @@ export function DelegationsScreen({ route, navigation }: Props) {
       ) : (
         list.map((d) => {
           const state = delegationState(d);
-          const categories = d.categoryCodes.map((c) => categoryMeta[c]?.plural ?? c).join(', ');
+          const categories = [
+            ...d.categoryCodes.map((c) => categoryMeta[c]?.plural ?? c),
+            ...(d.includeConsultations ? ['Citas'] : []),
+          ].join(', ');
           return (
             <ListItem
               key={d.id}

@@ -1,16 +1,22 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import type { ImagePickerAsset } from 'expo-image-picker';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button, Chip, SegmentedButtons } from 'react-native-paper';
+import { DateField, parseDateParts } from '../components/DateField';
+import { EntryAttachmentField } from '../components/EntryAttachmentField';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
-import { createHealthEntry, getHealthCategories } from '../services/api';
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+import { createHealthEntry, getHealthCategories, uploadAttachment } from '../services/api';
+import { audioFormData, imageFormData } from '../services/attachmentFiles';
 import { ApiError } from '../services/http';
 import { colors, fonts } from '../theme';
 import type { ConfidenceLevel, HomeStackParamList } from '../types';
+import { EXAM_CATEGORY } from '../utils/categories';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewEntry'>;
 
@@ -26,23 +32,45 @@ export function NewEntryScreen({ route, navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [examDateParts, setExamDateParts] = useState({ day: '', month: '', year: '' });
+  const [submitted, setSubmitted] = useState(false);
+  const [photo, setPhoto] = useState<ImagePickerAsset | null>(null);
+  const voice = useVoiceRecorder();
+  // Si el registro falla después de subir el archivo, reintentar no debe subirlo de nuevo
+  const uploaded = useRef<{ uri: string; id: number } | null>(null);
 
   // El backend solo acepta dosis y frecuencia en medicación
   const isMedication = categoryCode === 'MEDICATION';
+  const isExam = categoryCode === EXAM_CATEGORY;
+  const examDate = parseDateParts(examDateParts);
+  const examDateError = isExam ? (examDate.error ?? (examDate.iso ? undefined : 'Ingresa la fecha del examen.')) : undefined;
+
+  async function uploadPicked() {
+    const uri = photo?.uri ?? voice.uri;
+    if (!uri) return undefined;
+    if (uploaded.current?.uri === uri) return uploaded.current.id;
+    const form = photo ? imageFormData(photo) : await audioFormData(uri);
+    const { id } = await uploadAttachment(subjectId, form);
+    uploaded.current = { uri, id };
+    return id;
+  }
 
   async function handleSave() {
-    if (!title.trim()) return;
+    setSubmitted(true);
+    if (!title.trim() || voice.isRecording || examDateError) return;
     setSaving(true);
     setError(null);
     try {
+      const attachmentId = sourceAttachmentId ?? (await uploadPicked());
       await createHealthEntry(subjectId, {
         categoryCode,
         title: title.trim(),
         details: details.trim(),
         dose: isMedication ? dose.trim() : '',
         frequency: isMedication ? frequency.trim() : '',
+        occurredOn: isExam ? examDate.iso : undefined,
         confidenceLevel,
-        sourceAttachmentId,
+        sourceAttachmentId: attachmentId,
       });
       // Desde un documento se vuelve a la lista: el texto ya se usó
       if (sourceAttachmentId && !returnToSource) navigation.pop(2);
@@ -51,6 +79,8 @@ export function NewEntryScreen({ route, navigation }: Props) {
       if (e instanceof ApiError) {
         setError(e.message);
         setFieldErrors(e.fieldErrors);
+      } else {
+        setError('No pudimos guardar el registro.');
       }
     } finally {
       setSaving(false);
@@ -84,8 +114,8 @@ export function NewEntryScreen({ route, navigation }: Props) {
       </View>
 
       <FormField
-        label="Título"
-        placeholder={isMedication ? 'Ej. Losartán 50 mg' : 'Ej. Alergia a la penicilina'}
+        label={isExam ? 'Nombre del examen' : 'Título'}
+        placeholder={isExam ? 'Ej. Hemograma completo' : isMedication ? 'Ej. Losartán 50 mg' : 'Ej. Alergia a la penicilina'}
         value={title}
         onChangeText={setTitle}
         maxLength={150}
@@ -101,7 +131,18 @@ export function NewEntryScreen({ route, navigation }: Props) {
           </View>
         </View>
       ) : null}
-      <FormField label="Detalles (opcional)" value={details} onChangeText={setDetails} multiline numberOfLines={3} />
+      {isExam ? (
+        <DateField
+          label="Fecha del examen"
+          onChange={setExamDateParts}
+          error={submitted ? examDateError : undefined}
+        />
+      ) : null}
+      <FormField label={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'} value={details} onChangeText={setDetails} multiline numberOfLines={3} />
+
+      {sourceAttachmentId ? null : (
+        <EntryAttachmentField photo={photo} onPhotoChange={setPhoto} voice={voice} disabled={saving} />
+      )}
 
       <Text style={styles.label}>¿Qué tan seguro estás?</Text>
       <SegmentedButtons
@@ -117,7 +158,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
         mode="contained"
         onPress={handleSave}
         loading={saving}
-        disabled={saving || !title.trim()}
+        disabled={saving || voice.isRecording || !title.trim()}
         contentStyle={styles.buttonContent}
         labelStyle={styles.buttonLabel}
         style={styles.button}
