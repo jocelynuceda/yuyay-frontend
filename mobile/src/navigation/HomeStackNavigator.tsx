@@ -1,4 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { EditEntryScreen } from '../screens/EditEntryScreen';
+import { EntryHistoryScreen } from '../screens/EntryHistoryScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { NewEntryScreen } from '../screens/NewEntryScreen';
 import { NewSubjectScreen } from '../screens/NewSubjectScreen';
@@ -39,6 +41,12 @@ export function HomeStackNavigator() {
         name="NewEntry"
         component={NewEntryScreen}
         options={{ title: 'Nuevo registro', presentation: 'modal' }}
+      />
+      <Stack.Screen name="EntryHistory" component={EntryHistoryScreen} options={{ title: 'Registro' }} />
+      <Stack.Screen
+        name="EditEntry"
+        component={EditEntryScreen}
+        options={{ title: 'Editar registro', presentation: 'modal' }}
       />
     </Stack.Navigator>
   );

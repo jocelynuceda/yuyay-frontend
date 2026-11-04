@@ -119,7 +119,13 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
                     {items.length === 0 ? (
                       <Text style={styles.panelEmpty}>Aún no hay {meta.plural.toLowerCase()} registradas.</Text>
                     ) : (
-                      items.map((entry) => <HealthEntryCard key={entry.id} entry={entry} />)
+                      items.map((entry) => (
+                        <HealthEntryCard
+                          key={entry.id}
+                          entry={entry}
+                          onPress={() => navigation.navigate('EntryHistory', { subjectId, entryId: entry.id })}
+                        />
+                      ))
                     )}
                     <Pressable
                       onPress={() => navigation.navigate('NewEntry', { subjectId, categoryCode: c.code })}
