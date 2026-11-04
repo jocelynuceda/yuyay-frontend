@@ -14,13 +14,13 @@ import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { deleteAttachment, getAttachmentAccess, getAttachments, retryAttachmentOcr, uploadAttachment } from '../services/attachments';
 import { attachmentMimeType, AttachmentValidationError, type AttachmentFile } from '../services/attachmentUpload';
-import { ApiError } from '../services/http';
+import { createAttachmentPreview, type AttachmentPreview } from '../services/attachmentPreview';
+import { ApiError, session } from '../services/http';
 import { colors, fonts, radius, shadow } from '../theme';
-import type { Attachment, AttachmentAccess, HomeStackParamList } from '../types';
+import type { Attachment, HomeStackParamList } from '../types';
 import { formatDate } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Documents'>;
-type Preview = AttachmentAccess & { document: Attachment };
 const ocrLabels = { PENDING: 'Leyendo documento', DONE: 'Lectura terminada', FAILED: 'Lectura no disponible' };
 
 export function DocumentsScreen({ route }: Props) {
@@ -34,33 +34,43 @@ export function DocumentsScreen({ route }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<Attachment | null>(null);
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const [preview, setPreview] = useState<AttachmentPreview | null>(null);
   const [expandedText, setExpandedText] = useState<number | null>(null);
+  const [previewController] = useState(() => createAttachmentPreview({
+    getAccess: (document) => getAttachmentAccess(document.careSubjectId, document.id),
+    isActive: () => AppState.currentState !== 'background' && AppState.currentState !== 'inactive',
+    sessionGeneration: () => session.generation,
+    onChange: setPreview,
+    onError: (e) => setError(e instanceof ApiError ? e.message
+      : 'No pudimos cargar el archivo. Revisa tu conexión y pulsa Ver archivo para intentarlo de nuevo. Si el problema continúa, puede que el archivo ya no esté disponible.'),
+  }));
 
   useFocusEffect(useCallback(() => {
     focused.current = true;
+    previewController.setActive(true);
     return () => {
       focused.current = false;
-      setPreview(null);
+      previewController.setActive(false);
       setConfirmation(null);
     };
-  }, []));
+  }, [previewController]));
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') setPreview(null);
+      previewController.setActive(state === 'active' && focused.current);
     });
     return () => subscription.remove();
-  }, []);
+  }, [previewController]);
 
   useEffect(() => {
-    if (!preview) return;
+    if (!preview || preview.renewing) return;
     const timer = setTimeout(() => {
-      setPreview(null);
+      if (!previewController.isCurrent(preview.requestId)) return;
+      previewController.close();
       setNotice('El acceso al archivo venció. Pulsa Ver archivo para abrirlo de nuevo.');
     }, Math.max(0, new Date(preview.expiresAt).getTime() - Date.now()));
     return () => clearTimeout(timer);
-  }, [preview]);
+  }, [preview, previewController]);
 
   async function runAction(key: string, action: () => Promise<void>) {
     if (busyRef.current) return;
@@ -151,20 +161,13 @@ export function DocumentsScreen({ route }: Props) {
   }
 
   function viewDocument(document: Attachment) {
-    void runAction(`view-${document.id}`, async () => {
-      const access = await getAttachmentAccess(subjectId, document.id);
-      if (!focused.current || AppState.currentState === 'background' || AppState.currentState === 'inactive') return;
-      if (!access.url.startsWith('https://') || !Number.isFinite(Date.parse(access.expiresAt)) || Date.parse(access.expiresAt) <= Date.now()) {
-        throw new Error('Invalid access');
-      }
-      setPreview({ ...access, document });
-    });
+    void runAction(`view-${document.id}`, () => previewController.open(document));
   }
 
   function openPdf() {
-    if (!preview) return;
+    if (!preview || !previewController.isCurrent(preview.requestId)) return;
     if (Date.parse(preview.expiresAt) <= Date.now()) {
-      setPreview(null);
+      previewController.close();
       setNotice('El acceso al archivo venció. Pulsa Ver archivo para abrirlo de nuevo.');
       return;
     }
@@ -172,9 +175,16 @@ export function DocumentsScreen({ route }: Props) {
     if (Platform.OS === 'web') {
       // Se ejecuta directamente en el clic para conservar la activación exigida por Safari.
       globalThis.open(url, '_blank', 'noopener,noreferrer');
-      setPreview(null);
+      previewController.close();
     } else {
-      void Linking.openURL(url).then(() => setPreview(null)).catch(() => setError('No pudimos abrir el PDF. Inténtalo de nuevo.'));
+      const requestId = preview.requestId;
+      void Linking.openURL(url).then(() => {
+        if (previewController.isCurrent(requestId)) previewController.close();
+      }).catch(() => {
+        if (!previewController.isCurrent(requestId)) return;
+        previewController.close();
+        setError('No pudimos abrir el PDF. Pulsa Ver archivo para intentarlo de nuevo.');
+      });
     }
   }
 
@@ -254,14 +264,13 @@ export function DocumentsScreen({ route }: Props) {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-      <Modal visible={!!preview} onRequestClose={() => setPreview(null)} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={!!preview} onRequestClose={previewController.close} animationType="slide" presentationStyle="fullScreen">
         <View style={[styles.preview, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
           <Text style={styles.name}>{preview?.document.originalFilename}</Text>
-          <Button onPress={() => setPreview(null)} icon="close">Cerrar</Button>
-          {preview?.document.contentType.startsWith('image/') ? (
-            <Image accessibilityLabel={preview.document.originalFilename} source={{ uri: preview.url, cache: 'reload' }} resizeMode="contain" style={styles.image} onError={() => {
-              setPreview(null);
-              setError('No pudimos cargar la imagen. Pulsa Ver archivo para intentarlo de nuevo.');
+          <Button onPress={previewController.close} icon="close">Cerrar</Button>
+          {preview?.renewing ? <LoadingView label="Renovando acceso al archivo…" /> : preview?.document.contentType.startsWith('image/') ? (
+            <Image key={preview.requestId} accessibilityLabel={preview.document.originalFilename} source={{ uri: preview.url, cache: 'reload' }} resizeMode="contain" style={styles.image} onError={() => {
+              void previewController.imageFailed(preview.requestId);
             }} />
           ) : preview ? <View style={styles.pdf}>
             <Text style={styles.body}>El PDF se abrirá en el visor de tu dispositivo. El acceso es temporal.</Text>

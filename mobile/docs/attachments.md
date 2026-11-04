@@ -20,6 +20,10 @@ El envío usa `FormData`: en web incorpora el `File` original y en React Native 
 
 La URL temporal se solicita al pulsar **Ver archivo** y vive solo en el estado de la vista. Se elimina al cerrar, salir de la pantalla, pasar la aplicación a segundo plano o vencer el acceso. El PDF requiere después **Abrir PDF**, un clic directo que permite abrir el visor también en Safari. No se guardan URLs temporales en almacenamiento local ni se escriben en logs.
 
+Si una imagen falla al cargar, se solicita un acceso nuevo una sola vez y se vuelve a cargar la imagen. Si vuelve a fallar, la vista se cierra con un mensaje para reintentar manualmente desde **Ver archivo**. Esto permite recuperarse de un acceso vencido sin un ciclo de peticiones cuando el objeto falta o el almacenamiento sigue fallando. Cerrar, salir, enviar la aplicación al fondo o cambiar de sesión invalida también las respuestas pendientes: no pueden reabrir una vista anterior.
+
+El visor externo del PDF no informa a la aplicación de errores HTTP del archivo, como un `403` o `404` mostrado por el navegador. `Linking.openURL` solo confirma si el sistema pudo abrir el enlace. Si el visor muestra un error, volver a la aplicación y pulsar **Ver archivo** solicita otro acceso; no se renueva automáticamente el PDF externo. La recuperación de imágenes y el límite del visor PDF se comprueban además simulando un enlace fallido, un objeto ausente y una respuesta de acceso que llega después de cerrar o cambiar de sesión.
+
 ## Instalación y comprobaciones
 
 Se conserva Expo SDK 58 y React Navigation. Las dependencias añadidas, resueltas con Expo, son `expo-document-picker ~58.0.4`, `expo-image-picker ~58.0.10` y `expo-image-manipulator ~58.0.16`.
