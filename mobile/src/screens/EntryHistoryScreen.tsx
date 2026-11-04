@@ -9,6 +9,7 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getHealthEntry, getHealthEntryVersions } from '../services/api';
+import { loadEntryHistory } from '../services/entryHistory';
 import { colors, fonts, radius, shadow } from '../theme';
 import type { ChangeType, HealthEntryVersion, HomeStackParamList } from '../types';
 import { formatDate } from '../utils/format';
@@ -57,14 +58,13 @@ function changedFields(current: HealthEntryVersion, previous: HealthEntryVersion
 /** Versión actual del registro y todas sus versiones, con quién y cuándo. */
 export function EntryHistoryScreen({ route, navigation }: Props) {
   const { subjectId, entryId } = route.params;
-  const entry = useFetch(() => getHealthEntry(subjectId, entryId), [subjectId, entryId]);
-  const versions = useFetch(() => getHealthEntryVersions(subjectId, entryId), [subjectId, entryId]);
-  useRefreshOnFocus(() => {
-    entry.reload();
-    versions.reload();
-  });
+  const history = useFetch(() => loadEntryHistory(
+    () => getHealthEntry(subjectId, entryId),
+    () => getHealthEntryVersions(subjectId, entryId),
+  ), [subjectId, entryId]);
+  useRefreshOnFocus(history.reload);
 
-  const editable = !!entry.data && !entry.data.deletedAt;
+  const editable = !!history.data?.entry && !history.data.entry.deletedAt && !history.error;
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: editable
@@ -77,31 +77,29 @@ export function EntryHistoryScreen({ route, navigation }: Props) {
     });
   }, [navigation, editable, subjectId, entryId]);
 
-  if (entry.loading && !entry.data) return <LoadingView />;
-  if (!entry.data) return <StatusMessage message={entry.error ?? 'No encontramos este registro.'} />;
+  if (history.loading && !history.data) return <LoadingView />;
+  if (!history.data) return <StatusMessage message={history.error ?? 'No encontramos este registro.'} />;
 
-  const list = versions.data ?? [];
+  const { entry, versions: list } = history.data;
 
   return (
     <ScrollView
       contentContainerStyle={styles.list}
       refreshControl={
         <RefreshControl
-          refreshing={versions.refreshing}
-          onRefresh={() => {
-            entry.reload();
-            versions.refresh();
-          }}
+          refreshing={history.refreshing}
+          onRefresh={history.refresh}
           tintColor={colors.primary}
         />
       }
     >
-      <Text style={styles.section}>Versión actual</Text>
-      <HealthEntryCard entry={entry.data} />
+      <StatusMessage message={history.error} />
+      {entry ? <>
+        <Text style={styles.section}>Versión actual</Text>
+        <HealthEntryCard entry={entry} />
+      </> : <StatusMessage tone="info" message="Este registro fue eliminado. Su historial se conserva." />}
 
       <Text style={styles.section}>Historial</Text>
-      <StatusMessage message={versions.error} />
-      {versions.loading && !versions.data ? <LoadingView label="Cargando versiones…" /> : null}
 
       {list.map((v, index) => {
         const previous = list[index + 1];
