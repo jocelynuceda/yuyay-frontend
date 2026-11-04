@@ -6,7 +6,6 @@ import { colors, fonts, gradients, heroIsDark, radius, shadow } from '../theme';
 import { FormScroll } from './FormScroll';
 import { Logo } from './Logo';
 import { Sparkle } from './Sparkle';
-import { SparkleBuddy } from './SparkleBuddy';
 
 export type AuthMode = 'login' | 'register';
 
@@ -15,7 +14,7 @@ const modes: { key: AuthMode; label: string }[] = [
   { key: 'register', label: 'Crear cuenta' },
 ];
 
-/** Estructura compartida por Login y Registro: cabecera con degradado, selector y tarjeta con el formulario. */
+/** Estructura de las pantallas de acceso: cabecera con degradado, selector opcional y tarjeta con el formulario. */
 export function AuthLayout({
   mode,
   onSwitchMode,
@@ -24,8 +23,8 @@ export function AuthLayout({
   footer,
   children,
 }: {
-  mode: AuthMode;
-  onSwitchMode: (mode: AuthMode) => void;
+  mode?: AuthMode;
+  onSwitchMode?: (mode: AuthMode) => void;
   title: string;
   subtitle: string;
   footer?: ReactNode;
@@ -56,34 +55,35 @@ export function AuthLayout({
             <View style={[styles.glow, { top: -60, left: -40 }]} />
           </View>
 
-          <Logo light={heroIsDark} />
+          <Logo light={heroIsDark} onHero />
 
           <View style={styles.heroRow}>
             <View style={styles.heroText}>
               <Text style={styles.title}>{title}</Text>
               <Text style={styles.subtitle}>{subtitle}</Text>
             </View>
-            <SparkleBuddy size={128} />
           </View>
         </LinearGradient>
 
         <View style={styles.card}>
-          <View style={styles.segment} accessibilityRole="tablist">
-            {modes.map((m) => {
-              const active = m.key === mode;
-              return (
-                <Pressable
-                  key={m.key}
-                  onPress={() => !active && onSwitchMode(m.key)}
-                  style={[styles.segmentItem, active && styles.segmentActive]}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                >
-                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{m.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {mode ? (
+            <View style={styles.segment} accessibilityRole="tablist">
+              {modes.map((m) => {
+                const active = m.key === mode;
+                return (
+                  <Pressable
+                    key={m.key}
+                    onPress={() => !active && onSwitchMode?.(m.key)}
+                    style={[styles.segmentItem, active && styles.segmentActive]}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{m.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
 
           <View style={styles.form}>{children}</View>
         </View>

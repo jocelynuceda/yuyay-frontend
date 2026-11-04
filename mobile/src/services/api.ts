@@ -42,6 +42,11 @@ export const login = (email: string, password: string) =>
 export const register = (name: string, email: string, password: string) =>
   http.post<AuthResponse>('/auth/register', { name, email, password }).then((r) => r.data);
 
+export const forgotPassword = (email: string) => http.post('/auth/forgot-password', { email });
+
+export const resetPassword = (email: string, code: string, newPassword: string) =>
+  http.post('/auth/reset-password', { email, code, newPassword });
+
 export const logout = (refreshToken: string) => http.post('/auth/logout', { refreshToken });
 
 export const getMe = () => http.get<User>('/users/me').then((r) => r.data);

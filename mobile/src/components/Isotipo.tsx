@@ -1,39 +1,22 @@
-import Svg, { Defs, Mask, Path, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { colors } from '../theme';
 
-const STROKE = { fill: 'none', strokeWidth: 30, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
-
-/** Isotipo de Yuyay: la «Y» tejida dentro de un corazón, con su estrella. */
-export function Isotipo({ size = 40, color = colors.ink }: { size?: number; color?: string }) {
+/** Isotipo de Yuyay: corazón en dos tonos con su estrella. `color` lo vuelve de un solo color. */
+export function Isotipo({
+  size = 40,
+  color,
+  rightColor,
+}: {
+  size?: number;
+  color?: string;
+  /** Reemplaza el celeste en fondos donde se perdería. */
+  rightColor?: string;
+}) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 512 512">
-      <Defs>
-        <Mask id="tejido" maskUnits="userSpaceOnUse" x={0} y={0} width={512} height={512}>
-          <Rect width={512} height={512} fill="#fff" />
-          <Path
-            d="M325 150 C325 313 317 374 256 430"
-            fill="none"
-            stroke="#000"
-            strokeWidth={54}
-            strokeLinecap="round"
-          />
-        </Mask>
-      </Defs>
-      <Path
-        d="M167 150 C118 79 52 110 61 190 C72 290 180 360 256 430 C332 360 440 290 451 190 C460 110 394 79 325 150"
-        stroke={color}
-        mask="url(#tejido)"
-        {...STROKE}
-      />
-      <Path
-        d="M167 150 C167 255 185 304 246 304 C307 304 325 255 325 150 M325 150 C325 313 317 374 256 430"
-        stroke={color}
-        {...STROKE}
-      />
-      <Path
-        d="M371 129 C375 150 385 160 406 164 C385 168 375 178 371 199 C367 178 357 168 336 164 C357 160 367 150 371 129 Z"
-        fill={color}
-      />
+    <Svg width={size} height={size} viewBox="190 134 1514 1514">
+      <Path fill={color ?? colors.ink} d="M965 1603C640 1375 400 1170 280 960C150 760 215 445 515 445C665 445 800 535 880 680C960 825 975 1000 975 1160C975 1230 970 1295 962 1355C850 1140 750 950 630 790C560 705 490 653 425 653C360 653 318 705 318 780C318 870 380 985 450 1070C590 1245 760 1390 928 1502L965 1603Z" />
+      <Path fill={color ?? rightColor ?? colors.accent} d="M965 1603C1270 1375 1500 1170 1620 930C1660 850 1682 790 1682 725C1682 540 1550 428 1380 428C1235 428 1105 525 1030 655L940 840L1022 912C1120 755 1265 632 1380 632C1460 632 1518 690 1518 770C1518 870 1450 985 1370 1095C1260 1250 1100 1430 965 1603Z" />
+      <Path fill={color ?? colors.primary} d="M965 180C986 290 1045 355 1162 377C1045 399 986 464 965 574C944 464 885 399 770 377C885 355 944 290 965 180Z" />
     </Svg>
   );
 }

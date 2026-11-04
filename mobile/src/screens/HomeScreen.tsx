@@ -94,7 +94,7 @@ export function HomeScreen({ navigation }: Props) {
       >
         <View style={styles.topBar}>
           <View style={styles.flex}>
-            <Logo light={heroIsDark} />
+            <Logo light={heroIsDark} onHero />
           </View>
           <Pressable
             onPress={() => navigation.navigate('Notifications')}

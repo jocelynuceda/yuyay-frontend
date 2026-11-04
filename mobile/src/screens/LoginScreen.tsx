@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { AuthLayout } from '../components/AuthLayout';
-import { FormField } from '../components/FormField';
+import { FormField, passwordInputProps } from '../components/FormField';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../services/http';
@@ -86,11 +86,7 @@ export function LoginScreen({ navigation }: Props) {
         value={password}
         onChangeText={setPassword}
         secureTextEntry={!showPassword}
-        autoCapitalize="none"
-        autoComplete="off"
-        textContentType="none"
-        autoCorrect={false}
-        spellCheck={false}
+        {...passwordInputProps}
         error={passwordError}
         right={
           <TextInput.Icon
@@ -101,6 +97,13 @@ export function LoginScreen({ navigation }: Props) {
         }
         onSubmitEditing={handleSubmit}
       />
+      <Text
+        style={[styles.link, styles.forgot]}
+        onPress={() => navigation.navigate('ForgotPassword')}
+        accessibilityRole="link"
+      >
+        ¿Olvidaste tu contraseña?
+      </Text>
       <Button
         mode="contained"
         onPress={handleSubmit}
@@ -121,6 +124,7 @@ const styles = StyleSheet.create({
   footer: { fontFamily: fonts.regular, color: colors.muted, fontSize: 14 },
   link: { fontFamily: fonts.semibold, color: colors.primary },
   codeLink: { marginTop: 10 },
+  forgot: { alignSelf: 'flex-end', fontSize: 14, paddingVertical: 4 },
   button: { marginTop: 12, borderRadius: radius.pill },
   buttonContent: { height: 52, flexDirection: 'row-reverse' },
   buttonLabel: { fontFamily: fonts.semibold, fontSize: 16 },
