@@ -8,7 +8,8 @@ import type { CategoryCode, HandoffItem, HandoffPublicView } from '../../types'
 import { CATEGORY_CODES } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
-import { focusRing, PublicShell } from './PublicShell'
+import { focusRing } from '../../utils/styles'
+import { PublicShell } from './PublicShell'
 
 /**
  * Vista para el médico (/traspaso/:token). Pide nombre y rol del visitante,
