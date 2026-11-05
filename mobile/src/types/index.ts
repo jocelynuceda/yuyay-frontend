@@ -66,6 +66,27 @@ export interface HealthEntryVersion {
 
 export type ChangeType = 'CREATED' | 'UPDATED' | 'DELETED';
 
+export interface Attachment {
+  id: number;
+  careSubjectId: number;
+  consultationId: number | null;
+  uploadedById: number;
+  uploadedByName: string;
+  originalFilename: string;
+  contentType: string;
+  sizeBytes: number;
+  ocrStatus: 'PENDING' | 'DONE' | 'FAILED';
+  ocrText: string | null;
+  ocrError: string | null;
+  uploadedAt: string;
+  ocrCompletedAt: string | null;
+}
+
+export interface AttachmentAccess {
+  url: string;
+  expiresAt: string;
+}
+
 export interface HealthEntry {
   id: number;
   careSubjectId: number;
@@ -143,4 +164,5 @@ export type HomeStackParamList = {
   NewEntry: { subjectId: number; categoryCode?: string };
   EntryHistory: { subjectId: number; entryId: number };
   EditEntry: { subjectId: number; entryId: number };
+  Documents: { subjectId: number };
 };
