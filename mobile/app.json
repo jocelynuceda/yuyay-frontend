@@ -24,7 +24,16 @@
     },
     "plugins": [
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-document-picker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite a Yuyay seleccionar imágenes para los documentos de la persona que cuidas.",
+          "cameraPermission": "Permite a Yuyay fotografiar recetas y documentos de la persona que cuidas.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

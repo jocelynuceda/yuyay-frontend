@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
+import { Button } from 'react-native-paper';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { HealthEntryCard } from '../components/HealthEntryCard';
 import { LoadingView } from '../components/LoadingView';
@@ -81,6 +82,10 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
           <PillAction label="Nuevo registro" onPress={() => navigation.navigate('NewEntry', { subjectId })} />
         </View>
       </ProfileCard>
+
+      <Button mode="outlined" icon="file-document-outline" style={{ marginTop: 16 }} onPress={() => navigation.navigate('Documents', { subjectId })}>
+        Imágenes y documentos
+      </Button>
 
       <View>
         <Text style={styles.section}>Perfil clínico</Text>
