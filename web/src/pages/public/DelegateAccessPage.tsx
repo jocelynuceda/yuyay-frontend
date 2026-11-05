@@ -5,7 +5,8 @@ import type { CategoryCode, DelegateSession, HealthEntry } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { forgetDelegateSession, getDelegateSession } from '../../utils/delegateSession'
 import { categoryLabels, confidenceLabels, formatDate, formatDateTime } from '../../utils/format'
-import { focusRing, PublicShell, StatusPanel } from './PublicShell'
+import { focusRing } from '../../utils/styles'
+import { PublicShell, StatusPanel } from './PublicShell'
 
 type State =
   | { status: 'loading' }
