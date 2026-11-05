@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api } from '../http'
 import type { AccessLog, CareSubject, CareSubjectRequest, Page, PageParams } from '../../types'
 
 export async function listCareSubjects() {
