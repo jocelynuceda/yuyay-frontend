@@ -73,6 +73,8 @@ export function getHttpErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     if (!error.response) return 'No se pudo conectar con el servidor. Revisa tu conexión.'
     if (error.response.status >= 500) return statusMessages[500]
+    const message: unknown = error.response.data?.message
+    if (typeof message === 'string' && message.trim()) return message
     return statusMessages[error.response.status] ?? 'No se pudo completar la solicitud. Inténtalo de nuevo.'
   }
   return 'Ocurrió un error inesperado. Inténtalo de nuevo.'
