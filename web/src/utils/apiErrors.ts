@@ -1,19 +1,11 @@
 import axios from 'axios'
+import { getHttpErrorMessage } from '../services/http'
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form'
 import type { ErrorResponse } from '../types'
 
 /** Mensaje legible para un toast a partir de cualquier error de la API. */
 export function getErrorMessage(error: unknown): string {
-  if (axios.isAxiosError<ErrorResponse>(error)) {
-    if (!error.response) return 'No se pudo conectar con el servidor.'
-    const { status, data } = error.response
-    if (data?.message) return data.message
-    if (status === 401) return 'Tu sesión expiró. Vuelve a iniciar sesión.'
-    if (status === 403) return 'No tienes permiso para hacer esto.'
-    if (status === 404) return 'No se encontró lo que buscas.'
-    return `Error ${status}`
-  }
-  return error instanceof Error ? error.message : 'Ocurrió un error inesperado.'
+  return getHttpErrorMessage(error)
 }
 
 /**
