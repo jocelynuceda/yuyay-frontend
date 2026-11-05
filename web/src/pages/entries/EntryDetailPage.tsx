@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { deleteHealthEntry, getHealthEntry, listHealthEntryVersions } from '../../services/api/healthEntries'
 import type { HealthEntry, HealthEntryVersion } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { loadEntryHistory } from '../../utils/entryHistory'
 import { confidenceLabels, formatDate, formatDateTime } from '../../utils/format'
 import { changedFields, changeTypeLabels, displayField, versionFieldLabels } from '../../utils/versions'
 import { focusRing } from '../../utils/styles'
@@ -11,11 +12,12 @@ import { EntryEditForm } from './EntryEditForm'
 type State =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; entry: HealthEntry; versions: HealthEntryVersion[] }
+  | { status: 'ready'; entry: HealthEntry | null; versions: HealthEntryVersion[] }
 
 /**
  * Detalle de registro (/personas/:id/registros/:entryId): versión actual, historial
- * con quién y cuándo, edición y borrado con confirmación.
+ * con quién y cuándo, edición y borrado con confirmación. Un registro eliminado muestra
+ * solo su historial, sin permitir editar.
  */
 export function EntryDetailPage({
   subjectId,
@@ -35,8 +37,11 @@ export function EntryDetailPage({
 
   useEffect(() => {
     let active = true
-    Promise.all([getHealthEntry(subjectId, entryId), listHealthEntryVersions(subjectId, entryId)])
-      .then(([entry, versions]) => active && setState({ status: 'ready', entry, versions }))
+    loadEntryHistory(
+      () => getHealthEntry(subjectId, entryId),
+      () => listHealthEntryVersions(subjectId, entryId),
+    )
+      .then(({ entry, versions }) => active && setState({ status: 'ready', entry, versions }))
       .catch((error) => active && setState({ status: 'error', message: getErrorMessage(error) }))
     return () => {
       active = false
@@ -53,19 +58,26 @@ export function EntryDetailPage({
   }
 
   const { entry, versions } = state
-  const current = entry.latestVersion
-  const deleted = !!entry.deletedAt
+  const current = entry?.latestVersion ?? versions[0]
+  const deleted = !entry
+  const firstVersion = versions.at(-1)
+  const createdBy = entry?.createdBy ?? firstVersion?.declaredBy
+  const createdAt = entry?.createdAt ?? firstVersion?.declaredAt
   const facts = [current.dose, current.frequency].filter(Boolean).join(' · ')
 
   return (
     <div className="grid gap-8">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-muted">{entry.categoryName}</p>
+          {entry ? (
+            <p className="text-sm font-semibold uppercase tracking-wide text-muted">{entry.categoryName}</p>
+          ) : null}
           <h1 className="mt-1 text-3xl font-semibold sm:text-4xl">{current.title}</h1>
-          <p className="mt-2 text-muted">
-            Registrado por {entry.createdBy.name} el {formatDate(entry.createdAt)}
-          </p>
+          {createdBy ? (
+            <p className="mt-2 text-muted">
+              Registrado por {createdBy.name} el {formatDate(createdAt)}
+            </p>
+          ) : null}
         </div>
         {!deleted && !editing ? (
           <div className="flex gap-2">
@@ -97,11 +109,11 @@ export function EntryDetailPage({
       ) : null}
       {deleted ? (
         <p role="status" className="rounded-xl bg-danger-bg p-4 text-danger">
-          Este registro fue eliminado el {formatDate(entry.deletedAt)}. Se conserva su historial.
+          Este registro fue eliminado el {formatDate(current.declaredAt)}. Se conserva su historial.
         </p>
       ) : null}
 
-      {editing ? (
+      {editing && entry ? (
         <EntryEditForm
           subjectId={subjectId}
           entry={entry}
@@ -116,7 +128,7 @@ export function EntryDetailPage({
         <section aria-labelledby="current-version" className="rounded-3xl bg-white p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="current-version" className="text-xl font-semibold">
-              Versión actual · v{current.versionNumber}
+              {deleted ? 'Última versión' : 'Versión actual'} · v{current.versionNumber}
             </h2>
             <ConfidenceBadge version={current} />
           </div>
@@ -138,7 +150,7 @@ export function EntryDetailPage({
         </h2>
         <ol className="mt-4 grid gap-3">
           {versions.map((v, index) => (
-            <VersionItem key={v.id} version={v} previous={versions[index + 1]} isCurrent={index === 0} />
+            <VersionItem key={v.id} version={v} previous={versions[index + 1]} isCurrent={index === 0 && !deleted} />
           ))}
         </ol>
       </section>
