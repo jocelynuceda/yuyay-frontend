@@ -1,4 +1,4 @@
-import { api, bearer, publicApi } from './client'
+import { api, bearer, publicApi } from '../http'
 import type {
   CategoryCode,
   DelegateMe,
