@@ -1,11 +1,10 @@
 name: Mobile checks
 
+# Sin filtro de rutas: es un check obligatorio y debe reportarse en todos los PR
 on:
   pull_request:
-    paths: ['mobile/**', '.github/workflows/mobile.yml']
   push:
     branches: [main]
-    paths: ['mobile/**', '.github/workflows/mobile.yml']
 
 permissions:
   contents: read
