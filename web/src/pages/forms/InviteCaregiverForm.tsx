@@ -14,7 +14,7 @@ import { applyServerErrors } from '../../utils/apiErrors'
 import { a11yProps } from './fieldProps'
 import { ChoiceOption, Field, FormActions, FormShell, ServerError } from './fields'
 
-/** Invitar cuidador por correo. La persona invitada acepta desde su cuenta. */
+/** Invitar cuidador por correo. La persona ya debe tener una cuenta y acepta desde ella. */
 export function InviteCaregiverForm({
   subjectId,
   onSaved,
@@ -48,7 +48,7 @@ export function InviteCaregiverForm({
   return (
     <FormShell
       title="Invitar cuidador"
-      description="Le llegará una invitación; podrá ver y editar los registros cuando la acepte."
+      description="La persona debe tener una cuenta en Yuyay con este correo. Podrá ver y editar los registros cuando acepte la invitación."
       onSubmit={onSubmit}
     >
       <ServerError message={serverError} />
