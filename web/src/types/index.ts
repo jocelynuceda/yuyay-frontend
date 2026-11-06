@@ -299,3 +299,5 @@ export interface AccessLog {
   visitorRole: string | null
   occurredAt: string
 }
+
+export type { User, LoginRequest, RegisterRequest, AuthResponse } from './auth'
