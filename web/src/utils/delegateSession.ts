@@ -2,17 +2,19 @@ import { exchangeDelegationToken } from '../services/api/delegations'
 import type { DelegateSession } from '../types'
 
 // El backend canjea cada enlace una sola vez: la sesión se guarda para que recargar la página
-// no deje al delegado sin acceso. Vence con la delegación (expiresAt).
+// no deje al delegado sin acceso. Se usa sessionStorage y no localStorage: el token da acceso a
+// datos de salud y no debe quedar en el equipo (por ejemplo, una computadora compartida) al
+// cerrar la pestaña. También se descarta al vencer la delegación (expiresAt).
 const storageKey = (token: string) => `yuyay.delegate.${token}`
 const inFlight = new Map<string, Promise<DelegateSession>>()
 
 function read(token: string): DelegateSession | null {
   try {
-    const raw = localStorage.getItem(storageKey(token))
+    const raw = sessionStorage.getItem(storageKey(token))
     if (!raw) return null
     const session = JSON.parse(raw) as DelegateSession
     if (new Date(session.expiresAt).getTime() <= Date.now()) {
-      localStorage.removeItem(storageKey(token))
+      sessionStorage.removeItem(storageKey(token))
       return null
     }
     return session
@@ -23,7 +25,7 @@ function read(token: string): DelegateSession | null {
 
 export function forgetDelegateSession(token: string) {
   try {
-    localStorage.removeItem(storageKey(token))
+    sessionStorage.removeItem(storageKey(token))
   } catch {
     // Sin almacenamiento disponible no hay nada que borrar
   }
@@ -39,9 +41,9 @@ export function getDelegateSession(token: string): Promise<DelegateSession> {
     pending = exchangeDelegationToken(token)
       .then((session) => {
         try {
-          localStorage.setItem(storageKey(token), JSON.stringify(session))
+          sessionStorage.setItem(storageKey(token), JSON.stringify(session))
         } catch {
-          // Sin almacenamiento la sesión dura lo que dure la pestaña
+          // Sin almacenamiento la sesión dura lo que la página esté abierta
         }
         return session
       })
