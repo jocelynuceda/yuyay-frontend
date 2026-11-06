@@ -4,7 +4,7 @@ import * as authService from '../services/api/auth'
 import {
   clearTokens,
   getRefreshToken,
-  publicApi,
+  refreshAuthSession,
   setSessionExpiredHandler,
   setTokens,
 } from '../services/http'
@@ -12,21 +12,6 @@ import type { AuthResponse, User } from '../types'
 import { AuthContext } from './auth-context'
 import type { AuthContextValue } from './auth-context'
 
-
-// StrictMode vuelve a ejecutar los efectos. Ambas ejecuciones esperan la misma renovación.
-let restoration: Promise<AuthResponse> | null = null
-
-function restoreSession(refreshToken: string): Promise<AuthResponse> {
-  if (!restoration) {
-    const pending = publicApi.post<AuthResponse>('/auth/refresh', { refreshToken })
-      .then(({ data }) => data)
-      .finally(() => {
-        if (restoration === pending) restoration = null
-      })
-    restoration = pending
-  }
-  return restoration
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -47,15 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refreshToken = getRefreshToken()
     if (refreshToken) {
-      void restoreSession(refreshToken)
+      void refreshAuthSession()
         .then((data) => {
           if (!isCurrent()) return
-          setTokens(data)
+
           setUser(data.user)
         })
         .catch(() => {
           if (!isCurrent()) return
-          clearTokens()
+
           setUser(null)
         })
         .finally(() => {

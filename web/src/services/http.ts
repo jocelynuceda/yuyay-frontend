@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { InternalAxiosRequestConfig } from 'axios'
+import type { AuthResponse } from '../types'
 
 const baseURL = `${(import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')}/api/v1`
 const REFRESH_TOKEN_KEY = 'yuyay.refreshToken'
@@ -23,7 +24,7 @@ interface AuthRequestConfig extends InternalAxiosRequestConfig {
 
 let accessToken: string | null = null
 let sessionVersion = 0
-let refreshPromise: Promise<void> | null = null
+let refreshPromise: Promise<AuthResponse> | null = null
 let onSessionExpired: (() => void) | null = null
 
 function storeTokens(tokens: AuthTokens) {
@@ -114,7 +115,7 @@ async function refreshSession(version: number) {
     if (!token) throw new Error('No hay una sesión para renovar.')
 
     // El refresh compartido es independiente del signal de cada consumidor.
-    const { data } = await publicApi.post<RefreshResponse>('/auth/refresh', {
+    const { data } = await publicApi.post<AuthResponse>('/auth/refresh', {
       refreshToken: token,
     })
     if (version !== sessionVersion) throw new Error('La sesión cambió.')
@@ -123,9 +124,10 @@ async function refreshSession(version: number) {
       throw new Error('Respuesta de sesión inválida.')
     }
     storeTokens(data)
-  } catch {
+    return data
+  } catch (error) {
     // Una renovación antigua no puede borrar una sesión iniciada después.
-    if (version === sessionVersion) {
+    if (version === sessionVersion && axios.isAxiosError(error) && error.response?.status === 401) {
       clearTokens()
       try {
         onSessionExpired?.()
@@ -133,11 +135,12 @@ async function refreshSession(version: number) {
         // Un callback de UI no debe reemplazar el error de autenticación.
       }
     }
-    throw new Error(statusMessages[401])
+    throw error
   }
 }
 
-function getSessionRefresh(version: number) {
+export function refreshAuthSession(): Promise<AuthResponse> {
+  const version = sessionVersion
   if (!refreshPromise) {
     const pending = refreshSession(version).finally(() => {
       if (refreshPromise === pending) refreshPromise = null
@@ -171,7 +174,7 @@ api.interceptors.response.use(
     try {
       // Un 401 tardío puede pertenecer al token que ya fue renovado.
       if (!accessToken || config._accessToken === accessToken) {
-        await getSessionRefresh(sessionVersion)
+        await refreshAuthSession()
       }
     } catch {
       return rejectWithFriendlyMessage(error)
