@@ -14,6 +14,13 @@ export function todayIso(): string {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
 }
 
+/** Último día que cuenta como fecha pasada, 'YYYY-MM-DD'. */
+export function yesterdayIso(): string {
+  const now = new Date()
+  now.setDate(now.getDate() - 1)
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
+}
+
 const tooLong = (max: number) => `Máximo ${max} caracteres.`
 
 /** Texto obligatorio. `message` es lo que se muestra si está vacío. */
