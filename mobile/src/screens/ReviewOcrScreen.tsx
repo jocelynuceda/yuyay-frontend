@@ -8,6 +8,7 @@ import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { deleteAttachment, getAttachment, retryOcr } from '../services/api';
+import { openAttachmentFile } from '../services/attachmentFiles';
 import { ApiError } from '../services/http';
 import { colors, fonts } from '../theme';
 import type { HomeStackParamList } from '../types';
@@ -20,6 +21,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'ReviewOcr'>;
 export function ReviewOcrScreen({ route, navigation }: Props) {
   const { subjectId, attachmentId } = route.params;
   const [retrying, setRetrying] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const attachment = useFetch(() => getAttachment(subjectId, attachmentId), [subjectId, attachmentId]);
   const { reload } = attachment;
@@ -51,6 +53,18 @@ export function ReviewOcrScreen({ route, navigation }: Props) {
     }
   }
 
+  async function handleOpen() {
+    setOpening(true);
+    setError(null);
+    try {
+      await openAttachmentFile(subjectId, attachmentId);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No pudimos abrir el archivo. Inténtalo de nuevo.');
+    } finally {
+      setOpening(false);
+    }
+  }
+
   async function handleDelete() {
     const confirmed = await confirmAction('Borrar documento', 'Esta acción no se puede deshacer.', 'Borrar');
     if (!confirmed) return;
@@ -66,7 +80,11 @@ export function ReviewOcrScreen({ route, navigation }: Props) {
   return (
     <FormScroll contentContainerStyle={formStyles.container}>
       <Text style={styles.file}>{a.originalFilename}</Text>
-      {isImage(a) ? <AttachmentPreview subjectId={subjectId} attachmentId={attachmentId} /> : null}
+      {isImage(a) ? (
+        <AttachmentPreview subjectId={subjectId} attachmentId={attachmentId} />
+      ) : (
+        <SubmitButton label="Abrir PDF" icon="open-in-new" onPress={handleOpen} loading={opening} />
+      )}
       <StatusMessage message={error} />
 
       {a.ocrStatus === 'PENDING' ? (

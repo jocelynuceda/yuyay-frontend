@@ -1,5 +1,9 @@
+import type { DocumentPickerAsset } from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
+import { getAttachmentSource } from './api';
+import { getAttachmentAccess } from './attachments';
+import { appendAttachment, attachmentMimeType } from './attachmentUpload';
 
 export const imagePickerOptions: ImagePicker.ImagePickerOptions = {
   mediaTypes: ['images'],
@@ -30,4 +34,48 @@ export async function audioFormData(uri: string) {
     form.append('file', { uri, name: `${name}.m4a`, type: 'audio/mp4' } as unknown as Blob);
   }
   return form;
+}
+
+/** PDF o imagen elegidos en Archivos. Valida tipo y tamaño (máx. 10 MB) antes de subir. */
+export function documentFormData(asset: DocumentPickerAsset) {
+  const form = new FormData();
+  appendAttachment(
+    form,
+    {
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: attachmentMimeType(asset.name, asset.mimeType),
+      size: asset.size,
+      file: asset.file,
+    },
+    Platform.OS === 'web' ? 'web' : 'native',
+  );
+  return form;
+}
+
+/**
+ * Abre el archivo original (sobre todo PDF) en el visor del sistema con el enlace temporal de S3.
+ * En web, si el backend guarda en disco (dev) y no hay enlace, se abre la descarga de /content.
+ */
+export async function openAttachmentFile(subjectId: number, attachmentId: number) {
+  // La pestaña se abre en el mismo clic para que Safari no la bloquee
+  const tab = Platform.OS === 'web' ? globalThis.open('', '_blank') : null;
+  try {
+    let url: string;
+    try {
+      url = (await getAttachmentAccess(subjectId, attachmentId)).url;
+    } catch (e) {
+      if (Platform.OS !== 'web') throw e;
+      url = (await getAttachmentSource(subjectId, attachmentId)).uri;
+    }
+    if (tab) {
+      tab.opener = null;
+      tab.location.href = url;
+    } else {
+      await Linking.openURL(url);
+    }
+  } catch (e) {
+    tab?.close();
+    throw e;
+  }
 }

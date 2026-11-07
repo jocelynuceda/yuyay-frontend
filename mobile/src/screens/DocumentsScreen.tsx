@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
@@ -11,11 +12,12 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getAttachments, uploadAttachment } from '../services/api';
-import { imageFormData, imagePickerOptions } from '../services/attachmentFiles';
+import { documentFormData, imageFormData, imagePickerOptions } from '../services/attachmentFiles';
+import { AttachmentValidationError } from '../services/attachmentUpload';
 import { ApiError } from '../services/http';
 import { colors, fonts } from '../theme';
 import type { HomeStackParamList, OcrStatus } from '../types';
-import { isAudio } from '../utils/attachments';
+import { isAudio, isImage } from '../utils/attachments';
 import { formatDate } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Documents'>;
@@ -51,13 +53,19 @@ export function DocumentsScreen({ route, navigation }: Props) {
   async function upload(result: ImagePicker.ImagePickerResult) {
     const asset = result.assets?.[0];
     if (result.canceled || !asset) return;
+    await send(() => imageFormData(asset));
+  }
+
+  async function send(buildForm: () => FormData) {
     setUploading(true);
     setError(null);
     try {
-      const attachment = await uploadAttachment(subjectId, imageFormData(asset));
+      const attachment = await uploadAttachment(subjectId, buildForm());
       navigation.navigate('ReviewOcr', { subjectId, attachmentId: attachment.id });
     } catch (e) {
-      if (e instanceof ApiError && e.status === 502) {
+      if (e instanceof AttachmentValidationError) {
+        setError(e.message);
+      } else if (e instanceof ApiError && e.status === 502) {
         setError('El servidor todavía no tiene configurado dónde guardar los documentos.');
       } else {
         setError(e instanceof ApiError ? e.message : 'No pudimos subir el documento.');
@@ -80,6 +88,17 @@ export function DocumentsScreen({ route, navigation }: Props) {
     await upload(await ImagePicker.launchImageLibraryAsync(imagePickerOptions));
   }
 
+  async function pickFile() {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'image/jpeg', 'image/png'],
+      multiple: false,
+      copyToCacheDirectory: true,
+    });
+    const asset = result.assets?.[0];
+    if (result.canceled || !asset) return;
+    await send(() => documentFormData(asset));
+  }
+
   // Las notas de voz tienen su propia pantalla
   const list = attachments.data?.filter((a) => !isAudio(a)) ?? [];
 
@@ -91,11 +110,13 @@ export function DocumentsScreen({ route, navigation }: Props) {
       }
     >
       <Text style={styles.intro}>
-        Fotografía una receta o un resultado. Leemos el texto y tú lo revisas antes de crear el registro.
+        Fotografía una receta o un resultado, o sube un PDF de una página. Leemos el texto y tú lo revisas antes de
+        crear el registro.
       </Text>
 
       <SubmitButton label="Tomar foto" icon="camera" onPress={takePhoto} loading={uploading} />
       <SubmitButton label="Elegir de la galería" icon="image-outline" onPress={pickImage} loading={uploading} />
+      <SubmitButton label="Subir PDF o archivo" icon="file-document-outline" onPress={pickFile} loading={uploading} />
 
       <StatusMessage message={error ?? attachments.error} />
 
@@ -107,7 +128,7 @@ export function DocumentsScreen({ route, navigation }: Props) {
           return (
             <ListItem
               key={a.id}
-              icon="document-text-outline"
+              icon={isImage(a) ? 'image-outline' : 'document-text-outline'}
               iconBg={colors.accentTint}
               iconFg={colors.accentText}
               title={a.originalFilename}
