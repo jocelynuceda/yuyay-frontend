@@ -1,4 +1,4 @@
-import { api, publicApi } from './client'
+import { api, publicApi } from '../http'
 import type {
   Handoff,
   HandoffDetail,

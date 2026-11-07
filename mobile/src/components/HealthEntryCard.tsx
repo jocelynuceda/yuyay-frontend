@@ -1,18 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { HealthEntry } from '../types';
 import { colors, fonts, radius, shadow } from '../theme';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
 import { formatDate } from '../utils/format';
 import { Badge } from './Badge';
 
-export function HealthEntryCard({ entry }: { entry: HealthEntry }) {
+export function HealthEntryCard({ entry, onPress }: { entry: HealthEntry; onPress?: () => void }) {
   const v = entry.latestVersion;
   const tone = categoryMeta[entry.categoryCode] ?? fallbackCategory;
   const facts = [v.dose && `Dosis: ${v.dose}`, v.frequency && v.frequency].filter(Boolean).join(' · ');
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityHint={onPress ? 'Abre el historial del registro' : undefined}
+    >
       <View style={styles.header}>
         <View style={[styles.icon, { backgroundColor: tone.bg }]}>
           <Ionicons name={tone.icon} size={20} color={tone.fg} />
@@ -31,7 +37,7 @@ export function HealthEntryCard({ entry }: { entry: HealthEntry }) {
       <Text style={styles.footer}>
         v{v.versionNumber} · {v.declaredBy.name} · {formatDate(v.declaredAt)}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -44,6 +50,7 @@ const styles = StyleSheet.create({
     ...shadow,
     shadowOpacity: 0.06,
   },
+  pressed: { opacity: 0.85 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   icon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
+import { Button } from 'react-native-paper';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { HealthEntryCard } from '../components/HealthEntryCard';
 import { LoadingView } from '../components/LoadingView';
@@ -82,6 +83,10 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
         </View>
       </ProfileCard>
 
+      <Button mode="outlined" icon="file-document-outline" style={{ marginTop: 16 }} onPress={() => navigation.navigate('Documents', { subjectId })}>
+        Imágenes y documentos
+      </Button>
+
       <View>
         <Text style={styles.section}>Perfil clínico</Text>
         <View style={styles.clinical}>
@@ -119,7 +124,13 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
                     {items.length === 0 ? (
                       <Text style={styles.panelEmpty}>Aún no hay {meta.plural.toLowerCase()} registradas.</Text>
                     ) : (
-                      items.map((entry) => <HealthEntryCard key={entry.id} entry={entry} />)
+                      items.map((entry) => (
+                        <HealthEntryCard
+                          key={entry.id}
+                          entry={entry}
+                          onPress={() => navigation.navigate('EntryHistory', { subjectId, entryId: entry.id })}
+                        />
+                      ))
                     )}
                     <Pressable
                       onPress={() => navigation.navigate('NewEntry', { subjectId, categoryCode: c.code })}
