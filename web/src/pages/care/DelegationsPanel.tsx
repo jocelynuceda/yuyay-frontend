@@ -133,7 +133,11 @@ function ShareDelegation({ created, onClose }: { created: DelegationCreated; onC
       <h3 id="share-delegation-title" className="text-xl font-semibold">
         Acceso creado para {created.delegation.granteeName}
       </h3>
-      <p className="text-muted">Copia el enlace ahora: por seguridad no se vuelve a mostrar. Solo se puede abrir una vez.</p>
+      <p className="text-muted">
+        También se envía por correo a {created.delegation.granteeEmail}. Si quieres compartirlo por otro medio, cópialo
+        ahora: por seguridad no se vuelve a mostrar. Solo se puede abrir una vez y el acceso se cierra cuando la persona
+        cierra la pestaña.
+      </p>
       <div className="flex flex-wrap gap-2">
         <input
           readOnly

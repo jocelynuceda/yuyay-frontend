@@ -30,6 +30,9 @@ export function CaregiversPanel({ subjectId, isPrincipal }: { subjectId: number;
   }
 
   const visible = state.data.filter((r) => r.status !== 'REVOKED')
+  // El backend no deja quitar al único principal activo
+  const activePrincipals = visible.filter((r) => r.role === 'PRINCIPAL' && r.status === 'ACTIVE').length
+  const canRemove = (r: CareRelationship) => !(r.role === 'PRINCIPAL' && r.status === 'ACTIVE' && activePrincipals <= 1)
 
   return (
     <section aria-labelledby="caregivers-title" className="grid gap-4">
@@ -87,7 +90,7 @@ export function CaregiversPanel({ subjectId, isPrincipal }: { subjectId: number;
                 {r.status === 'PENDING' ? ` desde el ${formatDate(r.invitedAt)}` : null}
               </p>
             </div>
-            {isPrincipal ? (
+            {isPrincipal && canRemove(r) ? (
               <button
                 type="button"
                 onClick={() => setRemoving(r)}
