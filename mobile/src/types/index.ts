@@ -172,6 +172,8 @@ export interface HealthEntry {
   categoryCode: string;
   categoryName: string;
   createdAt: string;
+  /** Solo viene en registros borrados (lo usa services/entryHistory.ts). */
+  deletedAt?: string | null;
   latestVersion: HealthEntryVersion;
 }
 
@@ -208,6 +210,12 @@ export interface Attachment {
   ocrText: string | null;
   ocrError: string | null;
   uploadedAt: string;
+}
+
+/** Respuesta de GET /attachments/{id}/access: URL firmada de corta duración. */
+export interface AttachmentAccess {
+  url: string;
+  expiresAt: string;
 }
 
 export interface AccessLog {
