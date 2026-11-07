@@ -1,0 +1,117 @@
+import { useId, type FormEventHandler, type InputHTMLAttributes, type ReactNode } from 'react'
+import type { FieldError } from 'react-hook-form'
+import { focusRing } from '../../utils/styles'
+
+// Piezas comunes de los formularios. Si la base agrega Input/Button propios, se reemplazan aquí.
+
+export function Field({
+  id,
+  label,
+  error,
+  hint,
+  children,
+}: {
+  id: string
+  label: string
+  error?: FieldError
+  hint?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <label htmlFor={id} className="text-sm font-semibold">
+        {label}
+      </label>
+      {children}
+      {error?.message ? (
+        <p id={`${id}-error`} className="text-sm text-danger">
+          {error.message}
+        </p>
+      ) : hint ? (
+        <p id={`${id}-hint`} className="text-sm text-muted">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+export function ServerError({ message }: { message: string | null }) {
+  if (!message) return null
+  return (
+    <p role="alert" className="rounded-xl bg-danger-bg p-4 text-danger">
+      {message}
+    </p>
+  )
+}
+
+export function FormActions({
+  submitting,
+  submitLabel,
+  submittingLabel = 'Guardando…',
+  onCancel,
+}: {
+  submitting: boolean
+  submitLabel: string
+  submittingLabel?: string
+  onCancel?: () => void
+}) {
+  return (
+    <div className="flex flex-wrap justify-end gap-3">
+      {onCancel ? (
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={submitting}
+          className={`rounded-xl border border-line px-5 py-2.5 font-semibold ${focusRing}`}
+        >
+          Cancelar
+        </button>
+      ) : null}
+      <button
+        type="submit"
+        disabled={submitting}
+        aria-busy={submitting}
+        className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white disabled:opacity-60 ${focusRing}`}
+      >
+        {submitting ? submittingLabel : submitLabel}
+      </button>
+    </div>
+  )
+}
+
+/** Opción de radio con aspecto de botón (categoría, certeza, rol). */
+export function ChoiceOption({ children, ...input }: InputHTMLAttributes<HTMLInputElement> & { children: ReactNode }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 py-2 has-checked:border-primary has-checked:bg-primary-tint has-focus-visible:outline-3 has-focus-visible:outline-primary">
+      <input type="radio" className="accent-primary" {...input} />
+      {children}
+    </label>
+  )
+}
+
+/** Formulario en tarjeta con título. `noValidate`: la validación la hace Zod. */
+export function FormShell({
+  title,
+  description,
+  onSubmit,
+  children,
+}: {
+  title: string
+  description?: string
+  onSubmit: FormEventHandler<HTMLFormElement>
+  children: ReactNode
+}) {
+  const titleId = useId()
+  return (
+    <form onSubmit={onSubmit} noValidate aria-labelledby={titleId} className="grid gap-5 rounded-3xl bg-white p-6 sm:p-8">
+      <div>
+        <h2 id={titleId} className="text-xl font-semibold">
+          {title}
+        </h2>
+        {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
+      </div>
+      {children}
+    </form>
+  )
+}

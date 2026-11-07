@@ -7,7 +7,7 @@ import { confidenceLabels, formatDate, formatDateTime } from '../../utils/format
 import { changedFields, changeTypeLabels, displayField, versionFieldLabels } from '../../utils/versions'
 import { focusRing } from '../../utils/styles'
 import { ConfirmDialog } from './ConfirmDialog'
-import { EntryEditForm } from './EntryEditForm'
+import { HealthEntryForm } from '../forms/HealthEntryForm'
 
 type State =
   | { status: 'loading' }
@@ -114,14 +114,14 @@ export function EntryDetailPage({
       ) : null}
 
       {editing && entry ? (
-        <EntryEditForm
+        <HealthEntryForm
           subjectId={subjectId}
           entry={entry}
           onCancel={() => setEditing(false)}
-          onSaved={(changed) => {
+          onSaved={(saved) => {
             setEditing(false)
-            setNotice(changed ? 'Cambios guardados. Se creó una versión nueva.' : 'No había cambios que guardar.')
-            if (changed) setVersion((v) => v + 1)
+            setNotice(saved ? 'Cambios guardados. Se creó una versión nueva.' : 'No había cambios que guardar.')
+            if (saved) setVersion((v) => v + 1)
           }}
         />
       ) : (
