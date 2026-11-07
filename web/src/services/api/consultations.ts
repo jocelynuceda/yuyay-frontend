@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api } from '../http'
 import type { Consultation, ConsultationDetail, ConsultationRequest, HealthEntryVersion } from '../../types'
 
 const base = (careSubjectId: number) => `/care-subjects/${careSubjectId}/consultations`

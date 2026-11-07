@@ -68,6 +68,10 @@ export function DelegateAccessPage({ token }: { token: string }) {
         <p className="mt-2 text-muted">
           Hola, {session.granteeName}. Acceso vigente hasta el {formatDateTime(session.expiresAt)}
         </p>
+        <p role="note" className="mt-4 rounded-xl bg-soft/60 px-4 py-3 text-sm text-soft-text">
+          Por seguridad, el acceso se cierra al cerrar esta pestaña y el enlace solo se puede abrir una vez. Puedes
+          recargar la página sin perderlo.
+        </p>
       </header>
 
       <nav aria-label="Filtrar por categoría" className="mt-6 flex flex-wrap gap-2">
@@ -135,7 +139,10 @@ function describeError(status: number | undefined, message: string) {
     case 404:
       return { title: 'Enlace no válido', message: 'Revisa que el enlace esté completo o pide uno nuevo a la familia.' }
     case 400:
-      return { title: 'Este enlace ya se usó', message: `${message} Pide un enlace nuevo a la familia.` }
+      return {
+        title: 'Este enlace ya se usó',
+        message: `${message} Cada enlace se abre una sola vez y el acceso se cierra al cerrar la pestaña. Pide un enlace nuevo a la familia.`,
+      }
     case 401:
     case 403:
       return { title: 'El acceso ya no está vigente', message: 'Venció o la familia lo revocó. Pide un enlace nuevo.' }

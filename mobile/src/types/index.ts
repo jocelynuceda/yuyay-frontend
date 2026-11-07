@@ -61,6 +61,30 @@ export interface HealthEntryVersion {
   notes: string | null;
   declaredBy: { id: number; name: string };
   declaredAt: string;
+  changeType: ChangeType;
+}
+
+export type ChangeType = 'CREATED' | 'UPDATED' | 'DELETED';
+
+export interface Attachment {
+  id: number;
+  careSubjectId: number;
+  consultationId: number | null;
+  uploadedById: number;
+  uploadedByName: string;
+  originalFilename: string;
+  contentType: string;
+  sizeBytes: number;
+  ocrStatus: 'PENDING' | 'DONE' | 'FAILED';
+  ocrText: string | null;
+  ocrError: string | null;
+  uploadedAt: string;
+  ocrCompletedAt: string | null;
+}
+
+export interface AttachmentAccess {
+  url: string;
+  expiresAt: string;
 }
 
 export interface HealthEntry {
@@ -69,7 +93,19 @@ export interface HealthEntry {
   categoryCode: string;
   categoryName: string;
   createdAt: string;
+  deletedAt: string | null;
   latestVersion: HealthEntryVersion;
+}
+
+/** El PATCH reemplaza todos los campos de la versión: lo que no se envía queda en null. */
+export interface HealthEntryUpdate {
+  title: string;
+  details?: string;
+  dose?: string;
+  frequency?: string;
+  occurredOn?: string;
+  confidenceLevel: ConfidenceLevel;
+  notes?: string;
 }
 
 export interface HealthEntryInput {
@@ -126,4 +162,7 @@ export type HomeStackParamList = {
   SubjectDetail: { subjectId: number; name: string };
   NewSubject: undefined;
   NewEntry: { subjectId: number; categoryCode?: string };
+  EntryHistory: { subjectId: number; entryId: number };
+  EditEntry: { subjectId: number; entryId: number };
+  Documents: { subjectId: number };
 };
