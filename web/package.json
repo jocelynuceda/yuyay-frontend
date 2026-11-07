@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "tsx --tsconfig tsconfig.test.json --import ./tests/vite-env.mjs --test tests/*.test.*",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -29,7 +30,9 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "babel-plugin-react-compiler": "^1.0.0",
+    "jsdom": "26.1.0",
     "oxlint": "^1.89.0",
+    "tsx": "4.20.6",
     "typescript": "~7.0.2",
     "vite": "^8.3.5"
   }
