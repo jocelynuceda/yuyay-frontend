@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import isotipo from '../../assets/brand/isotipo.svg'
+import isotipoDark from '../../assets/brand/isotipo-dark.svg'
 import { useAuth } from '../../hooks/useAuth'
 import { useUnreadCount } from '../../hooks/useUnreadCount'
 import { focusRing } from '../../utils/styles'
 import { Avatar } from '../ui/Avatar'
 import { cx } from '../ui/cx'
 import { Icon } from '../ui/Icon'
+import { ThemeToggle } from './ThemeToggle'
 import { formatBadge, noticesLabel } from './navItems'
 
 export function AppHeader() {
@@ -14,11 +16,13 @@ export function AppHeader() {
   const name = user?.name ?? ''
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-white/90 px-4 py-2 backdrop-blur sm:px-6 lg:justify-end">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-card/90 px-4 py-2 backdrop-blur sm:px-6 lg:justify-end">
       <Link to="/" aria-label="Yuyay, ir al inicio" className={cx('rounded-xl lg:hidden', focusRing)}>
-        <img src={isotipo} alt="" className="h-9 w-9" />
+        <img src={isotipo} alt="" className="h-9 w-9 dark:hidden" />
+        <img src={isotipoDark} alt="" className="hidden h-9 w-9 dark:inline" />
       </Link>
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Link
           to="/avisos"
           aria-label={noticesLabel(count)}

@@ -100,7 +100,7 @@ function ShareLink({ session }: { session: HandoffSessionCreated }) {
   }
 
   return (
-    <section className="grid gap-4 rounded-3xl bg-white p-6 sm:p-8" aria-labelledby="share-title">
+    <section className="grid gap-4 rounded-3xl bg-card p-6 sm:p-8" aria-labelledby="share-title">
       <h2 id="share-title" className="text-xl font-semibold">
         Enlace listo
       </h2>

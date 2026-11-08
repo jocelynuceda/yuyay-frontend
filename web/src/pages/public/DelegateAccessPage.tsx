@@ -84,7 +84,7 @@ export function DelegateAccessPage({ token }: { token: string }) {
               aria-pressed={selected}
               onClick={() => setCategory(code)}
               className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${focusRing} ${
-                selected ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink hover:border-primary'
+                selected ? 'border-ink bg-ink text-white' : 'border-line bg-card text-ink hover:border-primary'
               }`}
             >
               {code === 'ALL' ? 'Todas' : (categoryLabels[code]?.plural ?? code)}
@@ -95,7 +95,7 @@ export function DelegateAccessPage({ token }: { token: string }) {
 
       <section aria-live="polite" className="mt-6">
         {visible.length === 0 ? (
-          <p className="rounded-2xl bg-white p-6 text-muted">No hay registros en esta categoría.</p>
+          <p className="rounded-2xl bg-card p-6 text-muted">No hay registros en esta categoría.</p>
         ) : (
           <ul className="grid gap-3">
             {visible.map((entry) => (
@@ -112,7 +112,7 @@ function EntryCard({ entry }: { entry: HealthEntry }) {
   const v = entry.latestVersion
   const facts = [v.dose && `Dosis: ${v.dose}`, v.frequency].filter(Boolean).join(' · ')
   return (
-    <li className="rounded-2xl bg-white p-5">
+    <li className="rounded-2xl bg-card p-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">{entry.categoryName}</p>
       <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
         <h2 className="text-xl font-semibold">{v.title}</h2>

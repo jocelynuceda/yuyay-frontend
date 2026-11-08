@@ -12,4 +12,4 @@ export function a11yProps(id: string, error?: FieldError, hint?: string) {
 }
 
 export const inputClass = (invalid: boolean) =>
-  `w-full rounded-xl border bg-white px-4 py-2.5 ${invalid ? 'border-danger' : 'border-line'} ${focusRing}`
+  `w-full rounded-xl border bg-card px-4 py-2.5 ${invalid ? 'border-danger' : 'border-line'} ${focusRing}`

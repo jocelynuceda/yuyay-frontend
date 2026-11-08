@@ -12,12 +12,43 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../hooks/useAuth'
 import { useFetch } from '../../hooks/useFetch'
 import { useLogout } from '../../hooks/useLogout'
+import { useTheme } from '../../hooks/useTheme'
 import { useToast } from '../../hooks/useToast'
 import { profileSchema } from '../../schemas/profile'
 import { getMe, updateMe } from '../../services/api/users'
 import type { UserProfile } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
 import { formatDate, userRoleLabels } from '../../utils/format'
+import type { ThemePreference } from '../../contexts/theme-context'
+
+const themeOptions: { value: ThemePreference; label: string }[] = [
+  { value: 'light', label: 'Claro' },
+  { value: 'dark', label: 'Oscuro' },
+  { value: 'system', label: 'Según el sistema' },
+]
+
+function ThemeSetting() {
+  const { preference, setPreference } = useTheme()
+  return (
+    <Card as="section" aria-labelledby="theme-setting" className="grid gap-4">
+      <h2 id="theme-setting" className="text-xl font-bold">
+        Tema
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {themeOptions.map(({ value, label }) => (
+          <Button
+            key={value}
+            variant={preference === value ? 'primary' : 'secondary'}
+            aria-pressed={preference === value}
+            onClick={() => setPreference(value)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+    </Card>
+  )
+}
 
 function ProfileForm({ profile, onSaved }: { profile: UserProfile; onSaved: (profile: UserProfile) => void }) {
   const toast = useToast()
@@ -121,6 +152,7 @@ export default function ProfilePage() {
             </h2>
             <ProfileForm profile={profile} onSaved={handleSaved} />
           </Card>
+          <ThemeSetting />
           <div>
             <Button variant="secondary" onClick={() => void logout()}>
               <Icon name="logout" />

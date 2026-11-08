@@ -48,7 +48,7 @@ function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: Hand
   })
 
   return (
-    <section className="rounded-3xl bg-white p-6 shadow-sm sm:p-8">
+    <section className="rounded-3xl bg-card p-6 shadow-sm sm:p-8">
       <h1 className="text-3xl font-semibold">Resumen de salud para la consulta</h1>
       <p className="mt-3 text-lg text-muted">
         Antes de ver la información, indique quién la consulta. Queda registrado para la familia.
@@ -109,7 +109,7 @@ function HandoffSummary({ view }: { view: HandoffPublicView }) {
         <p className="mt-2 text-muted">Preparado el {formatDate(view.createdAt)}</p>
       </header>
 
-      <section className="rounded-3xl bg-white p-6 sm:p-8">
+      <section className="rounded-3xl bg-card p-6 sm:p-8">
         <h2 className="text-2xl font-semibold">Motivo de la consulta</h2>
         <p className="mt-2 whitespace-pre-line">{view.reason}</p>
         {view.questions ? (
@@ -141,7 +141,7 @@ function HandoffSummary({ view }: { view: HandoffPublicView }) {
 function HandoffItemCard({ item }: { item: HandoffItem }) {
   const facts = [item.dose && `Dosis: ${item.dose}`, item.frequency].filter(Boolean).join(' · ')
   return (
-    <li className="rounded-2xl bg-white p-5 sm:p-6">
+    <li className="rounded-2xl bg-card p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="text-xl font-semibold">{item.title}</h3>
         <span
@@ -195,4 +195,4 @@ function Field({
 }
 
 const inputClass = (invalid: boolean) =>
-  `rounded-xl border bg-white px-4 py-3 text-lg ${invalid ? 'border-danger' : 'border-line'} ${focusRing}`
+  `rounded-xl border bg-card px-4 py-3 text-lg ${invalid ? 'border-danger' : 'border-line'} ${focusRing}`

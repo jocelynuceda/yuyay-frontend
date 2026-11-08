@@ -55,7 +55,7 @@ export function AccessLogPanel({ subjectId }: { subjectId: number }) {
   const nameMap = names.state.status === 'ready' ? names.state.data : null
 
   const result = log.state.status === 'ready' ? log.state.data : null
-  const button = `rounded-xl border border-line bg-white px-4 py-2 font-semibold disabled:opacity-40 ${focusRing}`
+  const button = `rounded-xl border border-line bg-card px-4 py-2 font-semibold disabled:opacity-40 ${focusRing}`
 
   return (
     <section aria-labelledby="log-title" className="grid gap-4">
@@ -75,13 +75,13 @@ export function AccessLogPanel({ subjectId }: { subjectId: number }) {
 
       {result ? (
         result.content.length === 0 ? (
-          <p className="rounded-2xl bg-white p-6 text-muted">Aún no hay accesos registrados.</p>
+          <p className="rounded-2xl bg-card p-6 text-muted">Aún no hay accesos registrados.</p>
         ) : (
           <ol className="grid gap-2">
             {result.content.map((entry) => {
               const { who, detail } = whoDidIt(entry, nameMap)
               return (
-                <li key={entry.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-2xl bg-white px-4 py-3">
+                <li key={entry.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-2xl bg-card px-4 py-3">
                   <p>
                     <span className="font-semibold">{who}</span>
                     {detail ? <span className="text-sm text-muted"> ({detail})</span> : null}{' '}

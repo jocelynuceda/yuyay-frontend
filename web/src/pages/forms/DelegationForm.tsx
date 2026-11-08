@@ -77,7 +77,7 @@ export function DelegationForm({
           {CATEGORY_CODES.map((code) => (
             <label
               key={code}
-              className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 py-2 has-checked:border-primary has-checked:bg-primary-tint"
+              className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-card px-4 py-2 has-checked:border-primary has-checked:bg-primary-tint"
             >
               <input type="checkbox" value={code} className={`accent-primary ${focusRing}`} {...register('categoryCodes')} />
               {categoryLabels[code].plural}

@@ -50,7 +50,7 @@ export function Modal({ open, onClose, title, children, describedBy, dismissible
       onClick={(event) => {
         if (dismissible && event.target === event.currentTarget) onClose()
       }}
-      className={cx('m-auto w-[min(32rem,calc(100%-2rem))] rounded-3xl bg-white p-0 text-ink backdrop:bg-ink/40', className)}
+      className={cx('m-auto w-[min(32rem,calc(100%-2rem))] rounded-3xl bg-card p-0 text-ink backdrop:bg-scrim', className)}
     >
       <div className="p-6">
         <div className="flex items-start justify-between gap-4">
