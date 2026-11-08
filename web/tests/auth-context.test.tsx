@@ -7,10 +7,12 @@ Object.assign(globalThis, { window: dom.window, document: dom.window.document })
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { StrictMode, act, useEffect } from 'react'
+import { StrictMode, act, useEffect, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { AuthProvider } from '../src/contexts/AuthContext'
 import { useAuth } from '../src/hooks/useAuth'
+import AppRoutes from '../src/routes/AppRoutes'
 import * as http from '../src/services/http'
 
 class MemoryStorage {
@@ -24,7 +26,12 @@ function backend() {
   let n = 0
   const active = new Map<string, boolean>()
   const calls = { refresh: 0, login: 0 }
-  const state = { refresh: 'ok' as 'ok' | 'network' | '401', latency: 0, loginOk: true }
+  const state = {
+    refresh: 'ok' as 'ok' | 'network' | '401',
+    latency: 0,
+    loginOk: true,
+    loginWait: null as Promise<void> | null,
+  }
   const issue = (name = 'Ana') => {
     n += 1
     const p = { accessToken: `A${n}`, refreshToken: `R${n}`, tokenType: 'Bearer', expiresInSeconds: 3600, user: { id: 1, name } }
@@ -47,13 +54,16 @@ function backend() {
     }
     if (config.url.endsWith('/auth/login')) {
       calls.login += 1
-      await new Promise((r) => setTimeout(r, 10))
+      await (state.loginWait ?? new Promise((r) => setTimeout(r, 10)))
       if (!state.loginOk) throw fail(config, 401)
       return { status: 200, data: issue('Login'), headers: {}, config }
     }
     if (config.url.endsWith('/auth/logout')) {
       active.set(body.refreshToken, false)
       return { status: 204, data: '', headers: {}, config }
+    }
+    if (config.url.endsWith('/care-subjects')) {
+      return { status: 200, data: [], headers: {}, config }
     }
     throw fail(config, 404)
   }
@@ -69,7 +79,7 @@ function Probe() {
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-async function mount(prepare: (b: ReturnType<typeof backend>, s: MemoryStorage) => void) {
+async function mount(prepare: (b: ReturnType<typeof backend>, s: MemoryStorage) => void, children?: ReactNode) {
   const storage = new MemoryStorage()
   ;(globalThis as any).sessionStorage = storage
   http.clearTokens()
@@ -83,7 +93,7 @@ async function mount(prepare: (b: ReturnType<typeof backend>, s: MemoryStorage) 
   if (refreshToken) http.setTokens({ refreshToken, accessToken: '' })
   const root = createRoot(document.getElementById('root')!)
   await act(async () => {
-    root.render(<StrictMode><AuthProvider><Probe /></AuthProvider></StrictMode>)
+    root.render(<StrictMode><AuthProvider><Probe />{children}</AuthProvider></StrictMode>)
   })
   await act(async () => { await wait(30) })
   return { b, storage, root }
@@ -152,4 +162,80 @@ test('E. Login mientras se restaura: gana el login y el refresh rotado por la re
   assert.equal(ctx.isLoading, false, 'el login debe terminar el loader de la restauración reemplazada')
   const loginRefresh = storage.getItem('yuyay.refreshToken')
   assert.deepEqual(b.active(), [loginRefresh], 'solo queda activo el refresh del login')
+})
+
+function RouteLocation() {
+  return <output id="pathname">{useLocation().pathname}</output>
+}
+
+function routesAt(path: string) {
+  return <MemoryRouter initialEntries={[path]}><RouteLocation /><AppRoutes /></MemoryRouter>
+}
+
+function seedFailedRestore(b: ReturnType<typeof backend>, storage: MemoryStorage) {
+  storage.setItem('yuyay.refreshToken', b.issue().refreshToken)
+  b.state.refresh = 'network'
+}
+
+function buttonWithText(label: string) {
+  const button = Array.from(document.querySelectorAll('button')).find((item) => item.textContent?.trim() === label)
+  assert.ok(button, `Falta el botón "${label}"`)
+  return button
+}
+
+for (const path of ['/', '/login', '/personas']) {
+  test(`La ruta ${path} permite recuperar la sesión después de un fallo de red`, async (t) => {
+    const { b, storage, root } = await mount(seedFailedRestore, routesAt(path))
+    t.after(async () => { await act(async () => root.unmount()) })
+
+    assert.match(document.querySelector('[role="alert"]')?.textContent ?? '', /conexión/)
+    assert.equal(document.getElementById('pathname')?.textContent, path)
+    assert.equal(storage.getItem('yuyay.refreshToken'), 'R1')
+    assert.equal(b.calls.refresh, 1)
+
+    b.state.refresh = 'ok'
+    await act(async () => { buttonWithText('Reintentar').click() })
+    await act(async () => { await wait(30) })
+
+    assert.equal(ctx.user?.name, 'Ana')
+    assert.equal(document.getElementById('pathname')?.textContent, '/personas')
+    assert.equal(storage.getItem('yuyay.refreshToken'), 'R2')
+    assert.equal(b.calls.refresh, 2)
+  })
+}
+
+test('Elegir iniciar sesión de nuevo cierra la sesión guardada y lleva al login', async (t) => {
+  const { b, storage, root } = await mount(seedFailedRestore, routesAt('/registro'))
+  t.after(async () => { await act(async () => root.unmount()) })
+
+  await act(async () => { buttonWithText('Iniciar sesión de nuevo').click() })
+  assert.equal(document.getElementById('pathname')?.textContent, '/login')
+  assert.equal(storage.getItem('yuyay.refreshToken'), null)
+  assert.deepEqual(b.active(), [])
+  assert.equal(ctx.restoreError, null)
+})
+
+test('La ruta de login conserva el formulario durante un intento que termina en 401', async (t) => {
+  await import('../src/pages/auth/LoginPage')
+  const { b, root } = await mount(() => {}, routesAt('/login'))
+  t.after(async () => { await act(async () => root.unmount()) })
+  const form = document.querySelector('form')
+  assert.ok(form)
+
+  b.state.loginOk = false
+  let finishLogin!: () => void
+  b.state.loginWait = new Promise((resolve) => { finishLogin = resolve })
+  let failure!: Promise<void>
+  await act(async () => {
+    failure = assert.rejects(ctx.login('ana@example.test', 'sintética'), { message: 'HTTP 401' })
+  })
+  assert.equal(b.calls.login, 1)
+  assert.equal(document.querySelector('form'), form)
+
+  await act(async () => {
+    finishLogin()
+    await failure
+  })
+  assert.equal(document.querySelector('form'), form)
+  assert.equal(document.getElementById('pathname')?.textContent, '/login')
 })

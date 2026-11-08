@@ -174,4 +174,3 @@ test('8. Un fallo de removeItem y de revocación no vuelve a autenticar la pesta
   assert.equal(backend.calls.refresh, 0)
   assert.equal(http.getAccessToken(), null)
 })
-

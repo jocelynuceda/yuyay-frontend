@@ -39,7 +39,12 @@ export default function RegisterPage() {
         <Field id="auth-email" label="Correo electrónico" error={errors.email}>
           <input {...register('email')} {...a11yProps('auth-email', errors.email)} type="email" autoComplete="email" />
         </Field>
-        <Field id="auth-password" label="Contraseña" error={errors.password} hint="Usa de 8 a 72 caracteres e incluye una letra y un número.">
+        <Field
+          id="auth-password"
+          label="Contraseña"
+          error={errors.password}
+          hint="Usa al menos 8 caracteres e incluye una letra entre a y z y un número."
+        >
           <input
             {...register('password')}
             {...a11yProps('auth-password', errors.password, 'password')}
