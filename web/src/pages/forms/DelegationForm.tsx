@@ -85,7 +85,7 @@ export function DelegationForm({
           ))}
         </div>
         {errors.categoryCodes ? (
-          <p id="delegation-categories-error" className="text-sm text-danger">
+          <p id="delegation-categories-error" role="alert" className="text-sm text-danger">
             {errors.categoryCodes.message}
           </p>
         ) : null}
