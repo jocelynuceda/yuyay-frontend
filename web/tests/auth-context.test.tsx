@@ -79,6 +79,15 @@ function Probe() {
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/** Espera hasta que se cumpla la condición (o falla al vencer el plazo) en vez de un retraso fijo. */
+async function waitFor(condition: () => boolean, timeoutMs = 2000) {
+  const start = Date.now()
+  while (!condition()) {
+    if (Date.now() - start > timeoutMs) throw new Error('La condición no se cumplió a tiempo')
+    await act(async () => { await wait(10) })
+  }
+}
+
 async function mount(prepare: (b: ReturnType<typeof backend>, s: MemoryStorage) => void, children?: ReactNode) {
   const storage = new MemoryStorage()
   ;(globalThis as any).sessionStorage = storage
@@ -195,7 +204,7 @@ for (const path of ['/', '/login', '/personas']) {
 
     b.state.refresh = 'ok'
     await act(async () => { buttonWithText('Reintentar').click() })
-    await act(async () => { await wait(30) })
+    await waitFor(() => ctx.user?.name === 'Ana' && document.getElementById('pathname')?.textContent === '/personas')
 
     assert.equal(ctx.user?.name, 'Ana')
     assert.equal(document.getElementById('pathname')?.textContent, '/personas')
