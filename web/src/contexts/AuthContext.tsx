@@ -57,15 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const authenticate = useCallback(async (request: () => Promise<AuthResponse>) => {
     const currentOperation = ++operation.current
-    setIsLoading(true)
-    try {
-      const data = await request()
-      if (!mounted.current || operation.current !== currentOperation) return
-      setTokens(data)
-      setUser(data.user)
-    } finally {
-      if (mounted.current && operation.current === currentOperation) setIsLoading(false)
-    }
+    const data = await request()
+    if (!mounted.current || operation.current !== currentOperation) return
+    setTokens(data)
+    setUser(data.user)
   }, [])
 
   const login = useCallback((email: string, password: string) =>
