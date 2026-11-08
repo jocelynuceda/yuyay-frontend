@@ -6,6 +6,7 @@ import { focusRing } from '../../utils/styles'
 import { InviteCaregiverForm } from '../forms/InviteCaregiverForm'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { useLoad } from './useLoad'
+import { SuccessNotice } from '../shared/SuccessNotice'
 
 const roleLabels: Record<CareRole, string> = { PRINCIPAL: 'Principal', CAREGIVER: 'Cuidador/a' }
 const statusLabels: Record<CareStatus, string> = { PENDING: 'Invitación pendiente', ACTIVE: 'Activo', REVOKED: 'Quitado' }
@@ -54,11 +55,7 @@ export function CaregiversPanel({ subjectId, isPrincipal }: { subjectId: number;
         ) : null}
       </div>
 
-      {notice ? (
-        <p role="status" className="rounded-xl bg-accent-tint p-4 font-semibold text-accent-text">
-          {notice}
-        </p>
-      ) : null}
+      <SuccessNotice message={notice} />
 
       {inviting ? (
         <InviteCaregiverForm

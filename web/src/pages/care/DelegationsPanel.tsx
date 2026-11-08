@@ -6,6 +6,7 @@ import { focusRing } from '../../utils/styles'
 import { DelegationForm } from '../forms/DelegationForm'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { useLoad } from './useLoad'
+import { SuccessNotice } from '../shared/SuccessNotice'
 
 function delegationStatus(d: Delegation) {
   if (d.revokedAt) return { label: `Revocado el ${formatDateTime(d.revokedAt)}`, tone: 'text-muted' }
@@ -54,11 +55,7 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
         ) : null}
       </div>
 
-      {notice ? (
-        <p role="status" className="rounded-xl bg-accent-tint p-4 font-semibold text-accent-text">
-          {notice}
-        </p>
-      ) : null}
+      <SuccessNotice message={notice} />
 
       {creating ? (
         <DelegationForm

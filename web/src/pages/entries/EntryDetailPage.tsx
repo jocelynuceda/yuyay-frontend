@@ -8,6 +8,7 @@ import { changedFields, changeTypeLabels, displayField, versionFieldLabels } fro
 import { focusRing } from '../../utils/styles'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
+import { SuccessNotice } from '../shared/SuccessNotice'
 
 type State =
   | { status: 'loading' }
@@ -102,11 +103,7 @@ export function EntryDetailPage({
         ) : null}
       </header>
 
-      {notice ? (
-        <p role="status" className="rounded-xl bg-accent-tint p-4 font-semibold text-accent-text">
-          {notice}
-        </p>
-      ) : null}
+      <SuccessNotice message={notice} />
       {deleted ? (
         <p role="status" className="rounded-xl bg-danger-bg p-4 text-danger">
           Este registro fue eliminado el {formatDate(current.declaredAt)}. Se conserva su historial.
