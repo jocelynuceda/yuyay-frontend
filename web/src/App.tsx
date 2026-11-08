@@ -6,7 +6,10 @@ export default function App() {
     <>
       <SkipLink />
       <RouteFocus />
-      <AppRoutes />
+      {/* Destino de "Saltar al contenido" en todas las páginas */}
+      <div id="contenido">
+        <AppRoutes />
+      </div>
     </>
   )
 }
