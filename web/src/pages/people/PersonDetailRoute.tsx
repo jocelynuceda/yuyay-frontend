@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { CareSubject } from '../../types'
+import type { CareSubject, CategoryCode } from '../../types'
 import { ageFrom } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { entriesSearch, parseEntriesParams, parseRouteId } from '../../utils/urlParams'
@@ -9,6 +10,7 @@ import { CaregiversPanel } from '../care/CaregiversPanel'
 import { ConsultationsPanel } from '../care/ConsultationsPanel'
 import { DelegationsPanel } from '../care/DelegationsPanel'
 import { EntriesPanel } from '../entries/EntriesPanel'
+import { HealthEntryForm } from '../forms/HealthEntryForm'
 import NotFoundPage from '../NotFoundPage'
 import { PersonRouteFrame } from './PersonRouteFrame'
 
@@ -23,6 +25,8 @@ const tabs = [
 function PersonDetail({ subject }: { subject: CareSubject }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
+  const [entryDraft, setEntryDraft] = useState<{ category: CategoryCode | null } | null>(null)
+  const [entriesVersion, setEntriesVersion] = useState(0)
   const subjectId = subject.id
   const isPrincipal = subject.myRole === 'PRINCIPAL'
   const age = ageFrom(subject.birthDate)
@@ -48,6 +52,17 @@ function PersonDetail({ subject }: { subject: CareSubject }) {
       }
       return next
     })
+  }
+
+  function handleEntrySaved() {
+    setEntryDraft(null)
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.set('tab', 'registros')
+      next.delete('page')
+      return next
+    }, { replace: true })
+    setEntriesVersion((version) => version + 1)
   }
 
   if (!isPrincipal && requestedTab === 'bitacora') {
@@ -88,12 +103,24 @@ function PersonDetail({ subject }: { subject: CareSubject }) {
       </nav>
 
       {activeTab === 'registros' && (
-        <EntriesPanel
-          subjectId={subjectId}
-          params={parseEntriesParams(searchParams)}
-          onParamsChange={updateEntriesParams}
-          onOpenEntry={(entry) => void navigate(`/personas/${subjectId}/registros/${entry.id}`)}
-        />
+        <>
+          {entryDraft && (
+            <HealthEntryForm
+              subjectId={subjectId}
+              initialCategory={entryDraft.category ?? undefined}
+              onSaved={handleEntrySaved}
+              onCancel={() => setEntryDraft(null)}
+            />
+          )}
+          <EntriesPanel
+            key={entriesVersion}
+            subjectId={subjectId}
+            params={parseEntriesParams(searchParams)}
+            onParamsChange={updateEntriesParams}
+            onOpenEntry={(entry) => void navigate(`/personas/${subjectId}/registros/${entry.id}`)}
+            onNewEntry={entryDraft ? undefined : (category) => setEntryDraft({ category })}
+          />
+        </>
       )}
       {activeTab === 'cuidadores' && <CaregiversPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'accesos' && <DelegationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
