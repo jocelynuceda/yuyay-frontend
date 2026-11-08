@@ -15,8 +15,8 @@ export async function removeCaregiver(careSubjectId: number, relationshipId: num
   await api.delete(`/care-subjects/${careSubjectId}/relationships/${relationshipId}`)
 }
 
-export async function listMyPendingInvitations() {
-  const { data } = await api.get<CareRelationship[]>('/me/relationships/pending')
+export async function listMyPendingInvitations(signal?: AbortSignal) {
+  const { data } = await api.get<CareRelationship[]>('/me/relationships/pending', { signal })
   return data
 }
 

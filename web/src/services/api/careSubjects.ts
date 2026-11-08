@@ -1,8 +1,8 @@
 import { api } from '../http'
 import type { AccessLog, CareSubject, CareSubjectRequest, Page, PageParams } from '../../types'
 
-export async function listCareSubjects() {
-  const { data } = await api.get<CareSubject[]>('/care-subjects')
+export async function listCareSubjects(signal?: AbortSignal) {
+  const { data } = await api.get<CareSubject[]>('/care-subjects', { signal })
   return data
 }
 

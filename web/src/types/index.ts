@@ -300,4 +300,29 @@ export interface AccessLog {
   occurredAt: string
 }
 
+// ---- Avisos y perfil ----
+
+export interface Notification {
+  id: number
+  type: 'ENTRY_CHANGED' | 'INVITATION' | (string & {})
+  title: string
+  body: string
+  careSubjectId: number | null
+  read: boolean
+  readAt: string | null
+  createdAt: string
+}
+
+export interface UnreadCount {
+  unreadCount: number
+}
+
+export interface UserProfile {
+  id: number
+  email: string
+  name: string
+  role: string
+  createdAt: string
+}
+
 export type { User, LoginRequest, RegisterRequest, AuthResponse } from './auth'

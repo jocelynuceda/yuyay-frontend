@@ -192,6 +192,9 @@ function buttonWithText(label: string) {
   return button
 }
 
+// Después de recuperar la sesión: /login lleva al inicio (dashboard); las rutas privadas se quedan donde estaban.
+const afterRestore: Record<string, string> = { '/': '/', '/login': '/', '/personas': '/personas' }
+
 for (const path of ['/', '/login', '/personas']) {
   test(`La ruta ${path} permite recuperar la sesión después de un fallo de red`, async (t) => {
     const { b, storage, root } = await mount(seedFailedRestore, routesAt(path))
@@ -204,10 +207,10 @@ for (const path of ['/', '/login', '/personas']) {
 
     b.state.refresh = 'ok'
     await act(async () => { buttonWithText('Reintentar').click() })
-    await waitFor(() => ctx.user?.name === 'Ana' && document.getElementById('pathname')?.textContent === '/personas')
+    await waitFor(() => ctx.user?.name === 'Ana' && document.getElementById('pathname')?.textContent === afterRestore[path])
 
     assert.equal(ctx.user?.name, 'Ana')
-    assert.equal(document.getElementById('pathname')?.textContent, '/personas')
+    assert.equal(document.getElementById('pathname')?.textContent, afterRestore[path])
     assert.equal(storage.getItem('yuyay.refreshToken'), 'R2')
     assert.equal(b.calls.refresh, 2)
   })

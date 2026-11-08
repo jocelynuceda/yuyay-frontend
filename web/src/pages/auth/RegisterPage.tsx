@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { registerSchema } from '../../schemas/auth'
 import { applyServerErrors } from '../../utils/apiErrors'
+import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
 
 export default function RegisterPage() {
   const { register: submitAuth } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [serverError, setServerError] = useState<string | null>(null)
   const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(registerSchema),
@@ -22,7 +24,7 @@ export default function RegisterPage() {
     setServerError(null)
     try {
       await submitAuth(name, email, password)
-      void navigate('/personas', { replace: true })
+      void navigate(getPostLoginTarget(location.state), { replace: true })
     } catch (error) {
       setServerError(applyServerErrors(error, setError, ['name', 'email', 'password']))
     }
