@@ -22,6 +22,10 @@ test('El registro exige ocho caracteres, una letra ASCII y un número', () => {
 test('El login acepta una credencial previa y conserva sus espacios', () => {
   const password = ' ñ '
   assert.equal(loginSchema.parse({ email, password }).password, password)
-  assert.equal(loginSchema.safeParse({ email, password: '' }).success, false)
-  assert.equal(loginSchema.parse({ email, password: '   ' }).password, '   ')
+})
+
+test('El login rechaza una contraseña vacía o compuesta solo por espacios', () => {
+  for (const password of ['', '   ', '\t\n\r']) {
+    assert.equal(loginSchema.safeParse({ email, password }).success, false)
+  }
 })

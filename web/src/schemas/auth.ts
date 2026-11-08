@@ -3,7 +3,10 @@ import { email, requiredText } from './common'
 
 export const loginSchema = z.object({
   email: email(),
-  password: z.string().min(1, 'Escribe tu contraseña.'),
+  password: z.string().refine(
+    (value) => value.trim().length > 0,
+    'Escribe tu contraseña.',
+  ),
 })
 
 export const registerSchema = z.object({
