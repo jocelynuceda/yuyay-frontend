@@ -21,7 +21,7 @@ export interface PaginationProps {
 }
 
 const navButton = cx(
-  'inline-flex items-center gap-1 rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40',
+  'inline-flex items-center gap-1 rounded-xl border border-line bg-card px-3 py-2 text-sm font-semibold disabled:opacity-40',
   focusRing,
 )
 
@@ -54,7 +54,7 @@ export function Pagination({
               id={sizeId}
               value={size}
               onChange={(event) => onSizeChange(Number(event.target.value))}
-              className={cx('rounded-xl border border-line bg-white px-3 py-2 text-sm', focusRing)}
+              className={cx('rounded-xl border border-line bg-card px-3 py-2 text-sm', focusRing)}
             >
               {sizeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -85,7 +85,7 @@ export function Pagination({
                       onClick={() => onPageChange(item)}
                       className={cx(
                         'h-10 min-w-10 rounded-xl px-2 text-sm font-semibold',
-                        item === page ? 'bg-primary text-white' : 'border border-line bg-white',
+                        item === page ? 'bg-primary text-white' : 'border border-line bg-card',
                         focusRing,
                       )}
                     >

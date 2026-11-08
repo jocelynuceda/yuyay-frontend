@@ -2,7 +2,8 @@ import { listHealthEntries } from '../../services/api/healthEntries'
 import { CATEGORY_CODES, type CategoryCode, type HealthEntry } from '../../types'
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
-import { PAGE_SIZES, type EntriesParams } from '../../utils/urlParams'
+import type { EntriesParams } from '../../utils/urlParams'
+import { Pagination } from '../../components/ui/Pagination'
 import { useLoad } from '../care/useLoad'
 
 /**
@@ -63,7 +64,7 @@ export function EntriesPanel({
                 aria-pressed={selected}
                 onClick={() => setFilter({ categoria: code })}
                 className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${focusRing} ${
-                  selected ? 'border-ink bg-ink text-white' : 'border-line bg-white hover:border-primary'
+                  selected ? 'border-ink bg-ink text-white' : 'border-line bg-card hover:border-primary'
                 }`}
               >
                 {code ? categoryLabels[code].plural : 'Todas'}
@@ -71,20 +72,6 @@ export function EntriesPanel({
             )
           })}
         </nav>
-        <label className="flex items-center gap-2 text-sm">
-          <span className="font-semibold">Por página</span>
-          <select
-            value={size}
-            onChange={(e) => setFilter({ size: Number(e.target.value) })}
-            className={`rounded-xl border border-line bg-white px-3 py-1.5 ${focusRing}`}
-          >
-            {PAGE_SIZES.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
       {state.status === 'loading' ? <p className="text-muted">Cargando registros…</p> : null}
@@ -96,7 +83,7 @@ export function EntriesPanel({
 
       {result ? (
         result.content.length === 0 ? (
-          <div className="rounded-2xl bg-white p-6 text-muted">
+          <div className="rounded-2xl bg-card p-6 text-muted">
             {outOfRange ? (
               <>
                 Esta página no existe.{' '}
@@ -122,13 +109,14 @@ export function EntriesPanel({
         )
       ) : null}
 
-      {result && totalPages > 1 ? (
+      {result && result.totalElements > 0 ? (
         <Pagination
           page={page}
           totalPages={totalPages}
           totalElements={result.totalElements}
           size={size}
-          onPage={(p) => onParamsChange({ ...params, page: p })}
+          onPageChange={(p) => onParamsChange({ ...params, page: p })}
+          onSizeChange={(n) => setFilter({ size: n })}
         />
       ) : null}
     </section>
@@ -141,7 +129,7 @@ function factsOf(entry: HealthEntry) {
 
 function EntriesTable({ entries, onOpen }: { entries: HealthEntry[]; onOpen: (entry: HealthEntry) => void }) {
   return (
-    <div className="hidden overflow-x-auto rounded-2xl bg-white md:block">
+    <div className="hidden overflow-x-auto rounded-2xl bg-card md:block">
       <table className="w-full text-left text-sm">
         <caption className="sr-only">Registros de salud</caption>
         <thead className="border-b border-line text-muted">
@@ -204,7 +192,7 @@ function EntriesCards({ entries, onOpen }: { entries: HealthEntry[]; onOpen: (en
             <button
               type="button"
               onClick={() => onOpen(entry)}
-              className={`grid w-full gap-1 rounded-2xl bg-white p-4 text-left ${focusRing}`}
+              className={`grid w-full gap-1 rounded-2xl bg-card p-4 text-left ${focusRing}`}
             >
               <span className="flex items-start justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted">{entry.categoryName}</span>
@@ -232,38 +220,5 @@ function ConfidenceBadge({ level }: { level: HealthEntry['latestVersion']['confi
     >
       {confidenceLabels[level]}
     </span>
-  )
-}
-
-function Pagination({
-  page,
-  totalPages,
-  totalElements,
-  size,
-  onPage,
-}: {
-  page: number
-  totalPages: number
-  totalElements: number
-  size: number
-  onPage: (page: number) => void
-}) {
-  const from = (page - 1) * size + 1
-  const to = Math.min(page * size, totalElements)
-  const button = `rounded-xl border border-line bg-white px-4 py-2 font-semibold disabled:opacity-40 ${focusRing}`
-  return (
-    <nav aria-label="Paginación de registros" className="flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm text-muted" aria-live="polite">
-        {from}–{to} de {totalElements} · Página {page} de {totalPages}
-      </p>
-      <div className="flex gap-2">
-        <button type="button" className={button} disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          ← Anterior
-        </button>
-        <button type="button" className={button} disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
-          Siguiente →
-        </button>
-      </div>
-    </nav>
   )
 }

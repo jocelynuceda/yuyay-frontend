@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router-dom'
 import isologo from '../../assets/brand/isologo.svg'
+import isologoDark from '../../assets/brand/isologo-dark.svg'
 import { useLogout } from '../../hooks/useLogout'
 import { useUnreadCount } from '../../hooks/useUnreadCount'
 import { focusRing } from '../../utils/styles'
@@ -14,9 +15,10 @@ export function SideNav() {
   const logout = useLogout()
 
   return (
-    <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 border-r border-line bg-white px-4 py-6 lg:flex">
+    <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 border-r border-line bg-card px-4 py-6 lg:flex">
       <Link to="/" aria-label="Yuyay, ir al inicio" className={cx('rounded-xl px-2', focusRing)}>
-        <img src={isologo} alt="" className="h-12 w-auto" />
+        <img src={isologo} alt="" className="h-12 w-auto dark:hidden" />
+        <img src={isologoDark} alt="" className="hidden h-12 w-auto dark:inline" />
       </Link>
       <nav aria-label="Principal" className="flex-1">
         <ul className="grid gap-1">

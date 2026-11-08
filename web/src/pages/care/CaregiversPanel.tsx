@@ -71,7 +71,7 @@ export function CaregiversPanel({ subjectId, isPrincipal }: { subjectId: number;
 
       <ul className="grid gap-3">
         {visible.map((r) => (
-          <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4">
+          <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4">
             <div className="min-w-0">
               <p className="font-semibold">
                 {r.user.name}

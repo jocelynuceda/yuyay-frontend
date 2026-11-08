@@ -63,7 +63,7 @@ export function ConfirmDialog({
         event.preventDefault()
         if (!working) onCancel()
       }}
-      className="m-auto w-[min(28rem,calc(100%-2rem))] rounded-3xl bg-white p-6 text-ink backdrop:bg-ink/40"
+      className="m-auto w-[min(28rem,calc(100%-2rem))] rounded-3xl bg-card p-6 text-ink backdrop:bg-scrim"
     >
       <h2 id={`${id}-title`} className="text-xl font-semibold">
         {title}

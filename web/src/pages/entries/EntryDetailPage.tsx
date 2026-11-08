@@ -122,7 +122,7 @@ export function EntryDetailPage({
           }}
         />
       ) : (
-        <section aria-labelledby="current-version" className="rounded-3xl bg-white p-6 sm:p-8">
+        <section aria-labelledby="current-version" className="rounded-3xl bg-card p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="current-version" className="text-xl font-semibold">
               {deleted ? 'Última versión' : 'Versión actual'} · v{current.versionNumber}
@@ -181,7 +181,7 @@ function VersionItem({
 }) {
   const fields = previous && version.changeType === 'UPDATED' ? changedFields(version, previous) : []
   return (
-    <li className="rounded-2xl bg-white p-5">
+    <li className="rounded-2xl bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-semibold">
           Versión {version.versionNumber} · {changeTypeLabels[version.changeType]}

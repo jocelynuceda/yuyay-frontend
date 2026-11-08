@@ -75,7 +75,7 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
         {state.data.map((d) => {
           const status = delegationStatus(d)
           return (
-            <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4">
+            <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4">
               <div className="min-w-0">
                 <p className="font-semibold">{d.granteeName}</p>
                 <p className="truncate text-sm text-muted">{d.granteeEmail}</p>
@@ -126,7 +126,7 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
 function ShareDelegation({ created, onClose }: { created: DelegationCreated; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
   return (
-    <section className="grid gap-3 rounded-3xl bg-white p-6" aria-labelledby="share-delegation-title">
+    <section className="grid gap-3 rounded-3xl bg-card p-6" aria-labelledby="share-delegation-title">
       <h3 id="share-delegation-title" className="text-xl font-semibold">
         Acceso creado para {created.delegation.granteeName}
       </h3>

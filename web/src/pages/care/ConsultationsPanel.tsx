@@ -50,7 +50,7 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
 
   const { upcoming, past, lastPast, changes } = state.data
   const item = (c: Consultation, isUpcoming: boolean) => (
-    <li key={c.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-white p-4">
+    <li key={c.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-card p-4">
       <div className="min-w-0">
         <p className={`text-sm font-semibold ${isUpcoming ? 'text-primary' : 'text-muted'}`}>
           <time dateTime={c.date}>{formatDate(c.date)}</time>
@@ -149,7 +149,7 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
 /** Lo que conviene contarle al médico: registros creados, editados o borrados desde la última consulta. */
 function ChangesSinceLast({ lastPast, changes }: { lastPast: Consultation | null; changes: HealthEntryVersion[] }) {
   return (
-    <section aria-labelledby="changes-title" className="rounded-3xl border-2 border-accent bg-white p-5">
+    <section aria-labelledby="changes-title" className="rounded-3xl border-2 border-accent bg-card p-5">
       <h3 id="changes-title" className="text-lg font-semibold">
         Cambios desde la última consulta
       </h3>
