@@ -2,7 +2,8 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import NotFoundPage from '../pages/NotFoundPage'
-import PrivateRoute, { RouteLoading } from './PrivateRoute'
+import PrivateRoute from './PrivateRoute'
+import SessionRoute, { RouteLoading } from './SessionRoute'
 
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'))
@@ -16,14 +17,12 @@ const HandoffPublicPage = lazy(() => import('../pages/public/HandoffPublicPage')
   .then(({ HandoffPublicPage }) => ({ default: HandoffPublicPage })))
 
 function HomeRoute() {
-  const { isAuthenticated, isLoading } = useAuth()
-  if (isLoading) return <RouteLoading />
+  const { isAuthenticated } = useAuth()
   return <Navigate to={isAuthenticated ? '/personas' : '/login'} replace />
 }
 
 function PublicAuthRoute() {
-  const { isAuthenticated, isLoading } = useAuth()
-  if (isLoading) return <RouteLoading />
+  const { isAuthenticated } = useAuth()
   return isAuthenticated ? <Navigate to="/personas" replace /> : <Outlet />
 }
 
@@ -41,18 +40,20 @@ export default function AppRoutes() {
   return (
     <Suspense fallback={<RouteLoading />}>
       <Routes>
-        <Route path="/" element={<HomeRoute />} />
-        <Route element={<PublicAuthRoute />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/registro" element={<RegisterPage />} />
-        </Route>
         <Route path="/acceso/:token" element={<DelegateRoute />} />
         <Route path="/traspaso/:token" element={<HandoffRoute />} />
-        <Route element={<PrivateRoute />}>
-          <Route path="/personas" element={<PeopleRoute />} />
-          <Route path="/personas/:id" element={<PersonDetailRoute />} />
-          <Route path="/personas/:id/registros/:entryId" element={<EntryDetailRoute />} />
-          <Route path="/personas/:id/traspaso/nuevo" element={<NewHandoffRoute />} />
+        <Route element={<SessionRoute />}>
+          <Route path="/" element={<HomeRoute />} />
+          <Route element={<PublicAuthRoute />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/registro" element={<RegisterPage />} />
+          </Route>
+          <Route element={<PrivateRoute />}>
+            <Route path="/personas" element={<PeopleRoute />} />
+            <Route path="/personas/:id" element={<PersonDetailRoute />} />
+            <Route path="/personas/:id/registros/:entryId" element={<EntryDetailRoute />} />
+            <Route path="/personas/:id/traspaso/nuevo" element={<NewHandoffRoute />} />
+          </Route>
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

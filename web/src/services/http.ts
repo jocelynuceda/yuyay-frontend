@@ -23,13 +23,20 @@ interface AuthRequestConfig extends InternalAxiosRequestConfig {
 }
 
 let accessToken: string | null = null
+// undefined permite restaurar desde storage. null representa un cierre local explícito.
+let refreshTokenInMemory: string | null | undefined
 let sessionVersion = 0
 let refreshPromise: Promise<AuthResponse> | null = null
 let onSessionExpired: (() => void) | null = null
 
 function storeTokens(tokens: AuthTokens) {
-  sessionStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
+  refreshTokenInMemory = tokens.refreshToken
   accessToken = tokens.accessToken
+  try {
+    sessionStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
+  } catch {
+    // Si el navegador no deja guardar, la sesión dura lo que dure la pestaña.
+  }
 }
 
 /** El access token vive exclusivamente en memoria. */
@@ -44,14 +51,24 @@ export function getAccessToken(): string | null {
 }
 
 export function getRefreshToken(): string | null {
-  return sessionStorage.getItem(REFRESH_TOKEN_KEY)
+  if (refreshTokenInMemory !== undefined) return refreshTokenInMemory
+  try {
+    return sessionStorage.getItem(REFRESH_TOKEN_KEY)
+  } catch {
+    return null
+  }
 }
 
 export function clearTokens() {
   accessToken = null
+  refreshTokenInMemory = null
   sessionVersion += 1
   refreshPromise = null
-  sessionStorage.removeItem(REFRESH_TOKEN_KEY)
+  try {
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY)
+  } catch {
+    // El cierre local evita releer el valor persistido durante esta pestaña.
+  }
 }
 
 /** AuthContext podrá registrar aquí su cierre de sesión, o null para desconectarlo. */
@@ -118,7 +135,15 @@ async function refreshSession(version: number) {
     const { data } = await publicApi.post<AuthResponse>('/auth/refresh', {
       refreshToken: token,
     })
-    if (version !== sessionVersion) throw new Error('La sesión cambió.')
+    if (version !== sessionVersion) {
+      // El servidor ya rotó el token: se intenta revocar el nuevo.
+      // Va por publicApi (sin el interceptor de api) y el error no es de Axios,
+      // así que no se trata como 401 ni borra la sesión más reciente.
+      if (typeof data?.refreshToken === 'string' && data.refreshToken) {
+        void publicApi.post('/auth/logout', { refreshToken: data.refreshToken }).catch(() => {})
+      }
+      throw new Error('La sesión cambió.')
+    }
     if (!data || typeof data.accessToken !== 'string' || !data.accessToken ||
         typeof data.refreshToken !== 'string' || !data.refreshToken) {
       throw new Error('Respuesta de sesión inválida.')
