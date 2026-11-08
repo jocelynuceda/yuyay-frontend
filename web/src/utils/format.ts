@@ -31,3 +31,15 @@ export const confidenceLabels: Record<ConfidenceLevel, string> = {
   CONFIRMED: 'Confirmado',
   UNCERTAIN: 'Por confirmar',
 }
+
+/** Edad en años cumplidos a partir de la fecha de nacimiento, o null si no hay. */
+export function ageFrom(birthDate?: string | null): number | null {
+  if (!birthDate) return null
+  const birth = parse(birthDate)
+  const now = new Date()
+  let age = now.getFullYear() - birth.getFullYear()
+  const beforeBirthday =
+    now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())
+  if (beforeBirthday) age--
+  return age
+}

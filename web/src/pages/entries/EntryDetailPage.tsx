@@ -6,7 +6,7 @@ import { loadEntryHistory } from '../../utils/entryHistory'
 import { confidenceLabels, formatDate, formatDateTime } from '../../utils/format'
 import { changedFields, changeTypeLabels, displayField, versionFieldLabels } from '../../utils/versions'
 import { focusRing } from '../../utils/styles'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
 
 type State =
