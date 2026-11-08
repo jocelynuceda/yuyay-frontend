@@ -4,8 +4,8 @@ import type { Consultation, ConsultationDetail, ConsultationRequest, HealthEntry
 const base = (careSubjectId: number) => `/care-subjects/${careSubjectId}/consultations`
 
 /** Ordenadas por fecha descendente. */
-export async function listConsultations(careSubjectId: number) {
-  const { data } = await api.get<Consultation[]>(base(careSubjectId))
+export async function listConsultations(careSubjectId: number, signal?: AbortSignal) {
+  const { data } = await api.get<Consultation[]>(base(careSubjectId), { signal })
   return data
 }
 
