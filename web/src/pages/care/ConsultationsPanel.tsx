@@ -8,7 +8,7 @@ import { todayIso } from '../../schemas/common'
 import { ConsultationForm } from '../forms/ConsultationForm'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { useLoad } from './useLoad'
-import { SuccessNotice } from '../shared/SuccessNotice'
+import { useSuccessNotice } from '../shared/useSuccessNotice'
 
 interface ConsultationsData {
   upcoming: Consultation[]
@@ -37,7 +37,7 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
   const { state, reload } = useLoad(() => loadConsultations(subjectId), subjectId)
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<Consultation | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const { notify, anchorProps } = useSuccessNotice()
 
   if (state.status === 'loading') return <p className="p-6 text-muted">Cargando consultas…</p>
   if (state.status === 'error') {
@@ -82,7 +82,6 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
           <button
             type="button"
             onClick={() => {
-              setNotice(null)
               setAdding(true)
             }}
             className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
@@ -93,7 +92,7 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
       </div>
       {!isPrincipal ? <p className="-mt-3 text-sm text-muted">Solo el cuidador principal puede registrar consultas.</p> : null}
 
-      <SuccessNotice message={notice} />
+      <span {...anchorProps} />
 
       {adding ? (
         <ConsultationForm
@@ -101,7 +100,7 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
           onCancel={() => setAdding(false)}
           onSaved={(c) => {
             setAdding(false)
-            setNotice(`Consulta del ${formatDate(c.date)} guardada.`)
+            notify(`Consulta del ${formatDate(c.date)} guardada.`)
             reload()
           }}
         />
@@ -137,7 +136,7 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
         onConfirm={async () => {
           if (!removing) return
           await deleteConsultation(removing.id)
-          setNotice('Consulta borrada.')
+          notify('Consulta borrada.')
           setRemoving(null)
           reload()
         }}

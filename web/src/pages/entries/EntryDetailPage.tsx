@@ -8,7 +8,7 @@ import { changedFields, changeTypeLabels, displayField, versionFieldLabels } fro
 import { focusRing } from '../../utils/styles'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
-import { SuccessNotice } from '../shared/SuccessNotice'
+import { useSuccessNotice } from '../shared/useSuccessNotice'
 
 type State =
   | { status: 'loading' }
@@ -34,7 +34,7 @@ export function EntryDetailPage({
   const [version, setVersion] = useState(0)
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const { notify, anchorProps } = useSuccessNotice()
 
   useEffect(() => {
     let active = true
@@ -85,7 +85,6 @@ export function EntryDetailPage({
             <button
               type="button"
               onClick={() => {
-                setNotice(null)
                 setEditing(true)
               }}
               className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
@@ -103,7 +102,7 @@ export function EntryDetailPage({
         ) : null}
       </header>
 
-      <SuccessNotice message={notice} />
+      <span {...anchorProps} />
       {deleted ? (
         <p role="status" className="rounded-xl bg-danger-bg p-4 text-danger">
           Este registro fue eliminado el {formatDate(current.declaredAt)}. Se conserva su historial.
@@ -117,7 +116,7 @@ export function EntryDetailPage({
           onCancel={() => setEditing(false)}
           onSaved={(saved) => {
             setEditing(false)
-            setNotice(saved ? 'Cambios guardados. Se creó una versión nueva.' : 'No había cambios que guardar.')
+            notify(saved ? 'Cambios guardados. Se creó una versión nueva.' : 'No había cambios que guardar.')
             if (saved) setVersion((v) => v + 1)
           }}
         />
@@ -161,7 +160,6 @@ export function EntryDetailPage({
         onConfirm={async () => {
           await deleteHealthEntry(subjectId, entryId)
           setConfirmingDelete(false)
-          setNotice(null)
           if (onDeleted) onDeleted()
           else setVersion((v) => v + 1)
         }}

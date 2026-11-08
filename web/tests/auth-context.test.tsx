@@ -11,6 +11,7 @@ import { StrictMode, act, useEffect, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { AuthProvider } from '../src/contexts/AuthContext'
+import { ToastProvider } from '../src/contexts/ToastContext'
 import { useAuth } from '../src/hooks/useAuth'
 import AppRoutes from '../src/routes/AppRoutes'
 import * as http from '../src/services/http'
@@ -178,7 +179,7 @@ function RouteLocation() {
 }
 
 function routesAt(path: string) {
-  return <MemoryRouter initialEntries={[path]}><RouteLocation /><AppRoutes /></MemoryRouter>
+  return <MemoryRouter initialEntries={[path]}><ToastProvider><RouteLocation /><AppRoutes /></ToastProvider></MemoryRouter>
 }
 
 function seedFailedRestore(b: ReturnType<typeof backend>, storage: MemoryStorage) {

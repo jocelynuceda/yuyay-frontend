@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { Modal } from '../../components/ui/Modal'
+import { useToast } from '../../hooks/useToast'
 import { listCareSubjects } from '../../services/api/careSubjects'
 import type { CareSubject } from '../../types'
 import { ageFrom } from '../../utils/format'
@@ -41,7 +43,7 @@ export function PeopleGrid({
 }) {
   const { state, reload } = useLoad(listCareSubjects, 'people')
   const [adding, setAdding] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const toast = useToast()
 
   // El campo responde al instante; la URL (y el filtro) se actualiza al dejar de escribir
   const [text, setText] = useState(params.q)
@@ -68,37 +70,28 @@ export function PeopleGrid({
     <div className="grid gap-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-semibold">Personas</h1>
-        {!adding ? (
-          <button
-            type="button"
-            onClick={() => {
-              setNotice(null)
-              setAdding(true)
-            }}
-            className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
-          >
-            Agregar persona
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
+        >
+          Agregar persona
+        </button>
       </header>
 
-      {adding ? (
-        // En la app va dentro del modal de la base; aquí se muestra en línea
-        <CareSubjectForm
-          onCancel={() => setAdding(false)}
-          onSaved={(subject) => {
-            setAdding(false)
-            setNotice(`Se agregó a ${subject.name}.`)
-            reload()
-          }}
-        />
-      ) : null}
-
-      {notice ? (
-        <p role="status" className="rounded-xl bg-accent-tint p-4 font-semibold text-accent-text">
-          {notice}
-        </p>
-      ) : null}
+      <Modal open={adding} onClose={() => setAdding(false)} title="Agregar persona">
+        {adding ? (
+          <CareSubjectForm
+            inModal
+            onCancel={() => setAdding(false)}
+            onSaved={(subject) => {
+              setAdding(false)
+              toast.success(`Se agregó a ${subject.name}.`)
+              reload()
+            }}
+          />
+        ) : null}
+      </Modal>
 
       <div role="search" className="flex flex-wrap items-end gap-3">
         <label className="grid min-w-56 flex-1 gap-1.5">
