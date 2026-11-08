@@ -6,7 +6,7 @@ import { focusRing } from '../../utils/styles'
 import { DelegationForm } from '../forms/DelegationForm'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { useLoad } from './useLoad'
-import { SuccessNotice } from '../shared/SuccessNotice'
+import { useSuccessNotice } from '../shared/useSuccessNotice'
 
 function delegationStatus(d: Delegation) {
   if (d.revokedAt) return { label: `Revocado el ${formatDateTime(d.revokedAt)}`, tone: 'text-muted' }
@@ -23,7 +23,7 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<DelegationCreated | null>(null)
   const [revoking, setRevoking] = useState<Delegation | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const { notify, anchorProps } = useSuccessNotice()
 
   if (state.status === 'loading') return <p className="p-6 text-muted">Cargando accesos…</p>
   if (state.status === 'error') {
@@ -44,7 +44,6 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
           <button
             type="button"
             onClick={() => {
-              setNotice(null)
               setCreated(null)
               setCreating(true)
             }}
@@ -55,7 +54,7 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
         ) : null}
       </div>
 
-      <SuccessNotice message={notice} />
+      <span {...anchorProps} />
 
       {creating ? (
         <DelegationForm
@@ -113,7 +112,7 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
         onConfirm={async () => {
           if (!revoking) return
           await revokeDelegation(revoking.id)
-          setNotice(`Acceso de ${revoking.granteeName} revocado.`)
+          notify(`Acceso de ${revoking.granteeName} revocado.`)
           setRevoking(null)
           reload()
         }}

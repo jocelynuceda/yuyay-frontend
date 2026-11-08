@@ -12,9 +12,9 @@ export function PersonRouteFrame({
 }: {
   subjectId: number
   section?: string
-  children: (subject: CareSubject) => ReactNode
+  children: (subject: CareSubject, reload: () => void) => ReactNode
 }) {
-  const { state } = useLoad(() => getCareSubject(subjectId), subjectId)
+  const { state, reload } = useLoad(() => getCareSubject(subjectId), subjectId)
   const subject = state.status === 'ready' ? state.data : null
   const linkClass = `rounded-sm text-primary underline ${focusRing}`
 
@@ -45,7 +45,7 @@ export function PersonRouteFrame({
       {state.status === 'error' && (
         <p role="alert" className="rounded-2xl bg-danger-bg p-4 text-danger">{state.message}</p>
       )}
-      {subject && children(subject)}
+      {subject && children(subject, reload)}
     </main>
   )
 }

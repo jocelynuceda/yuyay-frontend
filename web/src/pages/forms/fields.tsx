@@ -90,19 +90,32 @@ export function ChoiceOption({ children, ...input }: InputHTMLAttributes<HTMLInp
   )
 }
 
-/** Formulario en tarjeta con título. `noValidate`: la validación la hace Zod. */
+/**
+ * Formulario en tarjeta con título. `noValidate`: la validación la hace Zod.
+ * Con `bare` va dentro de un modal, que ya pone la tarjeta y el título.
+ */
 export function FormShell({
   title,
   description,
+  bare = false,
   onSubmit,
   children,
 }: {
   title: string
   description?: string
+  bare?: boolean
   onSubmit: FormEventHandler<HTMLFormElement>
   children: ReactNode
 }) {
   const titleId = useId()
+  if (bare) {
+    return (
+      <form onSubmit={onSubmit} noValidate className="grid gap-5">
+        {description ? <p className="text-sm text-muted">{description}</p> : null}
+        {children}
+      </form>
+    )
+  }
   return (
     <form onSubmit={onSubmit} noValidate aria-labelledby={titleId} className="grid gap-5 rounded-3xl bg-white p-6 sm:p-8">
       <div>

@@ -6,7 +6,7 @@ import { focusRing } from '../../utils/styles'
 import { InviteCaregiverForm } from '../forms/InviteCaregiverForm'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { useLoad } from './useLoad'
-import { SuccessNotice } from '../shared/SuccessNotice'
+import { useSuccessNotice } from '../shared/useSuccessNotice'
 
 const roleLabels: Record<CareRole, string> = { PRINCIPAL: 'Principal', CAREGIVER: 'Cuidador/a' }
 const statusLabels: Record<CareStatus, string> = { PENDING: 'Invitación pendiente', ACTIVE: 'Activo', REVOKED: 'Quitado' }
@@ -15,11 +15,20 @@ const statusLabels: Record<CareStatus, string> = { PENDING: 'Invitación pendien
  * Pestaña "Cuidadores" del detalle de persona: lista, invitar y quitar con confirmación.
  * Solo el principal puede invitar y quitar.
  */
-export function CaregiversPanel({ subjectId, isPrincipal }: { subjectId: number; isPrincipal: boolean }) {
+export function CaregiversPanel({
+  subjectId,
+  isPrincipal,
+  onChanged,
+}: {
+  subjectId: number
+  isPrincipal: boolean
+  /** Se llama al quitar un cuidador, para actualizar lo que dependa de la lista. */
+  onChanged?: () => void
+}) {
   const { state, reload } = useLoad(() => listCaregivers(subjectId), subjectId)
   const [inviting, setInviting] = useState(false)
   const [removing, setRemoving] = useState<CareRelationship | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const { notify, anchorProps } = useSuccessNotice()
 
   if (state.status === 'loading') return <p className="p-6 text-muted">Cargando cuidadores…</p>
   if (state.status === 'error') {
@@ -45,7 +54,6 @@ export function CaregiversPanel({ subjectId, isPrincipal }: { subjectId: number;
           <button
             type="button"
             onClick={() => {
-              setNotice(null)
               setInviting(true)
             }}
             className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
@@ -55,7 +63,7 @@ export function CaregiversPanel({ subjectId, isPrincipal }: { subjectId: number;
         ) : null}
       </div>
 
-      <SuccessNotice message={notice} />
+      <span {...anchorProps} />
 
       {inviting ? (
         <InviteCaregiverForm
@@ -63,7 +71,7 @@ export function CaregiversPanel({ subjectId, isPrincipal }: { subjectId: number;
           onCancel={() => setInviting(false)}
           onSaved={(relationship) => {
             setInviting(false)
-            setNotice(`Invitación enviada a ${relationship.user.email}.`)
+            notify(`Invitación enviada a ${relationship.user.email}.`)
             reload()
           }}
         />
@@ -117,13 +125,14 @@ export function CaregiversPanel({ subjectId, isPrincipal }: { subjectId: number;
         onConfirm={async () => {
           if (!removing) return
           await removeCaregiver(subjectId, removing.id)
-          setNotice(
+          notify(
             removing.status === 'PENDING'
               ? `Invitación a ${removing.user.email} cancelada.`
               : `${removing.user.name} ya no es cuidador/a.`,
           )
           setRemoving(null)
           reload()
+          onChanged?.()
         }}
       />
     </section>
