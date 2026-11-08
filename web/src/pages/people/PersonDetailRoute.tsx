@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { CareSubject } from '../../types'
+import type { CareSubject, CategoryCode, HealthEntry } from '../../types'
 import { ageFrom } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { entriesSearch, parseEntriesParams, parseRouteId } from '../../utils/urlParams'
@@ -9,6 +10,7 @@ import { CaregiversPanel } from '../care/CaregiversPanel'
 import { ConsultationsPanel } from '../care/ConsultationsPanel'
 import { DelegationsPanel } from '../care/DelegationsPanel'
 import { EntriesPanel } from '../entries/EntriesPanel'
+import { HealthEntryForm } from '../forms/HealthEntryForm'
 import NotFoundPage from '../NotFoundPage'
 import { PersonRouteFrame } from './PersonRouteFrame'
 
@@ -29,6 +31,9 @@ function PersonDetail({ subject }: { subject: CareSubject }) {
   const visibleTabs = isPrincipal ? tabs : tabs.filter(({ id }) => id !== 'bitacora')
   const requestedTab = searchParams.get('tab')
   const activeTab = visibleTabs.find(({ id }) => id === requestedTab)?.id ?? 'registros'
+  const [newEntry, setNewEntry] = useState<{ category: CategoryCode | null } | null>(null)
+  const [entriesVersion, setEntriesVersion] = useState(0)
+  const [notice, setNotice] = useState<string | null>(null)
 
   function tabLocation(tab: typeof activeTab) {
     const next = new URLSearchParams(searchParams)
@@ -48,6 +53,18 @@ function PersonDetail({ subject }: { subject: CareSubject }) {
       }
       return next
     })
+  }
+
+  function handleEntrySaved(entry: HealthEntry | null) {
+    setNewEntry(null)
+    if (entry === null) return
+    const params = parseEntriesParams(searchParams)
+    // Si el filtro ocultaría el registro nuevo, se pasa a "Todas"
+    const categoria = params.categoria === null || params.categoria === entry.categoryCode ? params.categoria : null
+    updateEntriesParams({ ...params, categoria, page: 1 })
+    // Cambiar la key remonta el panel y recarga la lista aunque la URL no cambie
+    setEntriesVersion((v) => v + 1)
+    setNotice('Registro guardado.')
   }
 
   if (!isPrincipal && requestedTab === 'bitacora') {
@@ -88,12 +105,32 @@ function PersonDetail({ subject }: { subject: CareSubject }) {
       </nav>
 
       {activeTab === 'registros' && (
-        <EntriesPanel
-          subjectId={subjectId}
-          params={parseEntriesParams(searchParams)}
-          onParamsChange={updateEntriesParams}
-          onOpenEntry={(entry) => void navigate(`/personas/${subjectId}/registros/${entry.id}`)}
-        />
+        <>
+          {newEntry && (
+            <HealthEntryForm
+              subjectId={subjectId}
+              initialCategory={newEntry.category ?? undefined}
+              onCancel={() => setNewEntry(null)}
+              onSaved={handleEntrySaved}
+            />
+          )}
+          {notice && (
+            <p role="status" className="rounded-2xl bg-accent-tint p-4 font-semibold text-accent-text">
+              {notice}
+            </p>
+          )}
+          <EntriesPanel
+            key={entriesVersion}
+            subjectId={subjectId}
+            params={parseEntriesParams(searchParams)}
+            onParamsChange={updateEntriesParams}
+            onOpenEntry={(entry) => void navigate(`/personas/${subjectId}/registros/${entry.id}`)}
+            onNewEntry={(category) => {
+              setNotice(null)
+              setNewEntry({ category })
+            }}
+          />
+        </>
       )}
       {activeTab === 'cuidadores' && <CaregiversPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'accesos' && <DelegationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
