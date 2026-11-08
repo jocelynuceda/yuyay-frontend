@@ -22,6 +22,7 @@ const { ToastProvider } = await import('../src/contexts/ToastContext')
 const { default: AppRoutes } = await import('../src/routes/AppRoutes')
 const http = await import('../src/services/http')
 const { getPostLoginTarget } = await import('../src/utils/redirect')
+const { getNotificationLink } = await import('../src/pages/notifications/notificationLink')
 
 class MemoryStorage {
   data = new Map<string, string>()
@@ -56,10 +57,17 @@ function backend() {
       { id: 7, careSubjectId: 3, careSubjectName: 'Lucía', user: { id: 1, name: 'Ana Torres', email: 'ana@demo.yuyay' },
         role: 'CAREGIVER', status: 'PENDING', relationshipLabel: 'Tía', invitedAt: '2026-11-07T00:00:00Z', acceptedAt: null, revokedAt: null },
     ],
-    notifications: [1, 2, 3, 4].map((id) => ({
-      id, type: 'ENTRY_CHANGED', title: `Aviso ${id}`, body: `Detalle ${id}`, careSubjectId: 1,
-      read: id === 4, readAt: id === 4 ? '2026-11-07T00:00:00Z' : null, createdAt: '2026-11-07T00:00:00Z',
-    })),
+    notifications: [
+      ...[1, 2, 3, 4].map((id) => ({
+        id, type: 'ENTRY_CHANGED', title: `Aviso ${id}`, body: `Detalle ${id}`, careSubjectId: 1 as number | null,
+        read: id === 4, readAt: id === 4 ? '2026-11-07T00:00:00Z' : null, createdAt: '2026-11-07T00:00:00Z',
+      })),
+      // Como en los datos de demo: invitación pendiente a Lucía (3) y una invitación ya aceptada sobre Pedro (2).
+      { id: 5, type: 'INVITATION', title: 'Te invitaron a cuidar a Lucía', body: 'Invitación', careSubjectId: 3,
+        read: true, readAt: '2026-11-07T00:00:00Z', createdAt: '2026-11-07T00:00:00Z' },
+      { id: 6, type: 'INVITATION', title: 'Invitación aceptada', body: 'Bruno aceptó cuidar a Pedro', careSubjectId: 2,
+        read: true, readAt: '2026-11-07T00:00:00Z', createdAt: '2026-11-07T00:00:00Z' },
+    ],
   }
   const ok = (config: any, data: unknown, status = 200) => ({ status, statusText: 'OK', data, headers: {}, config })
   const fail = (config: any, status: number) => Object.assign(new Error(`HTTP ${status}`), {
@@ -251,4 +259,30 @@ test('Perfil: editar el nombre lo guarda y actualiza el header', async (t) => {
   await click(document.querySelector('form button[type="submit"]'), 'el botón Guardar')
   await waitFor(() => b.db.me.name === 'Ana María Torres', 'PATCH /users/me con el nombre sin espacios')
   await waitFor(() => !!document.querySelector('[aria-label="Perfil de Ana María Torres"]'), 'header con el nombre nuevo')
+})
+
+test('getNotificationLink: una invitación pendiente enlaza a la invitación, nunca a la persona', () => {
+  const ready = { status: 'ready' as const, bySubject: new Map([[3, 7]]) }
+  assert.deepEqual(getNotificationLink({ type: 'INVITATION', careSubjectId: 3 }, ready), { to: '/invitaciones/7', label: 'Ver invitación' })
+  assert.deepEqual(getNotificationLink({ type: 'INVITATION', careSubjectId: 2 }, ready), { to: '/personas/2', label: 'Ver persona' })
+  assert.deepEqual(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: 1 }, ready), { to: '/personas/1', label: 'Ver persona' })
+  assert.equal(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: null }, ready), null)
+  for (const status of ['loading', 'error'] as const) {
+    const unknown = { status, bySubject: new Map<number, number>() }
+    assert.equal(getNotificationLink({ type: 'INVITATION', careSubjectId: 3 }, unknown), null, `sin saber si está pendiente (${status}) no enlaza`)
+    assert.deepEqual(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: 1 }, unknown), { to: '/personas/1', label: 'Ver persona' })
+  }
+})
+
+test('Avisos: la invitación pendiente lleva a /invitaciones/{id} y la aceptada a la persona', async (t) => {
+  const { unmount } = await mountApp('/avisos', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => !!document.querySelector('a[href="/invitaciones/7"]'), 'enlace Ver invitación')
+  const invitation = document.querySelector('a[href="/invitaciones/7"]')!
+  assert.equal(invitation.textContent?.trim(), 'Ver invitación')
+  assert.equal(document.querySelector('a[href="/personas/3"]'), null, 'no enlaza a la persona con la invitación pendiente (403)')
+  assert.equal(document.querySelector('a[href="/personas/2"]')?.textContent?.trim(), 'Ver persona')
+
+  await click(invitation, 'Ver invitación')
+  await waitFor(() => pathname() === '/invitaciones/7' && /Lucía/.test(text()), 'abrir la invitación')
 })

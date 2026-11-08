@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { LoadError } from '../../components/layout/LoadError'
 import { Badge } from '../../components/ui/Badge'
@@ -13,10 +13,12 @@ import { useFetch } from '../../hooks/useFetch'
 import { usePagination } from '../../hooks/usePagination'
 import { useToast } from '../../hooks/useToast'
 import { useUnreadCount } from '../../hooks/useUnreadCount'
+import { listMyPendingInvitations } from '../../services/api/caregivers'
 import { listNotifications, markNotificationRead } from '../../services/api/notifications'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDateTime, formatRelative, notificationTypeLabels } from '../../utils/format'
 import { linkClass, linkButtonClass } from '../../utils/styles'
+import { getNotificationLink, type PendingInvitations } from './notificationLink'
 
 const FILTER_PARAM = 'filtro'
 const UNREAD_VALUE = 'sin-leer'
@@ -34,6 +36,16 @@ export default function NotificationsPage() {
   const { data, error, loading, reload } = useFetch(
     (signal) => listNotifications({ unread: onlyUnread ? true : undefined, page: apiPage, size }, signal),
     [onlyUnread, apiPage, size],
+  )
+
+  // Independiente de la lista: su carga o error no bloquea los avisos
+  const invitations = useFetch((signal) => listMyPendingInvitations(signal), [])
+  const pending = useMemo<PendingInvitations>(
+    () => ({
+      status: invitations.data ? 'ready' : invitations.error ? 'error' : 'loading',
+      bySubject: new Map((invitations.data ?? []).map((rel) => [rel.careSubjectId, rel.id])),
+    }),
+    [invitations.data, invitations.error],
   )
 
   const setFilter = useCallback(
@@ -142,6 +154,7 @@ export default function NotificationsPage() {
             <ul className={`grid gap-3 ${loading ? 'opacity-60' : ''}`}>
               {items.map((item) => {
                 const read = item.read || markedRead.has(item.id)
+                const link = getNotificationLink(item, pending)
                 return (
                   <li key={item.id}>
                     <Card as="article" padding="sm" className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start sm:gap-4">
@@ -164,9 +177,9 @@ export default function NotificationsPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
-                        {item.careSubjectId !== null ? (
-                          <Link to={`/personas/${item.careSubjectId}`} className={linkClass}>
-                            Ver persona
+                        {link ? (
+                          <Link to={link.to} className={linkClass}>
+                            {link.label}
                           </Link>
                         ) : null}
                         {read ? null : (
