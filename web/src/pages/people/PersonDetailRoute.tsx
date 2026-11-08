@@ -13,6 +13,7 @@ import { EntriesPanel } from '../entries/EntriesPanel'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
 import NotFoundPage from '../NotFoundPage'
 import { PersonRouteFrame } from './PersonRouteFrame'
+import { SuccessNotice } from '../shared/SuccessNotice'
 
 const tabs = [
   { id: 'registros', label: 'Registros' },
@@ -114,11 +115,7 @@ function PersonDetail({ subject }: { subject: CareSubject }) {
               onSaved={handleEntrySaved}
             />
           )}
-          {notice && (
-            <p role="status" className="rounded-2xl bg-accent-tint p-4 font-semibold text-accent-text">
-              {notice}
-            </p>
-          )}
+          <SuccessNotice message={notice} />
           <EntriesPanel
             key={entriesVersion}
             subjectId={subjectId}

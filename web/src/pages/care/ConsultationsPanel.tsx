@@ -8,6 +8,7 @@ import { todayIso } from '../../schemas/common'
 import { ConsultationForm } from '../forms/ConsultationForm'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { useLoad } from './useLoad'
+import { SuccessNotice } from '../shared/SuccessNotice'
 
 interface ConsultationsData {
   upcoming: Consultation[]
@@ -92,11 +93,7 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
       </div>
       {!isPrincipal ? <p className="-mt-3 text-sm text-muted">Solo el cuidador principal puede registrar consultas.</p> : null}
 
-      {notice ? (
-        <p role="status" className="rounded-xl bg-accent-tint p-4 font-semibold text-accent-text">
-          {notice}
-        </p>
-      ) : null}
+      <SuccessNotice message={notice} />
 
       {adding ? (
         <ConsultationForm
