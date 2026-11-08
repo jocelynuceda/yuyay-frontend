@@ -109,7 +109,7 @@ export function EntriesPanel({
         )
       ) : null}
 
-      {result && result.totalElements > 0 ? (
+      {result && result.totalElements > 0 && !outOfRange ? (
         <Pagination
           page={page}
           totalPages={totalPages}

@@ -197,3 +197,18 @@ test('Registros: números de página, rango y tamaño con el filtro de categorí
   assert.deepEqual(changes.at(-1), { categoria: 'MEDICATION', page: 1, size: 25 }, 'cambiar el tamaño vuelve a la página 1')
   await view.unmount()
 })
+
+test('Registros: una página que no existe no muestra la paginación (solo el aviso)', async () => {
+  const adapter = async (config: any) => ({ status: 200, statusText: 'OK', headers: {}, config,
+    data: { content: [], totalElements: 57, totalPages: 6, number: 8, size: 10 } })
+  http.api.defaults.adapter = adapter as any
+  const view = await render(
+    <EntriesPanel subjectId={1} params={{ categoria: null, page: 9, size: 10 }} onParamsChange={() => {}} onOpenEntry={() => {}} />,
+  )
+  await act(async () => wait(20))
+  const text = view.container.textContent ?? ''
+  assert.match(text, /Esta página no existe/)
+  assert.doesNotMatch(text, /Mostrando/, 'no muestra "Mostrando 57–57 de 57"')
+  assert.equal(view.container.querySelector('nav[aria-label="Paginación"]'), null)
+  await view.unmount()
+})
