@@ -12,7 +12,7 @@ export interface EmptyStateProps {
 /** Mensaje cuando no hay datos, con icono, descripción y acción opcionales. */
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
-    <div className={cx('grid justify-items-center gap-3 rounded-3xl bg-white p-8 text-center', className)}>
+    <div className={cx('grid justify-items-center gap-3 rounded-3xl bg-card p-8 text-center', className)}>
       {icon ? (
         <div aria-hidden="true" className="text-primary">
           {icon}

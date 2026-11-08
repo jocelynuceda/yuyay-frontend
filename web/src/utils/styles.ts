@@ -9,4 +9,4 @@ export const linkClass = `rounded-sm font-semibold text-primary underline underl
 export const linkButtonClass = `inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`
 
 /** Enlace con aspecto de botón secundario. */
-export const linkSecondaryClass = `inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 py-2.5 font-semibold text-ink ${focusRing}`
+export const linkSecondaryClass = `inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-card px-5 py-2.5 font-semibold text-ink ${focusRing}`

@@ -83,7 +83,7 @@ export function FormActions({
 /** Opción de radio con aspecto de botón (categoría, certeza, rol). */
 export function ChoiceOption({ children, ...input }: InputHTMLAttributes<HTMLInputElement> & { children: ReactNode }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 py-2 has-checked:border-primary has-checked:bg-primary-tint has-focus-visible:outline-3 has-focus-visible:outline-primary">
+    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-card px-4 py-2 has-checked:border-primary has-checked:bg-primary-tint has-focus-visible:outline-3 has-focus-visible:outline-primary">
       <input type="radio" className="accent-primary" {...input} />
       {children}
     </label>
@@ -117,7 +117,7 @@ export function FormShell({
     )
   }
   return (
-    <form onSubmit={onSubmit} noValidate aria-labelledby={titleId} className="grid gap-5 rounded-3xl bg-white p-6 sm:p-8">
+    <form onSubmit={onSubmit} noValidate aria-labelledby={titleId} className="grid gap-5 rounded-3xl bg-card p-6 sm:p-8">
       <div>
         <h2 id={titleId} className="text-xl font-semibold">
           {title}

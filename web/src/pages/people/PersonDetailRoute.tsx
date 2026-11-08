@@ -142,7 +142,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
             to={tabLocation(id)}
             aria-current={activeTab === id ? 'page' : undefined}
             className={`rounded-xl px-4 py-2 text-sm font-semibold ${focusRing} ${
-              activeTab === id ? 'bg-primary text-white' : 'bg-white text-ink'
+              activeTab === id ? 'bg-primary text-white' : 'bg-card text-ink'
             }`}
           >
             {label}

@@ -72,7 +72,7 @@ export function SearchInput({
             if (event.key === 'Enter') emit(text)
           }}
           className={cx(
-            'w-full rounded-xl border border-line bg-white py-2.5 pr-11 pl-11 placeholder:text-placeholder [&::-webkit-search-cancel-button]:hidden',
+            'w-full rounded-xl border border-line bg-card py-2.5 pr-11 pl-11 placeholder:text-placeholder [&::-webkit-search-cancel-button]:hidden',
             focusRing,
           )}
           {...rest}

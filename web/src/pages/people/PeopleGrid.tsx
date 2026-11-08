@@ -101,7 +101,7 @@ export function PeopleGrid({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Ej. Carmen"
-            className={`rounded-xl border border-line bg-white px-4 py-2.5 ${focusRing}`}
+            className={`rounded-xl border border-line bg-card px-4 py-2.5 ${focusRing}`}
           />
         </label>
         <label className="grid gap-1.5">
@@ -109,7 +109,7 @@ export function PeopleGrid({
           <select
             value={params.orden}
             onChange={(e) => onParamsChange({ ...params, orden: e.target.value as PeopleSort })}
-            className={`rounded-xl border border-line bg-white px-4 py-2.5 ${focusRing}`}
+            className={`rounded-xl border border-line bg-card px-4 py-2.5 ${focusRing}`}
           >
             <option value="nombre">Nombre (A–Z)</option>
             <option value="edad">Edad (mayor primero)</option>
@@ -132,7 +132,7 @@ export function PeopleGrid({
               : `${subjects.length} persona${subjects.length === 1 ? '' : 's'}`}
           </p>
           {visible.length === 0 ? (
-            <p className="rounded-2xl bg-white p-6 text-muted">
+            <p className="rounded-2xl bg-card p-6 text-muted">
               {subjects.length === 0 ? 'Aún no cuidas a nadie. Agrega a la primera persona.' : 'Nadie coincide con la búsqueda.'}
             </p>
           ) : (
@@ -162,7 +162,7 @@ function PersonCard({ subject, onOpen }: { subject: CareSubject; onOpen: () => v
     <button
       type="button"
       onClick={onOpen}
-      className={`flex h-full w-full items-start gap-4 rounded-3xl bg-white p-5 text-left transition hover:shadow-md ${focusRing}`}
+      className={`flex h-full w-full items-start gap-4 rounded-3xl bg-card p-5 text-left transition hover:shadow-md ${focusRing}`}
     >
       <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-soft font-semibold text-soft-text">
         {initials}

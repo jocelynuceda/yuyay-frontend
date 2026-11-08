@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { ThemeToggle } from '../../components/layout/ThemeToggle'
 import { useAuth } from '../../hooks/useAuth'
 import { loginSchema } from '../../schemas/auth'
 import { applyServerErrors } from '../../utils/apiErrors'
@@ -32,6 +33,9 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto max-w-lg px-6 py-12">
+      <div className="mb-2 flex justify-end">
+        <ThemeToggle />
+      </div>
       <h1 className="mb-6 text-center text-4xl font-semibold text-primary">Yuyay</h1>
       <FormShell title="Iniciar sesión" onSubmit={onSubmit}>
         <ServerError message={serverError} />

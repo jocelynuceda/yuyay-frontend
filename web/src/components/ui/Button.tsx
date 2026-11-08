@@ -5,7 +5,7 @@ import { Spinner } from './Spinner'
 
 const variants = {
   primary: 'bg-primary text-white',
-  secondary: 'border border-line bg-white text-ink',
+  secondary: 'border border-line bg-card text-ink',
   ghost: 'text-ink hover:bg-primary-tint',
   danger: 'bg-danger text-white',
 } as const
