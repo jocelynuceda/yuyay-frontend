@@ -65,7 +65,7 @@ function backend() {
       // Como en los datos de demo: invitación pendiente a Lucía (3) y una invitación ya aceptada sobre Pedro (2).
       { id: 5, type: 'INVITATION', title: 'Te invitaron a cuidar a Lucía', body: 'Invitación', careSubjectId: 3,
         read: true, readAt: '2026-11-07T00:00:00Z', createdAt: '2026-11-07T00:00:00Z' },
-      { id: 6, type: 'INVITATION', title: 'Invitación aceptada', body: 'Bruno aceptó cuidar a Pedro', careSubjectId: 2,
+      { id: 6, type: 'CAREGIVER_JOINED', title: 'Nuevo cuidador para Pedro', body: 'Bruno aceptó cuidar a Pedro', careSubjectId: 2,
         read: true, readAt: '2026-11-07T00:00:00Z', createdAt: '2026-11-07T00:00:00Z' },
     ],
   }
@@ -265,6 +265,8 @@ test('getNotificationLink: una invitación pendiente enlaza a la invitación, nu
   const ready = { status: 'ready' as const, bySubject: new Map([[3, 7]]) }
   assert.deepEqual(getNotificationLink({ type: 'INVITATION', careSubjectId: 3 }, ready), { to: '/invitaciones/7', label: 'Ver invitación' })
   assert.deepEqual(getNotificationLink({ type: 'INVITATION', careSubjectId: 2 }, ready), { to: '/personas/2', label: 'Ver persona' })
+  assert.deepEqual(getNotificationLink({ type: 'CAREGIVER_JOINED', careSubjectId: 2 }, ready), { to: '/personas/2?tab=cuidadores', label: 'Ver cuidadores' })
+  assert.deepEqual(getNotificationLink({ type: 'CAREGIVER_JOINED', careSubjectId: 2 }, { status: 'error', bySubject: new Map() }), { to: '/personas/2?tab=cuidadores', label: 'Ver cuidadores' }, 'no depende de la lista de pendientes')
   assert.deepEqual(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: 1 }, ready), { to: '/personas/1', label: 'Ver persona' })
   assert.equal(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: null }, ready), null)
   for (const status of ['loading', 'error'] as const) {
@@ -274,14 +276,15 @@ test('getNotificationLink: una invitación pendiente enlaza a la invitación, nu
   }
 })
 
-test('Avisos: la invitación pendiente lleva a /invitaciones/{id} y la aceptada a la persona', async (t) => {
+test('Avisos: la invitación pendiente lleva a /invitaciones/{id} y el nuevo cuidador a la pestaña Cuidadores', async (t) => {
   const { unmount } = await mountApp('/avisos', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => !!document.querySelector('a[href="/invitaciones/7"]'), 'enlace Ver invitación')
   const invitation = document.querySelector('a[href="/invitaciones/7"]')!
   assert.equal(invitation.textContent?.trim(), 'Ver invitación')
   assert.equal(document.querySelector('a[href="/personas/3"]'), null, 'no enlaza a la persona con la invitación pendiente (403)')
-  assert.equal(document.querySelector('a[href="/personas/2"]')?.textContent?.trim(), 'Ver persona')
+  assert.equal(document.querySelector('a[href="/personas/2?tab=cuidadores"]')?.textContent?.trim(), 'Ver cuidadores')
+  assert.match(text(), /Nuevo cuidador/, 'etiqueta del tipo CAREGIVER_JOINED')
 
   await click(invitation, 'Ver invitación')
   await waitFor(() => pathname() === '/invitaciones/7' && /Lucía/.test(text()), 'abrir la invitación')

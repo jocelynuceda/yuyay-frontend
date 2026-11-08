@@ -304,7 +304,7 @@ export interface AccessLog {
 
 export interface Notification {
   id: number
-  type: 'ENTRY_CHANGED' | 'INVITATION' | (string & {})
+  type: 'ENTRY_CHANGED' | 'INVITATION' | 'CAREGIVER_JOINED' | (string & {})
   title: string
   body: string
   careSubjectId: number | null
