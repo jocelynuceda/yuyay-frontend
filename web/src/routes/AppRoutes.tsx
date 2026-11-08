@@ -8,6 +8,9 @@ import SessionRoute, { RouteLoading } from './SessionRoute'
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'))
 const PeopleRoute = lazy(() => import('../pages/people/PeopleRoute'))
+const PersonDetailRoute = lazy(() => import('../pages/people/PersonDetailRoute'))
+const EntryDetailRoute = lazy(() => import('../pages/entries/EntryDetailRoute'))
+const NewHandoffRoute = lazy(() => import('../pages/handoff/NewHandoffRoute'))
 const DelegateAccessPage = lazy(() => import('../pages/public/DelegateAccessPage')
   .then(({ DelegateAccessPage }) => ({ default: DelegateAccessPage })))
 const HandoffPublicPage = lazy(() => import('../pages/public/HandoffPublicPage')
@@ -47,6 +50,9 @@ export default function AppRoutes() {
           </Route>
           <Route element={<PrivateRoute />}>
             <Route path="/personas" element={<PeopleRoute />} />
+            <Route path="/personas/:id" element={<PersonDetailRoute />} />
+            <Route path="/personas/:id/registros/:entryId" element={<EntryDetailRoute />} />
+            <Route path="/personas/:id/traspaso/nuevo" element={<NewHandoffRoute />} />
           </Route>
         </Route>
         <Route path="*" element={<NotFoundPage />} />

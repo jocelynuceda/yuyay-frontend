@@ -54,3 +54,10 @@ export const entriesSearch = ({ categoria, page, size }: EntriesParams) =>
     page: page > 1 ? page : undefined,
     size: size !== DEFAULT_PAGE_SIZE ? size : undefined,
   })
+
+/** Lee un identificador decimal positivo sin aceptar fracciones ni notación exponencial. */
+export function parseRouteId(value: string | undefined): number | null {
+  if (!value || !/^\d+$/.test(value)) return null
+  const id = Number(value)
+  return Number.isSafeInteger(id) && id > 0 ? id : null
+}
