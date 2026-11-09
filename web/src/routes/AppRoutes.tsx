@@ -16,6 +16,7 @@ const InvitationPage = lazy(() => import('../pages/invitations/InvitationPage'))
 const PeopleRoute = lazy(() => import('../pages/people/PeopleRoute'))
 const PersonDetailRoute = lazy(() => import('../pages/people/PersonDetailRoute'))
 const EntryDetailRoute = lazy(() => import('../pages/entries/EntryDetailRoute'))
+const DocumentReviewRoute = lazy(() => import('../pages/documents/DocumentReviewRoute'))
 const NewHandoffRoute = lazy(() => import('../pages/handoff/NewHandoffRoute'))
 const DelegateAccessPage = lazy(() => import('../pages/public/DelegateAccessPage')
   .then(({ DelegateAccessPage }) => ({ default: DelegateAccessPage })))
@@ -56,6 +57,7 @@ export default function AppRoutes() {
               <Route path="/personas" element={<PeopleRoute />} />
               <Route path="/personas/:id" element={<PersonDetailRoute />} />
               <Route path="/personas/:id/registros/:entryId" element={<EntryDetailRoute />} />
+              <Route path="/personas/:id/documentos/:attachmentId" element={<DocumentReviewRoute />} />
               <Route path="/personas/:id/traspaso/nuevo" element={<NewHandoffRoute />} />
               <Route path="/avisos" element={<NotificationsPage />} />
               <Route path="/perfil" element={<ProfilePage />} />

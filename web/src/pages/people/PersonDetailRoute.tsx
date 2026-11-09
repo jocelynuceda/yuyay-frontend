@@ -12,6 +12,7 @@ import { AccessLogPanel } from '../care/AccessLogPanel'
 import { CaregiversPanel } from '../care/CaregiversPanel'
 import { ConsultationsPanel } from '../care/ConsultationsPanel'
 import { DelegationsPanel } from '../care/DelegationsPanel'
+import { DocumentsPanel } from '../documents/DocumentsPanel'
 import { EntriesPanel } from '../entries/EntriesPanel'
 import { useLoad } from '../care/useLoad'
 import { CareSubjectForm } from '../forms/CareSubjectForm'
@@ -22,6 +23,7 @@ import { useSuccessNotice } from '../shared/useSuccessNotice'
 
 const tabs = [
   { id: 'registros', label: 'Registros' },
+  { id: 'documentos', label: 'Documentos' },
   { id: 'cuidadores', label: 'Cuidadores' },
   { id: 'accesos', label: 'Accesos' },
   { id: 'consultas', label: 'Consultas' },
@@ -172,6 +174,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
           />
         </>
       )}
+      {activeTab === 'documentos' && <DocumentsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'cuidadores' && (
         <CaregiversPanel subjectId={subjectId} isPrincipal={isPrincipal} onChanged={caregivers.reload} />
       )}
