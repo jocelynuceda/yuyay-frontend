@@ -279,10 +279,25 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   assert.equal(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value, '')
   assert.match(text(), /Sugerido del documento/)
 
-  // El texto original está aparte y se puede copiar a Detalles
+  // Medicamentos sugeridos con el diccionario: nada se cambia sin aceptarlo
+  await waitFor(() => /Medicamentos y dispositivos detectados/.test(text()), 'medicamentos detectados', 6000)
+  assert.match(text(), /Panitidina → ¿Ranitidina\?/)
+  assert.match(text(), /Hiosina → ¿Hioscina\?/)
+  assert.match(text(), /Joringa → ¿Jeringa\?/)
+  assert.doesNotMatch(text(), /Dimininitrato →/)
+  await click(document.querySelector<HTMLButtonElement>('button[aria-label="Aceptar Ranitidina en lugar de Panitidina"]')!, 'Aceptar')
+  await click(document.querySelector<HTMLButtonElement>('button[aria-label="Descartar sugerencia Jeringa"]')!, 'Descartar')
+  await waitFor(() => /Aceptado/.test(text()) && /Descartado/.test(text()), 'decisiones visibles')
+
+  // El texto original está aparte y se puede copiar a Detalles con las correcciones aceptadas
   assert.match(text(), /Texto leído del documento/)
+  assert.match(document.querySelector('pre')!.textContent!, /Panitidina/, 'la lectura original no cambia')
   await click(byText('button', 'Copiar a Detalles'), 'Copiar a Detalles')
   await waitFor(() => /Hiosina/.test(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value), 'texto copiado a Detalles')
+  const details = document.querySelector<HTMLTextAreaElement>('#entry-details')!.value
+  assert.match(details, /Ranitidina 10mg/)
+  assert.doesNotMatch(details, /Panitidina/)
+  assert.match(details, /Joringa/, 'lo descartado queda como se leyó')
 
   // El usuario corrige el título antes de guardar
   await type(document.querySelector<HTMLInputElement>('#entry-title')!, 'Receta de emergencia')
@@ -295,6 +310,7 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   assert.equal(created.occurredOn, '2024-08-02')
   assert.equal(created.confidenceLevel, 'UNCERTAIN')
   assert.match(String(created.details), /Hiosina/)
+  assert.match(String(created.details), /Ranitidina/)
 })
 
 test('Documentos: sin categoría sugerida hay que elegirla (no hay "Alergia" por defecto)', async (t) => {

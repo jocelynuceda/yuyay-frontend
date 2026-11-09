@@ -6,12 +6,14 @@ import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { Spinner } from '../../components/ui/Spinner'
 import { useFetch } from '../../hooks/useFetch'
+import { useMedicalTermMatcher } from '../../hooks/useMedicalTermMatcher'
 import { useToast } from '../../hooks/useToast'
 import { getAttachment, getAttachmentContent, openAttachment, retryAttachmentOcr } from '../../services/api/attachments'
 import type { HealthEntryFormValues } from '../../schemas/healthEntry'
 import type { HealthEntry } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { isImage } from '../../utils/attachments'
+import { applyAcceptedMatches, type TermMatch } from '../../utils/medicalTermMatcher'
 import { suggestEntryFromOcr, type OcrSuggestion } from '../../utils/ocrSuggestions'
 import { linkClass } from '../../utils/styles'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
@@ -58,6 +60,82 @@ function DocumentPreview({
         </div>
       </Modal>
     </div>
+  )
+}
+
+type Decision = 'accepted' | 'rejected'
+type Decisions = Record<string, Decision | undefined>
+
+const matchKey = (match: TermMatch) => `${match.lineIndex}:${match.original}`
+
+/** Medicamentos y dispositivos hallados en la receta. Las correcciones solo se usan si el cuidador las acepta. */
+function DetectedTermsSection({
+  matches,
+  decisions,
+  onDecide,
+}: {
+  matches: TermMatch[]
+  decisions: Decisions
+  onDecide: (key: string, decision: Decision | undefined) => void
+}) {
+  return (
+    <section aria-labelledby="detected-terms-title" className="grid gap-3 rounded-2xl bg-card p-4">
+      <h2 id="detected-terms-title" className="text-xl font-semibold">
+        Medicamentos y dispositivos detectados
+      </h2>
+      <p className="text-muted">Revisa cada sugerencia con la imagen. Solo se usan las que aceptes.</p>
+      <ul className="grid gap-3">
+        {matches.map((match) => {
+          const key = matchKey(match)
+          if (match.kind === 'known') {
+            return (
+              <li key={key}>
+                <span aria-hidden="true">✓</span> {match.term} <span className="sr-only">reconocido</span>
+              </li>
+            )
+          }
+          const decision = decisions[key]
+          return (
+            <li key={key} className="flex flex-wrap items-center gap-3">
+              <span>
+                {match.original} → ¿{match.term}?
+              </span>
+              {decision ? (
+                <>
+                  <span className="font-semibold">{decision === 'accepted' ? 'Aceptado' : 'Descartado'}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Deshacer decisión sobre ${match.term}`}
+                    onClick={() => onDecide(key, undefined)}
+                  >
+                    Deshacer
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    aria-label={`Aceptar ${match.term} en lugar de ${match.original}`}
+                    onClick={() => onDecide(key, 'accepted')}
+                  >
+                    Aceptar
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    aria-label={`Descartar sugerencia ${match.term}`}
+                    onClick={() => onDecide(key, 'rejected')}
+                  >
+                    Descartar
+                  </Button>
+                </>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
@@ -116,6 +194,26 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
   const done = document?.ocrStatus === 'DONE'
   const ocrText = document?.ocrText ?? ''
   const suggestion = useMemo(() => (done ? suggestEntryFromOcr(ocrText) : null), [done, ocrText])
+  const matcher = useMedicalTermMatcher()
+  const matches = useMemo(
+    () => (done && ocrText && matcher ? matcher.findInText(ocrText) : []),
+    [done, ocrText, matcher],
+  )
+  const [decisionState, setDecisionState] = useState<{
+    forText: string
+    values: Decisions
+  }>({
+    forText: ocrText,
+    values: {},
+  })
+  const decisions = decisionState.forText === ocrText ? decisionState.values : {}
+  const acceptedSuggestions = matches.filter((m) => m.kind === 'suggestion' && decisions[matchKey(m)] === 'accepted')
+  function decide(key: string, decision: Decision | undefined) {
+    setDecisionState({
+      forText: ocrText,
+      values: { ...decisions, [key]: decision },
+    })
+  }
 
   const backToDocuments = `/personas/${subjectId}?tab=documentos`
 
@@ -240,10 +338,15 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
                     ? 'Sugerimos algunos campos a partir del documento. Revísalos con la imagen antes de guardar.'
                     : 'No pudimos sugerir campos. Completa el registro mirando el documento.'}
               </p>
+              {document.ocrText && matches.length > 0 ? (
+                <DetectedTermsSection matches={matches} decisions={decisions} onDecide={decide} />
+              ) : null}
               {document.ocrText ? (
                 <OcrTextSection
                   text={document.ocrText}
-                  onAppend={() => appendDetails.current?.(document.ocrText ?? '')}
+                  onAppend={() =>
+                    appendDetails.current?.(applyAcceptedMatches(document.ocrText ?? '', acceptedSuggestions))
+                  }
                 />
               ) : null}
               {form(
