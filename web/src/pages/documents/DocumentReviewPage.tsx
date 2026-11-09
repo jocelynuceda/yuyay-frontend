@@ -73,19 +73,27 @@ function DetectedTermsSection({
   matches,
   decisions,
   onDecide,
+  pendingCount,
+  outdated,
+  upToDate,
+  onApply,
 }: {
   matches: TermMatch[]
   decisions: Decisions
   onDecide: (key: string, decision: Decision | undefined) => void
+  pendingCount: number
+  outdated: boolean
+  upToDate: boolean
+  onApply: () => void
 }) {
+  const pending = pendingCount > 0 || outdated
   return (
     <section aria-labelledby="detected-terms-title" className="grid gap-3 rounded-2xl bg-card p-4">
       <h2 id="detected-terms-title" className="text-xl font-semibold">
         Medicamentos y dispositivos detectados
       </h2>
       <p className="text-muted">
-        Revisa cada sugerencia con la imagen. Solo se usan las que aceptes. Deshacer no cambia lo que ya copiaste a
-        Detalles.
+        Revisa cada sugerencia con la imagen. Solo se usan las que aceptes, al aplicarlas a Detalles.
       </p>
       <ul className="grid gap-3">
         {matches.map((match) => {
@@ -138,6 +146,22 @@ function DetectedTermsSection({
           )
         })}
       </ul>
+      {pending ? (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl bg-accent-tint p-3 text-accent-text">
+          <span>
+            {outdated
+              ? 'Cambiaste las correcciones después de aplicarlas. Actualiza Detalles.'
+              : pendingCount === 1
+                ? '1 corrección aceptada sin aplicar a Detalles.'
+                : `${pendingCount} correcciones aceptadas sin aplicar a Detalles.`}
+          </span>
+          <Button size="sm" onClick={onApply}>
+            {outdated ? 'Actualizar Detalles' : 'Aplicar a Detalles'}
+          </Button>
+        </div>
+      ) : upToDate ? (
+        <p className="text-sm text-muted">Detalles ya incluye las correcciones aceptadas.</p>
+      ) : null}
     </section>
   )
 }
@@ -190,8 +214,9 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
   const [opening, setOpening] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   useOcrPolling(document?.ocrStatus === 'PENDING', reload)
-  const appendDetails = useRef<((text: string) => void) | null>(null)
-  const registerAppendDetails = useCallback((fn: (text: string) => void) => {
+  type PlaceDetails = (text: string, previous?: string) => 'inserted' | 'replaced' | 'unchanged' | 'appended'
+  const appendDetails = useRef<PlaceDetails | null>(null)
+  const registerAppendDetails = useCallback((fn: PlaceDetails) => {
     appendDetails.current = fn
   }, [])
   const done = document?.ocrStatus === 'DONE'
@@ -216,6 +241,28 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
       forText: ocrText,
       values: { ...decisions, [key]: decision },
     })
+  }
+
+  // Último bloque puesto en Detalles; se reinicia si cambia el texto leído
+  const [insertedState, setInsertedState] = useState<{ forText: string; value: string | null }>({
+    forText: ocrText,
+    value: null,
+  })
+  const inserted = insertedState.forText === ocrText ? insertedState.value : null
+  const corrected = applyAcceptedMatches(ocrText, acceptedSuggestions)
+  const pendingCount = inserted === null ? acceptedSuggestions.length : 0
+  const outdated = inserted !== null && inserted !== corrected
+  const upToDate = inserted !== null && inserted === corrected && acceptedSuggestions.length > 0
+
+  function placeDetails() {
+    const result = appendDetails.current?.(corrected, inserted ?? undefined)
+    if (!result) return
+    setInsertedState({ forText: ocrText, value: corrected })
+    if (result === 'inserted') toast.success('Texto copiado a Detalles.')
+    else if (result === 'replaced') toast.success('Detalles actualizado con las correcciones.')
+    else if (result === 'unchanged') toast.success('Detalles ya tiene este texto.')
+    else if (result === 'appended')
+      toast.info('Editaste el texto en Detalles, así que agregamos la versión corregida al final.')
   }
 
   const backToDocuments = `/personas/${subjectId}?tab=documentos`
@@ -342,16 +389,17 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
                     : 'No pudimos sugerir campos. Completa el registro mirando el documento.'}
               </p>
               {document.ocrText && matches.length > 0 ? (
-                <DetectedTermsSection matches={matches} decisions={decisions} onDecide={decide} />
-              ) : null}
-              {document.ocrText ? (
-                <OcrTextSection
-                  text={document.ocrText}
-                  onAppend={() =>
-                    appendDetails.current?.(applyAcceptedMatches(document.ocrText ?? '', acceptedSuggestions))
-                  }
+                <DetectedTermsSection
+                  matches={matches}
+                  decisions={decisions}
+                  onDecide={decide}
+                  pendingCount={pendingCount}
+                  outdated={outdated}
+                  upToDate={upToDate}
+                  onApply={placeDetails}
                 />
               ) : null}
+              {document.ocrText ? <OcrTextSection text={document.ocrText} onAppend={placeDetails} /> : null}
               {form(
                 {
                   title: suggestion.title,

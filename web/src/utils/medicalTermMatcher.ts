@@ -96,6 +96,55 @@ function normalize(text: string): string {
     .trim()
 }
 
+// Terminación en español → terminaciones inglesas posibles
+const SUFFIX_RULES: [string, string[]][] = [
+  ['ina', ['ine', 'in']],
+  ['ona', ['one']],
+  ['ida', ['ide']],
+  ['ido', ['ide']],
+  ['ato', ['ate']],
+  ['ino', ['in', 'ine']],
+  ['eno', ['en', 'ene']],
+  ['ilo', ['yl', 'il']],
+  ['ol', ['ol', 'ole']],
+  ['ima', ['ime']],
+  ['iba', ['ibe']],
+  ['osa', ['ose']],
+  ['ama', ['ame']],
+  ['ema', ['eme']],
+]
+const MAX_FORMS = 64
+
+/** Variantes inglesas de una sola palabra en español. */
+function wordVariants(word: string): Set<string> {
+  const base = word.replace(/clor/g, 'chlor')
+  const prefixed = new Set<string>()
+  for (const cole of [base, base.replace(/^cole/, 'chole')]) {
+    prefixed.add(cole)
+    prefixed.add(cole.replace(/f/g, 'ph'))
+  }
+  const result = new Set<string>()
+  for (const w of prefixed) {
+    result.add(w)
+    if (/[ao]$/.test(w)) result.add(w.slice(0, -1))
+    for (const [spanish, english] of SUFFIX_RULES) {
+      if (!w.endsWith(spanish)) continue
+      for (const ending of english) result.add(w.slice(0, -spanish.length) + ending)
+    }
+  }
+  return result
+}
+
+/** Posibles grafías inglesas de un nombre genérico en español, sobre claves normalizadas (máximo 64). */
+export function spanishToEnglishForms(key: string): string[] {
+  let forms = ['']
+  for (const word of key.split(' ')) {
+    const variants = [...wordVariants(word)]
+    forms = forms.flatMap((prefix) => variants.map((v) => (prefix ? `${prefix} ${v}` : v))).slice(0, MAX_FORMS)
+  }
+  return forms
+}
+
 function trigrams(key: string): Set<string> {
   const padded = `  ${key} `
   const result = new Set<string>()
@@ -267,16 +316,36 @@ export function createMedicalTermMatcher(
         best = candidate
       }
     }
+    // Genérico correcto en español que no está en el diccionario: no lo cambiamos por su forma inglesa de RxNorm
+    if (
+      best.entry.source === 'RXNORM' &&
+      !best.entry.brand &&
+      best.entry.group === best.entry.key &&
+      spanishToEnglishForms(key).includes(best.entry.key)
+    ) {
+      const input = text.trim()
+      return {
+        kind: 'known',
+        term: input.charAt(0).toUpperCase() + input.slice(1),
+        source: 'RXNORM',
+        similarity: best.similarity,
+        margin: 1,
+      }
+    }
     let second = 0
     for (const candidate of candidates) {
       if (candidate.entry.group !== best.entry.group && candidate.similarity > second) second = candidate.similarity
     }
     const margin = best.similarity - second
     if (best.similarity < opts.minSimilarity || margin < opts.minMargin) return null
+    // Si el candidato es inglés y tiene equivalente en español, se sugiere el español
+    const spanish =
+      best.entry.source === 'RXNORM' && best.entry.group !== best.entry.key ? byKey.get(best.entry.group) : undefined
+    const shown = spanish ?? best.entry
     return {
       kind: 'suggestion',
-      term: displayName(best.entry),
-      source: best.entry.source,
+      term: displayName(shown),
+      source: shown.source,
       similarity: best.similarity,
       margin,
     }

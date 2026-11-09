@@ -59,7 +59,9 @@ export function HealthEntryForm({
   /** Texto del documento que justifica cada campo sugerido; se muestra como pista bajo el campo. */
   suggestedFields?: Partial<Record<'title' | 'categoryCode' | 'occurredOn', string>>
   /** Entrega una función que agrega texto al final de Detalles. */
-  onRegisterAppendDetails?: (append: (text: string) => void) => void
+  onRegisterAppendDetails?: (
+    place: (text: string, previous?: string) => 'inserted' | 'replaced' | 'unchanged' | 'appended',
+  ) => void
   /** Documento que respalda el registro nuevo. */
   sourceAttachmentId?: number
   /** `entry` es null si se editó sin cambios (no se envía nada). */
@@ -92,12 +94,27 @@ export function HealthEntryForm({
   const isMedication = useWatch({ control, name: 'categoryCode' }) === MEDICATION
 
   useEffect(() => {
-    onRegisterAppendDetails?.((text) => {
-      const current = getValues('details').trim()
-      setValue('details', current ? `${current}\n\n${text}` : text, {
-        shouldDirty: true,
-        shouldValidate: true,
-      })
+    onRegisterAppendDetails?.((text, previous) => {
+      const current = getValues('details')
+      const options = { shouldDirty: true, shouldValidate: true }
+      // Si el bloque anterior sigue intacto, se reemplaza en su lugar
+      if (previous && current.includes(previous)) {
+        if (previous === text) return 'unchanged'
+        setValue(
+          'details',
+          current.replace(previous, () => text),
+          options,
+        )
+        return 'replaced'
+      }
+      if (current.includes(text)) return 'unchanged'
+      if (!current.trim()) {
+        setValue('details', text, options)
+        return 'inserted'
+      }
+      // El bloque anterior se editó a mano: se agrega uno nuevo al final
+      setValue('details', `${current}\n\n${text}`, options)
+      return previous ? 'appended' : 'inserted'
     })
   }, [onRegisterAppendDetails, getValues, setValue])
 

@@ -168,3 +168,46 @@ test('findInText: sin "Rp." ni contexto de receta no revisa nada; mg/mL sigue si
     ['Ranitidina'],
   )
 })
+
+test('matchWord: genéricos correctos en español no reciben una corrección en inglés', () => {
+  for (const word of [
+    'Clonidina',
+    'Trazodona',
+    'Oxcarbazepina',
+    'Paroxetina',
+    'Quetiapina',
+    'Olanzapina',
+    'Sucralfato',
+    'Duloxetina',
+    'Topiramato',
+    'Sildenafilo',
+    'Ketoconazol',
+    'Empagliflozina',
+  ]) {
+    const result = matcher.matchWord(word)
+    assert.equal(result?.kind, 'known', word)
+    assert.equal(result?.term, word)
+  }
+  assert.equal(data.equivalencias.clonidine, 'clonidina')
+  assert.equal(data.equivalencias.sucralfate, 'sucralfato')
+})
+
+test('matchWord: un nombre en español que falte en la lista no se corrige a su forma en inglés', () => {
+  const sinClonidina = createMedicalTermMatcher({
+    ...data,
+    comunes: data.comunes.filter((name) => name !== 'clonidina'),
+    equivalencias: Object.fromEntries(Object.entries(data.equivalencias).filter(([en]) => en !== 'clonidine')),
+  })
+  assert.deepEqual(
+    { kind: sinClonidina.matchWord('Clonidina')?.kind, term: sinClonidina.matchWord('Clonidina')?.term },
+    { kind: 'known', term: 'Clonidina' },
+  )
+  // un error de OCR sigue recibiendo su sugerencia
+  assert.equal(sinClonidina.matchWord('Panitidina')?.term, 'Ranitidina')
+})
+
+test('matchWord: si el error se parece más a la forma en inglés, sugiere el nombre en español', () => {
+  assert.equal(suggestion('Clorhexidine'), 'Clorhexidina')
+  assert.equal(suggestion('Acitretino'), 'Acitretina')
+  assert.equal(suggestion('Clonidna'), 'Clonidina')
+})
