@@ -53,6 +53,8 @@ function backend() {
       { ...attachmentBase, id: 32, originalFilename: 'examen.png', contentType: 'image/png', ocrStatus: 'FAILED', ocrError: 'No se pudo extraer el texto.' },
     ],
     consultationUpdates: [] as Record<string, unknown>[],
+    registers: [] as Record<string, unknown>[],
+    resets: [] as Record<string, unknown>[],
     uploads: [] as { form: unknown; timeout: unknown }[],
     createdEntries: [] as Record<string, unknown>[],
     me: { id: 1, email: 'ana@demo.yuyay', name: 'Ana Torres', role: 'USER', createdAt: '2026-10-01T00:00:00Z' },
@@ -105,6 +107,15 @@ function backend() {
     await new Promise((r) => setTimeout(r, 1))
     if (url === '/auth/login' || url === '/auth/refresh') return ok(config, auth())
     if (url === '/auth/logout') return ok(config, '', 204)
+    if (url === '/auth/register') {
+      db.registers.push(body)
+      return ok(config, auth(), 201)
+    }
+    if (url === '/auth/forgot-password') return ok(config, '', 204)
+    if (url === '/auth/reset-password') {
+      db.resets.push(body)
+      return ok(config, '', 204)
+    }
     if (url === '/users/me' && method === 'GET') return ok(config, db.me)
     if (url === '/users/me' && method === 'PATCH') {
       db.me = { ...db.me, name: body.name }
@@ -386,6 +397,56 @@ test('Vista del delegado: muestra solo citas, con hora y sin notas, las próxima
   assert.ok(text().indexOf('Cardiología') < text().indexOf('Control pasado'), 'la próxima va primero')
   assert.equal(document.querySelector('nav[aria-label="Filtrar por categoría"]'), null, 'sin categorías no hay filtro')
   assert.doesNotMatch(text(), /No hay registros/)
+})
+
+const inputById = (id: string) => document.getElementById(id) as HTMLInputElement
+
+test('Registro: pide confirmar la contraseña, muestra requisitos y no envía la confirmación', async (t) => {
+  const { b, unmount } = await mountApp('/registro', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
+  await type(inputById('auth-name'), 'Ana')
+  await type(inputById('auth-email'), 'ana@example.test')
+  await type(inputById('auth-password'), 'Clave123')
+  await waitFor(() => /✓ Una letra \(A-Z\)/.test(text()), 'requisitos actualizados')
+
+  assert.equal(inputById('auth-password').type, 'password')
+  await click(document.querySelector('button[aria-label="Mostrar contraseña"]'), 'Mostrar contraseña')
+  await waitFor(() => inputById('auth-password').type === 'text' && inputById('auth-confirm').type === 'text', 'contraseñas visibles')
+
+  await type(inputById('auth-confirm'), 'Clave124')
+  await click(byText('button', 'Registrarme'), 'Registrarme')
+  await waitFor(() => /Las contraseñas no coinciden/.test(text()), 'error de confirmación')
+  assert.equal(b.db.registers.length, 0)
+
+  await type(inputById('auth-confirm'), 'Clave123')
+  await click(byText('button', 'Registrarme'), 'Registrarme')
+  await waitFor(() => b.db.registers.length === 1, 'registro enviado')
+  assert.deepEqual(b.db.registers[0], { name: 'Ana', email: 'ana@example.test', password: 'Clave123' })
+})
+
+test('Recuperar contraseña: desde el login pide el código, cambia la contraseña y entra', async (t) => {
+  const { b, unmount } = await mountApp('/login', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!byText('a', '¿Olvidaste tu contraseña?'), 'enlace de recuperación')
+  await click(byText('a', '¿Olvidaste tu contraseña?'), 'enlace de recuperación')
+  await waitFor(() => pathname() === '/recuperar-contrasena' && !!inputById('auth-email'), 'pantalla de recuperación')
+  await type(inputById('auth-email'), 'ana@example.test')
+  await click(byText('button', 'Enviar código'), 'Enviar código')
+  await waitFor(() => !!inputById('reset-code'), 'paso del código')
+  assert.match(text(), /ana@example\.test tiene una cuenta/)
+
+  await type(inputById('reset-code'), '123')
+  await type(inputById('reset-password'), 'Clave123')
+  await type(inputById('reset-confirm'), 'Clave123')
+  await click(byText('button', 'Cambiar contraseña'), 'Cambiar contraseña')
+  await waitFor(() => /Ingresa los 6 dígitos/.test(text()), 'código incompleto')
+  assert.equal(b.db.resets.length, 0)
+
+  await type(inputById('reset-code'), '123456')
+  await click(byText('button', 'Cambiar contraseña'), 'Cambiar contraseña')
+  await waitFor(() => pathname() === '/', 'entra después de cambiarla')
+  assert.deepEqual(b.db.resets[0], { email: 'ana@example.test', code: '123456', newPassword: 'Clave123' })
 })
 
 test('getPostLoginTarget: vuelve a la ruta guardada y rechaza destinos inválidos', () => {
