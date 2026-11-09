@@ -14,7 +14,19 @@ const MAX_LABEL_DISTANCE = 2
 const ATTENTION_LABELS = ['fecha de atencion', 'fecha de emision', 'fecha de expedicion', 'fecha de la consulta']
 // OCR separa "Fecha / Hora" y "de Atención:" en líneas distintas; "de atencion" solo vale al inicio de línea
 const ATTENTION_PREFIXES = ['de atencion']
-const EXCLUDING_LABELS = ['vigencia', 'valido hasta', 'vence', 'vencimiento', 'nacimiento', 'f. nac', 'caduca']
+const EXCLUDING_LABELS = [
+  'vigencia',
+  'valido hasta',
+  'vence',
+  'vencimiento',
+  'nacimiento',
+  'f. nac',
+  'caduca',
+  'proxima cita',
+  'proximo control',
+  'proxima consulta',
+  'retorno',
+]
 
 const HEADERS: { prefixes: string[]; title: string; categoryCode: CategoryCode }[] = [
   { prefixes: ['receta'], title: 'Receta médica', categoryCode: 'MEDICATION' },
@@ -63,12 +75,27 @@ export function findDates(line: string, currentYear = new Date().getFullYear()):
 
 type LabelKind = 'attention' | 'excluding'
 
-/** `selfDated`: la línea trae su propia fecha, así que "Fecha ..." la rotula a ella misma. */
-function labelKind(normalized: string, selfDated: boolean): LabelKind | null {
+/** "Fecha" genérica: sin fechas ni separadores solo queda "fecha" o "fecha hora". */
+function isGenericDateLabel(normalized: string): boolean {
+  const rest = normalized
+    .replace(new RegExp(DATE_PATTERN.source, 'g'), ' ')
+    .replace(/\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:am|pm|a\.?m\.?|p\.?m\.?))?/g, ' ')
+    .replace(/[:/.-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return rest === 'fecha' || rest === 'fecha hora'
+}
+
+/** Una línea es encabezado si empieza con el prefijo (sin letra después) y no tiene ':'. */
+function matchesHeader(normalized: string, prefix: string): boolean {
+  return normalized.startsWith(prefix) && !/\p{L}/u.test(normalized.charAt(prefix.length)) && !normalized.includes(':')
+}
+
+function labelKind(normalized: string): LabelKind | null {
   if (EXCLUDING_LABELS.some((word) => normalized.includes(word))) return 'excluding'
   if (ATTENTION_LABELS.some((word) => normalized.includes(word))) return 'attention'
   if (ATTENTION_PREFIXES.some((word) => normalized.startsWith(word))) return 'attention'
-  if (/^fecha:?$/.test(normalized) || (selfDated && normalized.startsWith('fecha '))) return 'attention'
+  if (isGenericDateLabel(normalized)) return 'attention'
   return null
 }
 
@@ -84,7 +111,7 @@ export function suggestEntryFromOcr(text: string, currentYear = new Date().getFu
   for (let i = 0; i < lines.length; i++) {
     const header = isPrescriptionMarker(normalized[i])
       ? HEADERS[0]
-      : HEADERS.find((h) => h.prefixes.some((prefix) => normalized[i].startsWith(prefix)))
+      : HEADERS.find((h) => h.prefixes.some((prefix) => matchesHeader(normalized[i], prefix)))
     if (!header) continue
     suggestion.title = header.title
     suggestion.categoryCode = header.categoryCode
@@ -101,7 +128,7 @@ export function suggestEntryFromOcr(text: string, currentYear = new Date().getFu
   for (let pos = 0; pos < meaningful.length; pos++) {
     const i = meaningful[pos]
     if (!dates[i].length) continue
-    const own = labelKind(normalized[i], true)
+    const own = labelKind(normalized[i])
     if (own === 'excluding') continue
     if (own === 'attention') {
       for (const date of dates[i]) candidates.push({ date, evidence: lines[i].trim() })
@@ -110,7 +137,7 @@ export function suggestEntryFromOcr(text: string, currentYear = new Date().getFu
     for (let distance = 1; distance <= MAX_LABEL_DISTANCE; distance++) {
       const found = [pos - distance, pos + distance]
         .filter((at) => at >= 0 && at < meaningful.length && !dates[meaningful[at]].length)
-        .map((at) => ({ line: meaningful[at], kind: labelKind(normalized[meaningful[at]], false) }))
+        .map((at) => ({ line: meaningful[at], kind: labelKind(normalized[meaningful[at]]) }))
         .find((neighbor) => neighbor.kind)
       if (!found) continue
       if (found.kind === 'attention') {

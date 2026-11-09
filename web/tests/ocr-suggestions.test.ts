@@ -61,6 +61,28 @@ test('"Código de Atención del SIS" no es una etiqueta de fecha', () => {
   assert.equal(solo.occurredOn, undefined)
 })
 
+test('La próxima cita o el retorno no son la fecha del registro', () => {
+  const s = suggestEntryFromOcr('RECETA MÉDICA\nFecha: 02/12/2026\nFecha de próxima cita: 10/12/2026', 2026)
+  assert.equal(s.occurredOn, '2026-12-02')
+  assert.equal(suggestEntryFromOcr('RECETA\nFecha de próxima cita: 10/12/2026', 2026).occurredOn, undefined)
+  assert.equal(suggestEntryFromOcr('RECETA\nPróximo control\n15/12/2026', 2026).occurredOn, undefined)
+  assert.equal(suggestEntryFromOcr('RECETA\nRetorno: 20/12/2026', 2026).occurredOn, undefined)
+  assert.equal(suggestEntryFromOcr('RECETA\nFecha de vacunación: 10/12/2026', 2026).occurredOn, undefined)
+})
+
+test('"Fecha" genérica con hora sigue contando como fecha de atención', () => {
+  assert.equal(suggestEntryFromOcr('RECETA\nFecha / Hora: 05/07/2023 10:15', 2026).occurredOn, '2023-07-05')
+  assert.equal(suggestEntryFromOcr('RECETA\nFecha: 02/08/2024 9:30 am', 2026).occurredOn, '2024-08-02')
+})
+
+test('"Recetas anteriores: ninguna" no convierte el documento en receta', () => {
+  const s = suggestEntryFromOcr('INFORME DE ALTA\nRecetas anteriores: ninguna\nReceta: pendiente', 2026)
+  assert.equal(s.title, undefined)
+  assert.equal(s.categoryCode, undefined)
+  assert.equal(suggestEntryFromOcr('RECETA ESPECIAL PARA\nESTUPEFACIENTES', 2026).title, 'Receta médica')
+  assert.equal(suggestEntryFromOcr('Receta N° 123', 2026).title, 'Receta médica')
+})
+
 test('Dos fechas de atención distintas: no sugiere ninguna', () => {
   const s = suggestEntryFromOcr('RECETA MÉDICA\nFecha de atención: 01/02/2024\nFecha de atención: 03/02/2024', 2026)
   assert.equal(s.occurredOn, undefined)
