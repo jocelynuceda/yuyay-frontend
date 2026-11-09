@@ -11,7 +11,7 @@ import { ApiError } from '../services/http';
 import { colors, fonts, radius } from '../theme';
 import type { AuthStackParamList } from '../types';
 import { isEmail } from '../utils/format';
-import { passwordChecks, utf8Bytes } from '../utils/password';
+import { passwordChecks, passwordError, utf8Bytes } from '../utils/password';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
@@ -31,6 +31,12 @@ export function RegisterScreen({ navigation }: Props) {
   const passwordOk = checks.every((c) => c.ok);
   const mismatch = confirm.length > 0 && confirm !== password;
   const canSubmit = name.trim() && isEmail(email) && passwordOk && confirm === password;
+  const passwordMessage = submitted || utf8Bytes(password) > 72 ? passwordError(password) : undefined;
+  const confirmMessage = mismatch
+    ? 'Las contraseñas no coinciden.'
+    : submitted && !confirm
+      ? 'Confirma tu contraseña.'
+      : undefined;
 
   async function handleSubmit() {
     setSubmitted(true);
@@ -99,8 +105,7 @@ export function RegisterScreen({ navigation }: Props) {
         onChangeText={setPassword}
         secureTextEntry={!showPassword}
         {...passwordInputProps}
-        maxLength={72}
-        error={utf8Bytes(password) > 72 ? 'La contraseña es demasiado larga. Usa menos caracteres o símbolos.' : fieldErrors.password}
+        error={passwordMessage ?? fieldErrors.password}
         right={
           <TextInput.Icon
             icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -128,7 +133,7 @@ export function RegisterScreen({ navigation }: Props) {
         onChangeText={setConfirm}
         secureTextEntry={!showPassword}
         {...passwordInputProps}
-        error={mismatch ? 'Las contraseñas no coinciden.' : undefined}
+        error={confirmMessage}
         onSubmitEditing={handleSubmit}
       />
       <Button

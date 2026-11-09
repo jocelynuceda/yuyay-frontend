@@ -9,6 +9,7 @@ import SessionRoute, { RouteLoading } from './SessionRoute'
 const AppLayout = lazy(() => import('../components/layout/AppLayout'))
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'))
+const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'))
 const DashboardPage = lazy(() => import('../pages/dashboard/DashboardPage'))
 const NotificationsPage = lazy(() => import('../pages/notifications/NotificationsPage'))
 const ProfilePage = lazy(() => import('../pages/profile/ProfilePage'))
@@ -50,6 +51,7 @@ export default function AppRoutes() {
           <Route element={<PublicAuthRoute />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registro" element={<RegisterPage />} />
+            <Route path="/recuperar-contrasena" element={<ForgotPasswordPage />} />
           </Route>
           <Route element={<PrivateRoute />}>
             <Route element={<AppLayout />}>

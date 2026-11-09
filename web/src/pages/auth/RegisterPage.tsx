@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ThemeToggle } from '../../components/layout/ThemeToggle'
@@ -9,17 +9,28 @@ import { applyServerErrors } from '../../utils/apiErrors'
 import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
+import { PasswordChecklist, PasswordInput } from './PasswordFields'
 
 export default function RegisterPage() {
   const { register: submitAuth } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [serverError, setServerError] = useState<string | null>(null)
-  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm({
+  const [shown, setShown] = useState(false)
+  const {
+    register,
+    handleSubmit,
+    setError,
+    getValues,
+    trigger,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: '', email: '', password: '' },
+    defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
     mode: 'onTouched',
   })
+  const password = useWatch({ control, name: 'password' })
 
   const onSubmit = handleSubmit(async ({ name, email, password }) => {
     setServerError(null)
@@ -45,16 +56,28 @@ export default function RegisterPage() {
         <Field id="auth-email" label="Correo electrónico" error={errors.email}>
           <input {...register('email')} {...a11yProps('auth-email', errors.email)} type="email" autoComplete="email" />
         </Field>
-        <Field
-          id="auth-password"
-          label="Contraseña"
-          error={errors.password}
-          hint="Usa al menos 8 caracteres e incluye una letra entre a y z y un número."
-        >
-          <input
-            {...register('password')}
-            {...a11yProps('auth-password', errors.password, 'password')}
-            type="password"
+        <Field id="auth-password" label="Contraseña" error={errors.password}>
+          <PasswordInput
+            {...register('password', {
+              onChange: () => {
+                if (getValues('confirmPassword')) void trigger('confirmPassword')
+              },
+            })}
+            id="auth-password"
+            error={errors.password}
+            hint="checklist"
+            shown={shown}
+            onToggle={() => setShown((value) => !value)}
+            autoComplete="new-password"
+          />
+        </Field>
+        <PasswordChecklist id="auth-password-hint" password={password} />
+        <Field id="auth-confirm" label="Confirma tu contraseña" error={errors.confirmPassword}>
+          <PasswordInput
+            {...register('confirmPassword')}
+            id="auth-confirm"
+            error={errors.confirmPassword}
+            shown={shown}
             autoComplete="new-password"
           />
         </Field>

@@ -12,7 +12,16 @@ export function passwordChecks(password: string) {
   return [
     { ok: password.length >= 8, label: '8 caracteres' },
     { ok: utf8Bytes(password) <= 72, label: 'Longitud admitida' },
-    { ok: /[A-Za-z]/.test(password), label: 'Una letra' },
+    { ok: /[A-Za-z]/.test(password), label: 'Una letra (A-Z)' },
     { ok: /\d/.test(password), label: 'Un número' },
   ];
+}
+
+/** Primer requisito que falta, con los mismos textos que la web; undefined si la contraseña es válida. */
+export function passwordError(password: string): string | undefined {
+  if (password.length < 8) return 'Usa al menos 8 caracteres.';
+  if (utf8Bytes(password) > 72) return 'La contraseña es demasiado larga. Usa menos caracteres o símbolos.';
+  if (!/[A-Za-z]/.test(password)) return 'Incluye al menos una letra de la A a la Z.';
+  if (!/\d/.test(password)) return 'Incluye al menos un número.';
+  return undefined;
 }
