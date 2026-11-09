@@ -125,6 +125,7 @@ function SubjectProfile({
   useRefreshOnFocus(() => {
     entries.reload();
     subject.reload();
+    relationships.reload();
   });
 
   if (subject.loading && !subject.data) return <LoadingView />;
