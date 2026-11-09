@@ -145,9 +145,9 @@ export function HomeScreen({ navigation }: Props) {
             <View style={styles.tileStar} pointerEvents="none">
               <Sparkle size={110} color={colors.peopleStar} />
             </View>
-            <Text style={[styles.tileLabel, { color: colors.softText }]}>Personas</Text>
+            <Text style={[styles.tileLabel, { color: colors.onAccent, opacity: 0.8 }]}>Personas</Text>
             <View>
-              <Text style={[styles.tileValue, { color: colors.ink }]}>{subjects.data ? people.length : '–'}</Text>
+              <Text style={[styles.tileValue, { color: colors.onAccent }]}>{subjects.data ? people.length : '–'}</Text>
               <View style={styles.faces}>
                 {people.slice(0, 3).map((p, i) => (
                   <View key={p.id} style={[styles.face, i > 0 && styles.faceOverlap]}>
