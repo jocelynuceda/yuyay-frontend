@@ -1,21 +1,29 @@
 import axios from 'axios'
 import { useEffect, useState } from 'react'
-import { listDelegateHealthEntries } from '../../services/api/delegations'
-import type { CategoryCode, DelegateSession, HealthEntry } from '../../types'
+import { todayIso } from '../../schemas/common'
+import { listDelegateConsultations, listDelegateHealthEntries } from '../../services/api/delegations'
+import type { CategoryCode, DelegateConsultation, DelegateSession, HealthEntry } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { forgetDelegateSession, getDelegateSession } from '../../utils/delegateSession'
-import { categoryLabels, confidenceLabels, formatDate, formatDateTime } from '../../utils/format'
+import {
+  categoryLabels,
+  confidenceLabels,
+  consultationOrder,
+  formatDate,
+  formatDateTime,
+  formatTime,
+} from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { PublicShell, StatusPanel } from './PublicShell'
 
 type State =
   | { status: 'loading' }
   | { status: 'error'; title: string; message: string }
-  | { status: 'ready'; session: DelegateSession; entries: HealthEntry[] }
+  | { status: 'ready'; session: DelegateSession; entries: HealthEntry[]; consultations: DelegateConsultation[] }
 
 /**
  * Vista del delegado (/acceso/:token). Canjea el enlace y muestra solo los registros
- * de las categorías que la familia permitió.
+ * de las categorías que la familia permitió y, si las compartió, las citas.
  */
 export function DelegateAccessPage({ token }: { token: string }) {
   const [state, setState] = useState<State>({ status: 'loading' })
@@ -26,8 +34,11 @@ export function DelegateAccessPage({ token }: { token: string }) {
     async function load() {
       try {
         const session = await getDelegateSession(token)
-        const entries = await listDelegateHealthEntries(session.accessToken)
-        if (active) setState({ status: 'ready', session, entries })
+        const [entries, consultations] = await Promise.all([
+          listDelegateHealthEntries(session.accessToken),
+          session.includeConsultations ? listDelegateConsultations(session.accessToken) : [],
+        ])
+        if (active) setState({ status: 'ready', session, entries, consultations })
       } catch (error) {
         if (!active) return
         const status = axios.isAxiosError(error) ? error.response?.status : undefined
@@ -57,7 +68,7 @@ export function DelegateAccessPage({ token }: { token: string }) {
     )
   }
 
-  const { session, entries } = state
+  const { session, entries, consultations } = state
   const visible = category === 'ALL' ? entries : entries.filter((e) => e.categoryCode === category)
 
   return (
@@ -74,37 +85,77 @@ export function DelegateAccessPage({ token }: { token: string }) {
         </p>
       </header>
 
-      <nav aria-label="Filtrar por categoría" className="mt-6 flex flex-wrap gap-2">
-        {(['ALL', ...session.categoryCodes] as const).map((code) => {
-          const selected = category === code
-          return (
-            <button
-              key={code}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => setCategory(code)}
-              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${focusRing} ${
-                selected ? 'border-ink bg-ink text-white' : 'border-line bg-card text-ink hover:border-primary'
-              }`}
-            >
-              {code === 'ALL' ? 'Todas' : (categoryLabels[code]?.plural ?? code)}
-            </button>
-          )
-        })}
-      </nav>
+      {session.includeConsultations ? <SharedConsultations consultations={consultations} /> : null}
 
-      <section aria-live="polite" className="mt-6">
-        {visible.length === 0 ? (
-          <p className="rounded-2xl bg-card p-6 text-muted">No hay registros en esta categoría.</p>
-        ) : (
-          <ul className="grid gap-3">
-            {visible.map((entry) => (
-              <EntryCard key={entry.id} entry={entry} />
-            ))}
-          </ul>
-        )}
-      </section>
+      {session.categoryCodes.length > 0 ? (
+        <>
+          <nav aria-label="Filtrar por categoría" className="mt-6 flex flex-wrap gap-2">
+            {(['ALL', ...session.categoryCodes] as const).map((code) => {
+              const selected = category === code
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setCategory(code)}
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${focusRing} ${
+                    selected ? 'border-ink bg-ink text-white' : 'border-line bg-card text-ink hover:border-primary'
+                  }`}
+                >
+                  {code === 'ALL' ? 'Todas' : (categoryLabels[code]?.plural ?? code)}
+                </button>
+              )
+            })}
+          </nav>
+
+          <section aria-live="polite" className="mt-6">
+            {visible.length === 0 ? (
+              <p className="rounded-2xl bg-card p-6 text-muted">No hay registros en esta categoría.</p>
+            ) : (
+              <ul className="grid gap-3">
+                {visible.map((entry) => (
+                  <EntryCard key={entry.id} entry={entry} />
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      ) : null}
     </PublicShell>
+  )
+}
+
+/** Primero las próximas (la más cercana arriba) y después las pasadas (la más reciente arriba). */
+function SharedConsultations({ consultations }: { consultations: DelegateConsultation[] }) {
+  const today = todayIso()
+  const byOrder = (a: DelegateConsultation, b: DelegateConsultation) =>
+    consultationOrder(a).localeCompare(consultationOrder(b))
+  const ordered = [
+    ...consultations.filter((c) => c.date >= today).sort(byOrder),
+    ...consultations.filter((c) => c.date < today).sort((a, b) => byOrder(b, a)),
+  ]
+
+  return (
+    <section aria-labelledby="shared-consultations" className="mt-6">
+      <h2 id="shared-consultations" className="text-2xl font-semibold">
+        Citas
+      </h2>
+      {ordered.length === 0 ? (
+        <p className="mt-3 rounded-2xl bg-card p-6 text-muted">No hay citas registradas.</p>
+      ) : (
+        <ul className="mt-3 grid gap-3">
+          {ordered.map((c) => (
+            <li key={c.id} className="rounded-2xl bg-card p-5">
+              <p className="text-sm font-semibold text-muted">
+                <time dateTime={c.date}>{formatDate(c.date)}</time>
+                {c.time ? ` · ${formatTime(c.time)}` : ''}
+              </p>
+              <p className="mt-1 text-lg font-semibold">{c.reason}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 

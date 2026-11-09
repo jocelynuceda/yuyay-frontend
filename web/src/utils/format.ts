@@ -18,6 +18,17 @@ export const formatDate = (value?: string | null) => (value ? dateFormatter.form
 
 export const formatDateTime = (value?: string | null) => (value ? dateTimeFormatter.format(parse(value)) : '—')
 
+const timeFormatter = new Intl.DateTimeFormat('es-PE', { hour: 'numeric', minute: '2-digit', hour12: true })
+
+/** Hora LocalTime del backend ('15:30:00') en formato de 12 horas. */
+export function formatTime(value: string) {
+  const [hour, minute] = value.split(':').map(Number)
+  return timeFormatter.format(new Date(2000, 0, 1, hour, minute))
+}
+
+/** Clave para ordenar citas por fecha y hora; dentro del día, las que no tienen hora van al final. */
+export const consultationOrder = (c: { date: string; time?: string | null }) => `${c.date}T${c.time ?? '99'}`
+
 /** Nombres de las categorías del backend (DataSeeder). */
 export const categoryLabels: Record<CategoryCode, { name: string; plural: string }> = {
   ALLERGY: { name: 'Alergia', plural: 'Alergias' },
@@ -25,6 +36,7 @@ export const categoryLabels: Record<CategoryCode, { name: string; plural: string
   MEDICATION: { name: 'Medicación', plural: 'Medicación' },
   IMMUNIZATION: { name: 'Vacuna', plural: 'Vacunas' },
   EPISODE: { name: 'Episodio', plural: 'Episodios' },
+  EXAM_RESULT: { name: 'Examen', plural: 'Exámenes' },
 }
 
 export const confidenceLabels: Record<ConfidenceLevel, string> = {

@@ -52,6 +52,9 @@ function backend() {
       { ...attachmentBase, id: 31, originalFilename: 'nota.m4a', contentType: 'audio/mp4', ocrStatus: 'DONE' },
       { ...attachmentBase, id: 32, originalFilename: 'examen.png', contentType: 'image/png', ocrStatus: 'FAILED', ocrError: 'No se pudo extraer el texto.' },
     ],
+    consultationUpdates: [] as Record<string, unknown>[],
+    registers: [] as Record<string, unknown>[],
+    resets: [] as Record<string, unknown>[],
     uploads: [] as { form: unknown; timeout: unknown }[],
     createdEntries: [] as Record<string, unknown>[],
     me: { id: 1, email: 'ana@demo.yuyay', name: 'Ana Torres', role: 'USER', createdAt: '2026-10-01T00:00:00Z' },
@@ -62,7 +65,7 @@ function backend() {
     consultations: {
       1: [
         { id: 10, careSubjectId: 1, createdByUserId: 1, date: day(-14), reason: 'Control de presión', notes: null },
-        { id: 11, careSubjectId: 1, createdByUserId: 1, date: day(5), reason: 'Control con cardiología', notes: null },
+        { id: 11, careSubjectId: 1, createdByUserId: 1, date: day(5), time: '15:30:00', reason: 'Control con cardiología', notes: null },
       ],
       2: [{ id: 20, careSubjectId: 2, createdByUserId: 1, date: day(2), reason: 'Control con urología', notes: null }],
     } as Record<number, unknown[]>,
@@ -104,6 +107,15 @@ function backend() {
     await new Promise((r) => setTimeout(r, 1))
     if (url === '/auth/login' || url === '/auth/refresh') return ok(config, auth())
     if (url === '/auth/logout') return ok(config, '', 204)
+    if (url === '/auth/register') {
+      db.registers.push(body)
+      return ok(config, auth(), 201)
+    }
+    if (url === '/auth/forgot-password') return ok(config, '', 204)
+    if (url === '/auth/reset-password') {
+      db.resets.push(body)
+      return ok(config, '', 204)
+    }
     if (url === '/users/me' && method === 'GET') return ok(config, db.me)
     if (url === '/users/me' && method === 'PATCH') {
       db.me = { ...db.me, name: body.name }
@@ -139,6 +151,22 @@ function backend() {
       const found = db.attachments.find((a) => a.id === Number(attachments[1]))!
       found.ocrStatus = 'PENDING'
       return ok(config, { ...found }, 202)
+    }
+    if (/^\/care-subjects\/\d+\/consultations\/changes$/.test(url)) return ok(config, [])
+    if (/^\/consultations\/\d+$/.test(url) && method === 'PATCH') {
+      db.consultationUpdates.push(body)
+      return ok(config, { id: 11, ...body })
+    }
+    if (url === '/public/delegations/enlace-citas/exchange') {
+      return ok(config, { accessToken: 'D1', tokenType: 'Bearer', expiresAt: '2099-01-01T00:00:00Z', careSubjectId: 1,
+        careSubjectName: 'Rosa', granteeName: 'Luz', categoryCodes: [], includeConsultations: true })
+    }
+    if (url === '/delegate/health-entries') return ok(config, [])
+    if (url === '/delegate/consultations') {
+      return ok(config, [
+        { id: 2, date: day(-3), time: null, reason: 'Control pasado' },
+        { id: 1, date: day(4), time: '15:30:00', reason: 'Cardiología' },
+      ])
     }
     const consultations = url.match(/^\/care-subjects\/(\d+)\/consultations$/)
     if (consultations) return ok(config, db.consultations[Number(consultations[1])] ?? [])
@@ -388,6 +416,82 @@ test('Documentos: abre el archivo en otra pestaña y avisa si el navegador la bl
   window.open = (() => null) as never
   await click(byText('button', 'Abrir archivo'), 'Abrir archivo')
   await waitFor(() => /bloqueó la pestaña nueva/.test(text()), 'aviso de pestaña bloqueada')
+})
+
+test('Consultas: muestra la hora y permite editar la cita y quitarle la hora', async (t) => {
+  const { b, unmount } = await mountApp('/personas/1?tab=consultas', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Control con cardiología/.test(text()), 'lista de consultas')
+  assert.match(text(), /3:30/)
+
+  await click(document.querySelector(`button[aria-label^='Editar la consulta "Control con cardiología"']`), 'Editar')
+  await waitFor(() => !!document.querySelector('#consultation-time'), 'formulario de edición')
+  const time = document.querySelector<HTMLInputElement>('#consultation-time')!
+  assert.equal(time.value, '15:30')
+  await type(time, '')
+  await click(byText('button', 'Guardar cambios'), 'Guardar cambios')
+  await waitFor(() => b.db.consultationUpdates.length === 1, 'cambios enviados')
+  assert.deepEqual(b.db.consultationUpdates[0], { date: day(5), clearTime: true, reason: 'Control con cardiología', notes: '' })
+})
+
+test('Vista del delegado: muestra solo citas, con hora y sin notas, las próximas primero', async (t) => {
+  const { unmount } = await mountApp('/acceso/enlace-citas', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => /Cardiología/.test(text()), 'citas compartidas')
+  assert.match(text(), /3:30/)
+  assert.ok(text().indexOf('Cardiología') < text().indexOf('Control pasado'), 'la próxima va primero')
+  assert.equal(document.querySelector('nav[aria-label="Filtrar por categoría"]'), null, 'sin categorías no hay filtro')
+  assert.doesNotMatch(text(), /No hay registros/)
+})
+
+const inputById = (id: string) => document.getElementById(id) as HTMLInputElement
+
+test('Registro: pide confirmar la contraseña, muestra requisitos y no envía la confirmación', async (t) => {
+  const { b, unmount } = await mountApp('/registro', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
+  await type(inputById('auth-name'), 'Ana')
+  await type(inputById('auth-email'), 'ana@example.test')
+  await type(inputById('auth-password'), 'Clave123')
+  await waitFor(() => /✓ Una letra \(A-Z\)/.test(text()), 'requisitos actualizados')
+
+  assert.equal(inputById('auth-password').type, 'password')
+  await click(document.querySelector('button[aria-label="Mostrar contraseña"]'), 'Mostrar contraseña')
+  await waitFor(() => inputById('auth-password').type === 'text' && inputById('auth-confirm').type === 'text', 'contraseñas visibles')
+
+  await type(inputById('auth-confirm'), 'Clave124')
+  await click(byText('button', 'Registrarme'), 'Registrarme')
+  await waitFor(() => /Las contraseñas no coinciden/.test(text()), 'error de confirmación')
+  assert.equal(b.db.registers.length, 0)
+
+  await type(inputById('auth-confirm'), 'Clave123')
+  await click(byText('button', 'Registrarme'), 'Registrarme')
+  await waitFor(() => b.db.registers.length === 1, 'registro enviado')
+  assert.deepEqual(b.db.registers[0], { name: 'Ana', email: 'ana@example.test', password: 'Clave123' })
+})
+
+test('Recuperar contraseña: desde el login pide el código, cambia la contraseña y entra', async (t) => {
+  const { b, unmount } = await mountApp('/login', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!byText('a', '¿Olvidaste tu contraseña?'), 'enlace de recuperación')
+  await click(byText('a', '¿Olvidaste tu contraseña?'), 'enlace de recuperación')
+  await waitFor(() => pathname() === '/recuperar-contrasena' && !!inputById('auth-email'), 'pantalla de recuperación')
+  await type(inputById('auth-email'), 'ana@example.test')
+  await click(byText('button', 'Enviar código'), 'Enviar código')
+  await waitFor(() => !!inputById('reset-code'), 'paso del código')
+  assert.match(text(), /ana@example\.test tiene una cuenta/)
+
+  await type(inputById('reset-code'), '123')
+  await type(inputById('reset-password'), 'Clave123')
+  await type(inputById('reset-confirm'), 'Clave123')
+  await click(byText('button', 'Cambiar contraseña'), 'Cambiar contraseña')
+  await waitFor(() => /Ingresa los 6 dígitos/.test(text()), 'código incompleto')
+  assert.equal(b.db.resets.length, 0)
+
+  await type(inputById('reset-code'), '123456')
+  await click(byText('button', 'Cambiar contraseña'), 'Cambiar contraseña')
+  await waitFor(() => pathname() === '/', 'entra después de cambiarla')
+  assert.deepEqual(b.db.resets[0], { email: 'ana@example.test', code: '123456', newPassword: 'Clave123' })
 })
 
 test('getPostLoginTarget: vuelve a la ruta guardada y rechaza destinos inválidos', () => {

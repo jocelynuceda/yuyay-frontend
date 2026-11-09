@@ -79,7 +79,7 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
                 <p className="font-semibold">{d.granteeName}</p>
                 <p className="truncate text-sm text-muted">{d.granteeEmail}</p>
                 <p className="mt-1 text-sm">
-                  {d.categoryCodes.map((c) => categoryLabels[c]?.plural ?? c).join(', ')}
+                  {[...d.categoryCodes.map((c) => categoryLabels[c]?.plural ?? c), ...(d.includeConsultations ? ['Citas'] : [])].join(', ')}
                   {' · hasta el '}
                   {formatDateTime(d.validUntil)}
                 </p>
