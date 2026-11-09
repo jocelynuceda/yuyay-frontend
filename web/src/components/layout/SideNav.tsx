@@ -1,57 +1,70 @@
 import { Link, NavLink } from 'react-router-dom'
-import isologo from '../../assets/brand/isologo.svg'
-import isologoDark from '../../assets/brand/isologo-dark.svg'
 import { useLogout } from '../../hooks/useLogout'
 import { useUnreadCount } from '../../hooks/useUnreadCount'
 import { focusRing } from '../../utils/styles'
-import { Badge } from '../ui/Badge'
-import { Button } from '../ui/Button'
+import { Isotipo } from '../ui/Brand'
 import { cx } from '../ui/cx'
 import { Icon } from '../ui/Icon'
 import { formatBadge, navItems, noticesLabel } from './navItems'
 
+const pill = 'relative flex h-12 w-12 items-center justify-center rounded-full transition-colors'
+
+/** Barra lateral flotante: columna redondeada con iconos en círculo y el nombre como tooltip. */
 export function SideNav() {
   const { count } = useUnreadCount()
   const logout = useLogout()
 
   return (
-    <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 border-r border-line bg-card px-4 py-6 lg:flex">
-      <Link to="/" aria-label="Yuyay, ir al inicio" className={cx('rounded-xl px-2', focusRing)}>
-        <img src={isologo} alt="" className="h-12 w-auto dark:hidden" />
-        <img src={isologoDark} alt="" className="hidden h-12 w-auto dark:inline" />
+    <aside className="fixed inset-y-4 left-4 z-30 hidden w-20 flex-col items-center gap-8 rounded-[2rem] bg-primary py-6 shadow-[var(--shadow-soft)] lg:flex">
+      <Link
+        to="/"
+        aria-label="Yuyay, ir al inicio"
+        className={cx('flex h-12 w-12 items-center justify-center rounded-full bg-card', focusRing)}
+      >
+        <Isotipo className="h-8 w-8" />
       </Link>
+      <span aria-hidden="true" className="h-px w-10 bg-white/25" />
       <nav aria-label="Principal" className="flex-1">
-        <ul className="grid gap-1">
+        <ul className="grid gap-4">
           {navItems.map(({ to, label, icon }) => (
             <li key={to}>
               <NavLink
                 to={to}
                 end={to === '/'}
-                aria-label={to === '/avisos' ? noticesLabel(count) : undefined}
+                title={label}
+                aria-label={to === '/avisos' ? noticesLabel(count) : label}
                 className={({ isActive }) =>
                   cx(
-                    'flex items-center gap-3 rounded-xl px-3 py-2.5 font-semibold',
-                    isActive ? 'bg-primary text-white' : 'text-ink hover:bg-primary-tint',
+                    pill,
+                    isActive ? 'bg-card text-primary shadow-[var(--shadow-soft)]' : 'bg-white/15 text-white hover:bg-white/25',
                     focusRing,
                   )
                 }
               >
                 <Icon name={icon} />
-                <span className="flex-1">{label}</span>
                 {to === '/avisos' && count > 0 ? (
-                  <Badge tone="danger" aria-hidden="true">
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-0.5 -right-0.5 min-w-5 rounded-full bg-danger px-1 text-center text-[10px] leading-5 font-bold text-white ring-2 ring-primary"
+                  >
                     {formatBadge(count)}
-                  </Badge>
+                  </span>
                 ) : null}
               </NavLink>
             </li>
           ))}
         </ul>
       </nav>
-      <Button variant="secondary" onClick={() => void logout()} className="w-full justify-start">
+      <span aria-hidden="true" className="h-px w-10 bg-white/25" />
+      <button
+        type="button"
+        title="Cerrar sesión"
+        aria-label="Cerrar sesión"
+        onClick={() => void logout()}
+        className={cx(pill, 'bg-white/15 text-white hover:bg-white/25', focusRing)}
+      >
         <Icon name="logout" />
-        Cerrar sesión
-      </Button>
+      </button>
     </aside>
   )
 }

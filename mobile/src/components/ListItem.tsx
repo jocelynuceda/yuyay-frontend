@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, radius, shadow } from '../theme';
+import { Pressable, Text, View } from 'react-native';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 /** Fila de lista en tarjeta: ícono o iniciales, título, subtítulo y un elemento a la derecha. */
 export function ListItem({
@@ -9,8 +9,8 @@ export function ListItem({
   subtitle,
   initials,
   icon,
-  iconBg = colors.soft,
-  iconFg = colors.softText,
+  iconBg: iconBgProp,
+  iconFg: iconFgProp,
   right,
   footer,
   onPress,
@@ -27,6 +27,10 @@ export function ListItem({
   onPress?: () => void;
   dimmed?: boolean;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const iconBg = iconBgProp ?? colors.soft;
+  const iconFg = iconFgProp ?? colors.softText;
   const identity = (
     <>
       <View style={[styles.avatar, { backgroundColor: iconBg }]}>
@@ -77,13 +81,16 @@ export function IconButton({
   icon,
   label,
   onPress,
-  color = colors.muted,
+  color: colorProp,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
   color?: string;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const color = colorProp ?? colors.muted;
   return (
     <Pressable
       onPress={onPress}
@@ -97,10 +104,10 @@ export function IconButton({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 14,
     ...shadow,
@@ -122,4 +129,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

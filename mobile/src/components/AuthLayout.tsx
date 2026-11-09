@@ -1,8 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, gradients, heroIsDark, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import { FormScroll } from './FormScroll';
 import { Logo } from './Logo';
 import { Sparkle } from './Sparkle';
@@ -30,6 +30,8 @@ export function AuthLayout({
   footer?: ReactNode;
   children: ReactNode;
 }) {
+  const styles = useStyles();
+  const { gradients, colors, heroIsDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
@@ -94,7 +96,7 @@ export function AuthLayout({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1, backgroundColor: colors.surface },
   scroll: { flexGrow: 1 },
   hero: {
@@ -127,7 +129,7 @@ const styles = StyleSheet.create({
   card: {
     marginTop: -48,
     marginHorizontal: 16,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.xl,
     padding: 20,
     ...shadow,
@@ -139,10 +141,10 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   segmentItem: { flex: 1, paddingVertical: 11, borderRadius: radius.pill, alignItems: 'center' },
-  segmentActive: { backgroundColor: colors.white, ...shadow, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+  segmentActive: { backgroundColor: colors.card, ...shadow, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
   segmentText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.muted },
   segmentTextActive: { color: colors.primary },
   form: { marginTop: 20, gap: 6 },
   // marginTop automático: el pie queda abajo en pantallas altas
   footer: { marginTop: 'auto', paddingTop: 24, paddingHorizontal: 24, alignItems: 'center' },
-});
+}));

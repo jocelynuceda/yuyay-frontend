@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { EmptyState } from '../components/EmptyState';
 import { FormCard, SubmitButton } from '../components/FormKit';
 import { LoadingView } from '../components/LoadingView';
@@ -12,7 +12,7 @@ import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { deleteAttachment, getAttachments, uploadAttachment } from '../services/api';
 import { audioFormData } from '../services/attachmentFiles';
 import { ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { deleteErrorMessage, formatDuration, isAudio } from '../utils/attachments';
 import { confirmAction } from '../utils/confirm';
@@ -20,6 +20,8 @@ import { confirmAction } from '../utils/confirm';
 type Props = NativeStackScreenProps<HomeStackParamList, 'VoiceNotes'>;
 
 export function VoiceNotesScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId } = route.params;
   const voice = useVoiceRecorder();
   const [uploading, setUploading] = useState(false);
@@ -104,10 +106,10 @@ export function VoiceNotesScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   help: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.muted },
   timer: { fontFamily: fonts.display, fontSize: 36, color: colors.ink, textAlign: 'center' },
   saved: { gap: 12 },
   discard: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger, textAlign: 'center' },
-});
+}));

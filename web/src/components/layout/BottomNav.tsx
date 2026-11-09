@@ -5,15 +5,16 @@ import { cx } from '../ui/cx'
 import { Icon } from '../ui/Icon'
 import { formatBadge, navItems, noticesLabel } from './navItems'
 
+/** Barra inferior flotante en móvil, con el mismo estilo de la barra lateral. */
 export function BottomNav() {
   const { count } = useUnreadCount()
 
   return (
     <nav
       aria-label="Principal"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 rounded-full bg-primary p-1.5 shadow-[var(--shadow-soft)] lg:hidden"
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-4 gap-1">
         {navItems.map(({ to, label, icon }) => (
           <li key={to}>
             <NavLink
@@ -22,33 +23,24 @@ export function BottomNav() {
               aria-label={to === '/avisos' ? noticesLabel(count) : undefined}
               className={({ isActive }) =>
                 cx(
-                  'flex flex-col items-center gap-0.5 px-2 py-2 text-xs font-semibold',
-                  isActive ? 'text-primary' : 'text-muted',
+                  'flex flex-col items-center gap-0.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors',
+                  isActive ? 'bg-card text-primary' : 'text-white hover:bg-white/15',
                   focusRing,
                 )
               }
             >
-              {({ isActive }) => (
-                <>
+              <span className="relative flex h-6 items-center justify-center">
+                <Icon name={icon} />
+                {to === '/avisos' && count > 0 ? (
                   <span
-                    className={cx(
-                      'relative flex h-7 w-12 items-center justify-center rounded-full',
-                      isActive && 'bg-primary-tint',
-                    )}
+                    aria-hidden="true"
+                    className="absolute -top-1 -right-3 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] leading-4 font-bold text-white"
                   >
-                    <Icon name={icon} />
-                    {to === '/avisos' && count > 0 ? (
-                      <span
-                        aria-hidden="true"
-                        className="absolute -top-1 right-1 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] leading-4 font-bold text-white"
-                      >
-                        {formatBadge(count)}
-                      </span>
-                    ) : null}
+                    {formatBadge(count)}
                   </span>
-                  <span aria-hidden={to === '/avisos' && count > 0 ? true : undefined}>{label}</span>
-                </>
-              )}
+                ) : null}
+              </span>
+              <span aria-hidden={to === '/avisos' && count > 0 ? true : undefined}>{label}</span>
             </NavLink>
           </li>
         ))}

@@ -2,13 +2,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FloatingTabBar } from '../components/FloatingTabBar';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme } from '../theme';
 import type { TabNavigatorParamList } from '../types';
 import { HomeStackNavigator } from './HomeStackNavigator';
 
 const Tab = createBottomTabNavigator<TabNavigatorParamList>();
 
 export function TabNavigator() {
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       tabBar={(props) => <FloatingTabBar {...props} />}

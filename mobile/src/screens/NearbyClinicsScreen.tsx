@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { Linking, Platform, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { Linking, Platform, RefreshControl, ScrollView, Text } from 'react-native';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
@@ -7,7 +7,7 @@ import { IconButton, ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 
 /** Radio de búsqueda en metros. */
 const RADIUS = 3000;
@@ -124,6 +124,8 @@ async function findNearby(): Promise<{ denied: true } | { denied: false; places:
 }
 
 export function NearbyClinicsScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const result = useFetch(findNearby);
 
   if (result.loading && !result.data) return <LoadingView label="Buscando clínicas cerca de ti…" />;
@@ -192,8 +194,8 @@ export function NearbyClinicsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
   credit: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, textAlign: 'center', marginTop: 8 },
-});
+}));

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme } from '../theme';
 import { Isotipo } from './Isotipo';
 
 export function Logo({
@@ -12,6 +12,7 @@ export function Logo({
   onHero?: boolean;
   size?: 'md' | 'lg';
 }) {
+  const { colors } = useTheme();
   const big = size === 'lg';
   const color = light ? colors.white : colors.ink;
   return (

@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 import { getAttachmentSource } from '../services/api';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { Attachment } from '../types';
 import { formatDuration } from '../utils/attachments';
 import { formatDate } from '../utils/format';
@@ -17,6 +17,8 @@ export function VoiceNotePlayer({
   onCreateEntry?: () => void;
   onDelete?: () => void;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const player = useAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
   const blobUri = useRef<string | null>(null);
@@ -102,9 +104,9 @@ export function VoiceNotePlayer({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
-  card: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 16, gap: 12, ...shadow, shadowOpacity: 0.06, elevation: 2 },
+  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 16, gap: 12, ...shadow, shadowOpacity: 0.06, elevation: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   play: {
     width: 48,
@@ -119,4 +121,4 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 20 },
   action: { fontFamily: fonts.semibold, fontSize: 14, color: colors.primary },
   danger: { color: colors.danger },
-});
+}));

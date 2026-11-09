@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, radius, shadow } from '../theme';
+import { Text, View } from 'react-native';
+import { fonts, makeStyles, radius } from '../theme';
 import type { ChangeType, HealthEntryVersion } from '../types';
 import { formatDateTime } from '../utils/format';
 import { Badge, type BadgeTone } from './Badge';
@@ -21,6 +21,7 @@ export function VersionCard({
   version: HealthEntryVersion;
   current?: boolean;
 }) {
+  const styles = useStyles();
   const change = changeLabel[v.changeType];
   const facts = [v.dose && `Dosis: ${v.dose}`, v.frequency].filter(Boolean).join(' · ');
   return (
@@ -42,9 +43,9 @@ export function VersionCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 16,
     gap: 8,
@@ -64,4 +65,4 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-});
+}));

@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState, type ComponentProps } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import type { VoiceRecorder } from '../hooks/useVoiceRecorder';
 import { imagePickerOptions } from '../services/attachmentFiles';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import { formatDuration } from '../utils/attachments';
 import { StatusMessage } from './StatusMessage';
 
@@ -17,6 +17,8 @@ function Option({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -42,6 +44,8 @@ export function EntryAttachmentField({
   voice: VoiceRecorder;
   disabled?: boolean;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [error, setError] = useState<string | null>(null);
 
   function applyPicked(result: ImagePicker.ImagePickerResult) {
@@ -120,7 +124,7 @@ export function EntryAttachmentField({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   label: { fontFamily: fonts.semibold, color: colors.ink, fontSize: 14, marginTop: 10, marginBottom: 6 },
   options: { flexDirection: 'row', gap: 8 },
   option: {
@@ -129,7 +133,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -145,7 +149,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -153,4 +157,4 @@ const styles = StyleSheet.create({
   selectedText: { flex: 1, fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
   stop: { fontFamily: fonts.semibold, fontSize: 14, color: colors.primary },
   remove: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },
-});
+}));

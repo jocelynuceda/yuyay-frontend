@@ -10,5 +10,5 @@ export interface CardProps extends ComponentPropsWithoutRef<'div'> {
 
 /** Tarjeta blanca redondeada; el elemento HTML se elige con `as`. */
 export function Card({ as: Tag = 'div', padding = 'md', className, ...rest }: CardProps) {
-  return <Tag className={cx('rounded-3xl bg-card', paddings[padding], className)} {...rest} />
+  return <Tag className={cx('rounded-[2rem] bg-card shadow-[var(--shadow-soft)]', paddings[padding], className)} {...rest} />
 }

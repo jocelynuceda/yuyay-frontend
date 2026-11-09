@@ -6,12 +6,13 @@ import { StatusMessage } from '../components/StatusMessage';
 import { VersionCard } from '../components/VersionCard';
 import { useFetch } from '../hooks/useFetch';
 import { getEntryVersions } from '../services/api';
-import { colors } from '../theme';
+import { useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'EntryHistory'>;
 
 export function EntryHistoryScreen({ route }: Props) {
+  const { colors } = useTheme();
   const { subjectId, entryId } = route.params;
   const versions = useFetch(() => getEntryVersions(subjectId, entryId), [subjectId, entryId]);
 

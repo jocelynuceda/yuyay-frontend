@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
@@ -11,7 +11,7 @@ import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getDelegations, revokeDelegation } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { Delegation, HomeStackParamList } from '../types';
 import { categoryMeta } from '../utils/categories';
 import { confirmAction } from '../utils/confirm';
@@ -27,6 +27,8 @@ function delegationState(d: Delegation) {
 }
 
 export function DelegationsScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId, isPrincipal } = route.params;
   const [error, setError] = useState<string | null>(null);
   const delegations = useFetch(() => getDelegations(subjectId), [subjectId]);
@@ -111,8 +113,8 @@ export function DelegationsScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
   right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-});
+}));

@@ -63,7 +63,7 @@ export function FormActions({
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          className={`rounded-xl border border-line px-5 py-2.5 font-semibold ${focusRing}`}
+          className={`rounded-full border border-line px-6 py-2.5 font-semibold ${focusRing}`}
         >
           Cancelar
         </button>
@@ -72,7 +72,7 @@ export function FormActions({
         type="submit"
         disabled={submitting}
         aria-busy={submitting}
-        className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white disabled:opacity-60 ${focusRing}`}
+        className={`rounded-full bg-primary px-6 py-2.5 font-semibold text-white shadow-[var(--shadow-soft)] disabled:opacity-60 ${focusRing}`}
       >
         {submitting ? submittingLabel : submitLabel}
       </button>
@@ -117,7 +117,7 @@ export function FormShell({
     )
   }
   return (
-    <form onSubmit={onSubmit} noValidate aria-labelledby={titleId} className="grid gap-5 rounded-3xl bg-card p-6 sm:p-8">
+    <form onSubmit={onSubmit} noValidate aria-labelledby={titleId} className="grid gap-5 rounded-3xl border border-border bg-card p-6 shadow-[var(--shadow-soft)] sm:p-8">
       <div>
         <h2 id={titleId} className="text-xl font-semibold">
           {title}

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, gradients, radius, shadow } from '../theme';
+import { Animated, Text, View } from 'react-native';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import { Sparkle } from './Sparkle';
 
 export type ProfileStat = { icon: keyof typeof Ionicons.glyphMap; value: string; label: string };
@@ -23,6 +23,8 @@ export function ProfileCard({
   stats: ProfileStat[];
   children?: ReactNode;
 }) {
+  const styles = useStyles();
+  const { gradients, colors } = useTheme();
   return (
     <View style={styles.card}>
       <LinearGradient
@@ -91,6 +93,8 @@ export function PillAction({
   /** Avisa mientras se arrastra, para que un contenedor deslizable no le quite el gesto. */
   onDragChange?: (dragging: boolean) => void;
 }) {
+  const styles = useStyles();
+  const { gradients, colors } = useTheme();
   const [x] = useState(() => new Animated.Value(0));
   const max = useRef(0);
   const startX = useRef(0);
@@ -158,10 +162,10 @@ export function PillAction({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.xl,
     padding: 14,
     ...shadow,
@@ -177,7 +181,7 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     backgroundColor: colors.soft,
     borderWidth: 5,
-    borderColor: colors.white,
+    borderColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -52,
@@ -188,7 +192,7 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, color: colors.ink },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, marginTop: 2 },
   chip: { backgroundColor: colors.ink, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
-  chipText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.white },
+  chipText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.onInk },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 16, marginHorizontal: 6 },
   stats: { flexDirection: 'row', paddingHorizontal: 6, marginBottom: 6 },
   stat: { flex: 1, alignItems: 'center' },
@@ -208,10 +212,10 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pillLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.semibold, fontSize: 17, color: colors.white },
   pillHint: { position: 'absolute', right: 20, flexDirection: 'row' },
-});
+}));

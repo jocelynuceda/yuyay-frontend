@@ -2,15 +2,15 @@ import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
-import { ThemeToggle } from '../../components/layout/ThemeToggle'
+import { AuthShell } from '../../components/layout/AuthShell'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
 import { forgotPasswordSchema, resetPasswordSchema } from '../../schemas/auth'
 import { forgotPassword, resetPassword } from '../../services/api/auth'
 import { applyServerErrors, getErrorMessage } from '../../utils/apiErrors'
+import { linkClass } from '../../utils/styles'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
-import { AuthBrand } from './AuthBrand'
 import { PasswordChecklist, PasswordInput } from './PasswordFields'
 
 function RequestCodeForm({ onSent }: { onSent: (email: string) => void }) {
@@ -160,17 +160,16 @@ export default function ForgotPasswordPage() {
   const [sentTo, setSentTo] = useState<string | null>(null)
 
   return (
-    <main className="mx-auto max-w-lg px-6 py-12">
-      <div className="mb-2 flex justify-end">
-        <ThemeToggle />
-      </div>
-      <AuthBrand />
-      {sentTo === null ? <RequestCodeForm onSent={setSentTo} /> : <ResetForm email={sentTo} />}
-      <p className="mt-5 text-center text-sm">
-        <Link to="/login" className="font-semibold text-primary underline">
+    <AuthShell
+      title="Recupera tu acceso"
+      subtitle="Te enviaremos un código a tu correo para crear una nueva contraseña."
+      footer={
+        <Link to="/login" className={linkClass}>
           Volver a iniciar sesión
         </Link>
-      </p>
-    </main>
+      }
+    >
+      {sentTo === null ? <RequestCodeForm onSent={setSentTo} /> : <ResetForm email={sentTo} />}
+    </AuthShell>
   )
 }

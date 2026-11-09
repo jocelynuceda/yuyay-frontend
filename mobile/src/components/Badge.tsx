@@ -1,18 +1,19 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme, type Colors } from '../theme';
 
-const tones = {
+const tonesFor = (colors: Colors) => ({
   primary: { bg: colors.soft, fg: colors.softText },
   accent: { bg: colors.accentTint, fg: colors.accentText },
   soft: { bg: colors.soft, fg: colors.softText },
-  ink: { bg: colors.ink, fg: colors.white },
+  ink: { bg: colors.ink, fg: colors.onInk },
   amber: { bg: colors.amberBg, fg: colors.amberText },
-  light: { bg: 'rgba(255,255,255,0.7)', fg: colors.ink },
-};
+  light: { bg: colors.glass, fg: colors.ink },
+});
 
-export type BadgeTone = keyof typeof tones;
+export type BadgeTone = keyof ReturnType<typeof tonesFor>;
 
 export function Badge({ label, tone = 'primary' }: { label: string; tone?: BadgeTone }) {
+  const tones = tonesFor(useTheme().colors);
   return (
     <View style={[styles.badge, { backgroundColor: tones[tone].bg }]}>
       <Text style={[styles.text, { color: tones[tone].fg }]}>{label}</Text>

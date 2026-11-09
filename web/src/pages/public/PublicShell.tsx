@@ -1,17 +1,15 @@
 import type { ReactNode } from 'react'
-import isologo from '../../assets/brand/isologo.svg'
-import isologoDark from '../../assets/brand/isologo-dark.svg'
 import { OfflineBanner } from '../../components/layout/OfflineBanner'
 import { ThemeToggle } from '../../components/layout/ThemeToggle'
+import { Logo } from '../../components/ui/Brand'
 
 /** Marco de las páginas públicas (sin sesión): logo, contenido centrado y aviso de privacidad. */
 export function PublicShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-svh bg-surface text-ink">
+    <div className="min-h-svh text-ink">
       <header className="border-b border-line bg-card/70">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
-          <img src={isologo} alt="Yuyay, salud compartida" className="h-10 w-auto sm:h-12 dark:hidden" />
-          <img src={isologoDark} alt="Yuyay, salud compartida" className="hidden h-10 w-auto sm:h-12 dark:inline" />
+          <Logo />
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted">Acceso de solo lectura</span>
             <ThemeToggle />

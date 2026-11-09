@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, radius } from '../theme';
+import { KeyboardAvoidingView, Linking, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { Consultation } from '../types';
 import {
   APPOINTMENT_MINUTES,
@@ -18,6 +18,8 @@ import { TimeField } from './TimeField';
 
 /** Acción al pie de una cita (alineada con el texto de ListItem) para llevarla a Google Calendar. */
 export function AddToCalendar({ consultation, subjectName }: { consultation: Consultation; subjectName: string }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [asking, setAsking] = useState(false);
 
   function openCalendar(time?: CalendarTime) {
@@ -54,6 +56,7 @@ function TimeDialog({
   onConfirm: (time?: CalendarTime) => void;
   onCancel: () => void;
 }) {
+  const styles = useStyles();
   const [parts, setParts] = useState<TimeParts>({ hour: '9', minute: '00', period: 'am' });
   const [invalid, setInvalid] = useState(false);
 
@@ -90,13 +93,13 @@ function TimeDialog({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   action: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, marginLeft: 56 },
   label: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary },
   overlay: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: 'rgba(0,0,0,0.45)' },
-  dialog: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 20, gap: 12 },
+  dialog: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 20, gap: 12 },
   title: { fontFamily: fonts.display, fontSize: 20, color: colors.ink },
   help: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.muted },
   secondary: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, paddingTop: 4 },
   cancel: { fontFamily: fonts.semibold, fontSize: 13, color: colors.muted },
-});
+}));

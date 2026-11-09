@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
-import { ApiError, createApiClient } from '../src/services/client.ts';
+import { ApiError, createApiClient, MAX_RETRIES } from '../src/services/client.ts';
 
 function unauthorized(config: InternalAxiosRequestConfig) {
   return new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, undefined,
@@ -57,4 +57,46 @@ test('auth requests and 401 responses arriving after logout never invoke refresh
   await assert.rejects(http.post('/auth/login'), ApiError);
   await assert.rejects(http.get('/users/me'), ApiError);
   assert.equal(refreshes, 0);
+});
+
+function failure(config: InternalAxiosRequestConfig, status?: number) {
+  if (status === undefined) return new AxiosError('Network Error', 'ERR_NETWORK', config);
+  return new AxiosError('Error', 'ERR_BAD_RESPONSE', config, undefined,
+    { status, statusText: 'Error', data: {}, headers: {}, config });
+}
+
+const ok = (config: InternalAxiosRequestConfig) =>
+  ({ status: 200, statusText: 'OK', data: { ok: true }, headers: {}, config }) as AxiosResponse;
+
+test('GET retries network and 503 failures, then succeeds', async () => {
+  let calls = 0;
+  const http = createApiClient('http://localhost', { generation: 1, accessToken: 't', refresh: async () => {} }, { retryDelayMs: 1 });
+  http.defaults.adapter = async (config) => {
+    calls++;
+    if (calls === 1) throw failure(config);
+    if (calls === 2) throw failure(config, 503);
+    return ok(config);
+  };
+  const { data } = await http.get('/care-subjects');
+  assert.deepEqual(data, { ok: true });
+  assert.equal(calls, 3);
+});
+
+test('GET gives up after MAX_RETRIES with a friendly error', async () => {
+  let calls = 0;
+  const http = createApiClient('http://localhost', { generation: 1, accessToken: 't', refresh: async () => {} }, { retryDelayMs: 1 });
+  http.defaults.adapter = async (config) => { calls++; throw failure(config); };
+  await assert.rejects(http.get('/care-subjects'), (error: ApiError) =>
+    error.status === 0 && error.message.includes('conexión'));
+  assert.equal(calls, 1 + MAX_RETRIES);
+});
+
+test('writes and non-transient errors are never retried', async () => {
+  for (const [method, status] of [['post', undefined], ['delete', 503], ['get', 400], ['get', 500]] as const) {
+    let calls = 0;
+    const http = createApiClient('http://localhost', { generation: 1, accessToken: 't', refresh: async () => {} }, { retryDelayMs: 1 });
+    http.defaults.adapter = async (config) => { calls++; throw failure(config, status); };
+    await assert.rejects(http.request({ method, url: '/x' }), ApiError);
+    assert.equal(calls, 1, `${method} ${status ?? 'network'}`);
+  }
 });

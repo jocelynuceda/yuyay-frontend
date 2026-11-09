@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SegmentedButtons } from 'react-native-paper';
 import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
@@ -11,7 +11,7 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { deleteHealthEntry, getHealthEntry, updateHealthEntry } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { ConfidenceLevel, HealthEntry, HomeStackParamList } from '../types';
 import { confirmAction } from '../utils/confirm';
 
@@ -29,6 +29,8 @@ export function EditEntryScreen({ route, navigation }: Props) {
 
 /** El formulario arranca con la última versión del registro. */
 function EntryForm({ entry, subjectId, onDone }: { entry: HealthEntry; subjectId: number; onDone: () => void }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const v = entry.latestVersion;
   const [title, setTitle] = useState(v.title);
   const [dose, setDose] = useState(v.dose ?? '');
@@ -144,9 +146,9 @@ function EntryForm({ entry, subjectId, onDone }: { entry: HealthEntry; subjectId
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
   row: { flexDirection: 'row', gap: 10 },
   delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   deleteText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },
-});
+}));

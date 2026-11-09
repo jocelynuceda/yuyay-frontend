@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { TabNavigatorParamList } from '../types';
 
 const tabs: Record<keyof TabNavigatorParamList, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
@@ -18,6 +18,8 @@ const tabs: Record<keyof TabNavigatorParamList, { icon: keyof typeof Ionicons.gl
  * se puede deslizar el dedo sobre la barra para cambiar de pestaña. A la derecha, el botón de agregar.
  */
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [tabWidth, setTabWidth] = useState(0);
   const [pillX] = useState(() => new Animated.Value(0));
@@ -127,7 +129,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   wrapper: {
     backgroundColor: colors.surface,
     paddingHorizontal: 16,
@@ -136,7 +138,7 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.pill,
     padding: 8,
     gap: 4,
@@ -176,4 +178,4 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
-});
+}));

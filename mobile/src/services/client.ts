@@ -26,16 +26,35 @@ export function toApiError(error: unknown): ApiError {
   return new ApiError(status, data?.message || 'Algo salió mal. Inténtalo de nuevo.', fieldErrors);
 }
 
+/** Códigos que indican un fallo pasajero del servidor o de un proxy. */
+const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
+const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
+export const MAX_RETRIES = 2;
+
+/**
+ * Un error vale la pena reintentarlo si es de red, de tiempo agotado o un fallo pasajero del servidor.
+ * Solo en lecturas: repetir un POST o un DELETE podría crear o borrar algo dos veces.
+ */
+export function isRetryable(error: AxiosError): boolean {
+  const method = (error.config?.method ?? 'get').toLowerCase();
+  if (!RETRYABLE_METHODS.has(method) || error.code === AxiosError.ERR_CANCELED) return false;
+  if (!error.response) return true;
+  return RETRYABLE_STATUS.has(error.response.status);
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 interface ClientSession {
   readonly generation: number;
   readonly accessToken: string | null;
   refresh: () => Promise<unknown>;
 }
 
-export function createApiClient(baseURL: string, session: ClientSession) {
+export function createApiClient(baseURL: string, session: ClientSession, { retryDelayMs = 600 } = {}) {
   const http = create({ baseURL, headers: { 'Content-Type': 'application/json' }, timeout: 15000 });
   type Request = InternalAxiosRequestConfig & {
     _retried?: boolean;
+    _attempts?: number;
     _generation?: number;
     _access?: string | null;
   };
@@ -60,6 +79,13 @@ export function createApiClient(baseURL: string, session: ClientSession) {
       } catch (refreshError) {
         return Promise.reject(toApiError(refreshError));
       }
+    }
+    // Reintento con espera creciente (600 ms, 1.2 s) para errores recuperables, si la sesión no cambió
+    if (config && isRetryable(error) && (config._attempts ?? 0) < MAX_RETRIES
+        && config._generation === session.generation) {
+      config._attempts = (config._attempts ?? 0) + 1;
+      await wait(retryDelayMs * 2 ** (config._attempts - 1));
+      return http(config);
     }
     return Promise.reject(toApiError(error));
   });

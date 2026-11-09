@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { AuthLayout } from '../components/AuthLayout';
 import { FormField, passwordInputProps } from '../components/FormField';
@@ -9,7 +9,7 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { forgotPassword, resetPassword } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { AuthStackParamList } from '../types';
 import { isEmail } from '../utils/format';
 import { passwordChecks, passwordError, utf8Bytes } from '../utils/password';
@@ -18,6 +18,8 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
 /** Dos pasos: pedir el código por correo y usarlo para elegir una contraseña nueva. */
 export function ForgotPasswordScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [codeSent, setCodeSent] = useState(false);
@@ -200,7 +202,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   link: { fontFamily: fonts.semibold, color: colors.primary, fontSize: 14 },
   checks: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: -2, marginBottom: 6, paddingLeft: 4 },
   check: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -209,4 +211,4 @@ const styles = StyleSheet.create({
   buttonContent: { height: 52 },
   buttonLabel: { fontFamily: fonts.semibold, fontSize: 16 },
   resendLabel: { fontFamily: fonts.medium, fontSize: 14 },
-});
+}));

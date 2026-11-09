@@ -1,18 +1,20 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { RefreshControl, ScrollView, Text } from 'react-native';
 import { EmptyState } from '../components/EmptyState';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { VersionCard } from '../components/VersionCard';
 import { useFetch } from '../hooks/useFetch';
 import { getConsultationChanges } from '../services/api';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { formatDate } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ConsultationChanges'>;
 
 export function ConsultationChangesScreen({ route }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId, consultationId, since } = route.params;
   const changes = useFetch(() => getConsultationChanges(subjectId, consultationId), [subjectId, consultationId]);
 
@@ -38,7 +40,7 @@ export function ConsultationChangesScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
-});
+}));

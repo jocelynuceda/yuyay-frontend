@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { DateField, parseDateParts } from '../components/DateField';
 import { FormField } from '../components/FormField';
@@ -10,13 +10,15 @@ import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
 import { createCareSubject } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { ageFrom, initialsOf } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewSubject'>;
 
 export function NewSubjectScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [name, setName] = useState('');
   const [dateParts, setDateParts] = useState({ day: '', month: '', year: '' });
   const [notes, setNotes] = useState('');
@@ -123,7 +125,7 @@ export function NewSubjectScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
   container: { padding: 20, gap: 14 },
   preview: {
@@ -138,7 +140,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 20,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -146,7 +148,7 @@ const styles = StyleSheet.create({
   previewName: { fontFamily: fonts.display, fontSize: 22, color: colors.ink },
   previewMeta: { fontFamily: fonts.regular, fontSize: 13, color: colors.softText, marginTop: 2 },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 16,
     gap: 12,
@@ -178,4 +180,4 @@ const styles = StyleSheet.create({
   button: { borderRadius: radius.pill, marginTop: 4 },
   buttonContent: { height: 54 },
   buttonLabel: { fontFamily: fonts.semibold, fontSize: 16 },
-});
+}));

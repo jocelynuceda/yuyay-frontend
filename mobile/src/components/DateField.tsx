@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, TextInput, type TextInputInstance, View } from 'react-native';
-import { colors, fonts, radius } from '../theme';
+import { Text, TextInput, type TextInputInstance, View } from 'react-native';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 type Parts = { day: string; month: string; year: string };
 
@@ -40,6 +40,8 @@ export function DateField({
   error?: string;
   initial?: Parts;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [parts, setParts] = useState<Parts>(initial ?? { day: '', month: '', year: '' });
   const monthRef = useRef<TextInputInstance>(null);
   const yearRef = useRef<TextInputInstance>(null);
@@ -94,7 +96,7 @@ export function DateField({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   label: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink, marginBottom: 8 },
   row: { flexDirection: 'row', gap: 10 },
   box: {
@@ -110,4 +112,4 @@ const styles = StyleSheet.create({
   caption: { fontFamily: fonts.medium, fontSize: 11, color: colors.muted },
   input: { fontFamily: fonts.semibold, fontSize: 20, color: colors.ink, paddingVertical: 4 },
   error: { fontFamily: fonts.medium, fontSize: 12, color: colors.danger, marginTop: 6, marginLeft: 4 },
-});
+}));

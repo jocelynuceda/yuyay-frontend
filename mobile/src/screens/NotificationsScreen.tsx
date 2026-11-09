@@ -1,26 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { EmptyState } from '../components/EmptyState';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getNotifications, markNotificationRead } from '../services/api';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme, type Colors } from '../theme';
 import type { Notification, NotificationType } from '../types';
 import { timeAgo } from '../utils/format';
 
-const typeStyle: Record<NotificationType, { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string }> = {
+const typeStyleFor = (colors: Colors): Record<NotificationType, { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string }> => ({
   ENTRY_CHANGED: { icon: 'create-outline', bg: colors.soft, fg: colors.softText },
   INVITATION: { icon: 'people-outline', bg: colors.soft, fg: colors.softText },
   DELEGATION: { icon: 'link-outline', bg: colors.accentTint, fg: colors.accentText },
   CAREGIVER_JOINED: { icon: 'person-add-outline', bg: colors.accentTint, fg: colors.accentText },
-};
+});
 
 type Filter = 'all' | 'unread';
 
 export function NotificationsScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const notifications = useFetch(getNotifications);
   const [filter, setFilter] = useState<Filter>('all');
   useRefreshOnFocus(notifications.reload);
@@ -71,6 +73,7 @@ export function NotificationsScreen() {
         <RefreshControl refreshing={notifications.refreshing} onRefresh={notifications.refresh} tintColor={colors.primary} />
       }
       renderItem={({ item }) => {
+        const typeStyle = typeStyleFor(colors);
         const style = typeStyle[item.type] ?? typeStyle.ENTRY_CHANGED;
         return (
           <TouchableOpacity
@@ -98,6 +101,7 @@ export function NotificationsScreen() {
 }
 
 function SegmentItem({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useStyles();
   return (
     <Pressable
       onPress={onPress}
@@ -110,11 +114,11 @@ function SegmentItem({ label, active, onPress }: { label: string; active: boolea
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
   list: { paddingHorizontal: 20, paddingBottom: 24, gap: 10 },
   header: { gap: 12, marginBottom: 6 },
-  segment: { flexDirection: 'row', backgroundColor: colors.white, borderRadius: radius.pill, padding: 4 },
+  segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.pill, padding: 4 },
   segmentItem: { flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center' },
   segmentActive: { backgroundColor: colors.primary },
   segmentText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.muted },
@@ -124,9 +128,9 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
     borderRadius: radius.lg,
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: colors.glass,
   },
-  unread: { backgroundColor: colors.white, ...shadow, shadowOpacity: 0.06, elevation: 2 },
+  unread: { backgroundColor: colors.card, ...shadow, shadowOpacity: 0.06, elevation: 2 },
   icon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: fonts.medium, fontSize: 15, color: colors.ink },
   bold: { fontFamily: fonts.bold },
@@ -144,4 +148,4 @@ const styles = StyleSheet.create({
   },
   time: { fontFamily: fonts.medium, fontSize: 11, color: colors.muted },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent, marginTop: 4 },
-});
+}));

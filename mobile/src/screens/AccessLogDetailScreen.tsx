@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { FormCard } from '../components/FormKit';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { VersionCard } from '../components/VersionCard';
 import { useFetch } from '../hooks/useFetch';
 import { getDelegations, getEntryVersions, getHandoff } from '../services/api';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { AccessLog, ChangeType, Delegation, HandoffDetail, HealthEntryVersion, HomeStackParamList } from '../types';
 import { accessActionMeta, accessTargetLabel } from '../utils/accessLog';
 import { categoryMeta } from '../utils/categories';
@@ -88,6 +88,7 @@ async function loadTarget(subjectId: number, log: AccessLog): Promise<Target> {
 }
 
 function Row({ label, value }: { label: string; value: string }) {
+  const styles = useStyles();
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
@@ -97,6 +98,8 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function EntryChanges({ version, previous }: { version: HealthEntryVersion; previous: HealthEntryVersion }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const changed = fieldLabels.filter(({ key }) => (version[key] ?? '') !== (previous[key] ?? ''));
   return (
     <FormCard title="Qué cambió">
@@ -116,6 +119,7 @@ function EntryChanges({ version, previous }: { version: HealthEntryVersion; prev
 }
 
 export function AccessLogDetailScreen({ route }: Props) {
+  const styles = useStyles();
   const { subjectId, log, actor } = route.params;
   const target = useFetch(() => loadTarget(subjectId, log), [subjectId, log.id]);
   const meta = accessActionMeta[log.action];
@@ -161,7 +165,7 @@ export function AccessLogDetailScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 14, paddingBottom: 40 },
   section: { fontFamily: fonts.display, fontSize: 20, color: colors.ink, marginTop: 4 },
   label: { fontFamily: fonts.medium, fontSize: 12, color: colors.muted, marginBottom: 2 },
@@ -176,4 +180,4 @@ const styles = StyleSheet.create({
   },
   afterRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   after: { flex: 1, fontFamily: fonts.semibold, fontSize: 14, lineHeight: 20, color: colors.ink },
-});
+}));

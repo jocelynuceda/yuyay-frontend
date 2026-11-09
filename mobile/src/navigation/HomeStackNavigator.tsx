@@ -23,7 +23,7 @@ import { ReviewOcrScreen } from '../screens/ReviewOcrScreen';
 import { VoiceNotesScreen } from '../screens/VoiceNotesScreen';
 import { SubjectDetailScreen } from '../screens/SubjectDetailScreen';
 import { UpcomingConsultationsScreen } from '../screens/UpcomingConsultationsScreen';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { ExamsScreen } from '../screens/ExamsScreen';
 import { EXAM_CATEGORY } from '../utils/categories';
@@ -31,6 +31,7 @@ import { EXAM_CATEGORY } from '../utils/categories';
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 export function HomeStackNavigator() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       screenOptions={{
