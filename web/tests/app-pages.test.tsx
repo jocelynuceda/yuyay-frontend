@@ -307,10 +307,54 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   assert.equal(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value, '')
   assert.match(text(), /Sugerido del documento/)
 
-  // El texto original está aparte y se puede copiar a Detalles
+  // Medicamentos sugeridos con el diccionario: nada se cambia sin aceptarlo
+  await waitFor(() => /Medicamentos y dispositivos detectados/.test(text()), 'medicamentos detectados', 6000)
+  assert.match(text(), /Panitidina → ¿Ranitidina\?/)
+  assert.match(text(), /Hiosina → ¿Hioscina\?/)
+  assert.match(text(), /Joringa → ¿Jeringa\?/)
+  assert.doesNotMatch(text(), /Dimininitrato →/)
+  await click(document.querySelector<HTMLButtonElement>('button[aria-label="Aceptar Ranitidina en lugar de Panitidina"]')!, 'Aceptar')
+  await click(document.querySelector<HTMLButtonElement>('button[aria-label="Descartar sugerencia Jeringa"]')!, 'Descartar')
+  await waitFor(() => /Aceptado/.test(text()) && /Descartado/.test(text()), 'decisiones visibles')
+  const detailsArea = () => document.querySelector<HTMLTextAreaElement>('#entry-details')!
+  // Aceptar todavía no cambia Detalles, y la página lo dice
+  assert.equal(detailsArea().value, '')
+  assert.match(text(), /1 corrección aceptada sin aplicar a Detalles\./)
+
+  // Aplicar desde la sección: Detalles recibe el texto con la corrección
   assert.match(text(), /Texto leído del documento/)
+  assert.match(document.querySelector('pre')!.textContent!, /Panitidina/, 'la lectura original no cambia')
+  await click(byText('button', 'Aplicar a Detalles'), 'Aplicar a Detalles')
+  await waitFor(() => /Hiosina/.test(detailsArea().value), 'texto aplicado a Detalles')
+  assert.match(detailsArea().value, /Ranitidina 10mg/)
+  assert.doesNotMatch(detailsArea().value, /Panitidina/)
+  assert.match(detailsArea().value, /Joringa/, 'lo descartado queda como se leyó')
+  await waitFor(() => /Detalles ya incluye las correcciones aceptadas/.test(text()), 'estado al día')
+
+  // Copiar otra vez no duplica el texto
+  const once = detailsArea().value
   await click(byText('button', 'Copiar a Detalles'), 'Copiar a Detalles')
-  await waitFor(() => /Hiosina/.test(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value), 'texto copiado a Detalles')
+  assert.equal(detailsArea().value, once)
+
+  // Lo que el usuario escribe se conserva; deshacer y actualizar reemplaza solo el bloque insertado
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set!
+    setter.call(detailsArea(), `Nota del cuidador: tomar con comida.\n\n${once}`)
+    detailsArea().dispatchEvent(new window.Event('input', { bubbles: true }))
+  })
+  await click(document.querySelector<HTMLButtonElement>('button[aria-label="Deshacer decisión sobre Ranitidina"]')!, 'Deshacer')
+  await waitFor(() => /Cambiaste las correcciones después de aplicarlas/.test(text()), 'aviso de cambios sin aplicar')
+  await click(byText('button', 'Actualizar Detalles'), 'Actualizar Detalles')
+  await waitFor(() => /Panitidina 10mg/.test(detailsArea().value), 'bloque actualizado')
+  assert.match(detailsArea().value, /^Nota del cuidador: tomar con comida\./)
+  assert.doesNotMatch(detailsArea().value, /Ranitidina/)
+  assert.equal(detailsArea().value.match(/Hiosina/g)?.length, 1, 'un solo bloque')
+
+  // Se vuelve a aceptar para registrar con la corrección
+  await click(document.querySelector<HTMLButtonElement>('button[aria-label="Aceptar Ranitidina en lugar de Panitidina"]')!, 'Aceptar otra vez')
+  await click(byText('button', 'Actualizar Detalles'), 'Actualizar Detalles')
+  await waitFor(() => /Ranitidina 10mg/.test(detailsArea().value), 'corrección aplicada otra vez')
+  assert.equal(detailsArea().value.match(/Hiosina/g)?.length, 1, 'sigue habiendo un solo bloque')
 
   // El usuario corrige el título antes de guardar
   await type(document.querySelector<HTMLInputElement>('#entry-title')!, 'Receta de emergencia')
@@ -323,6 +367,7 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   assert.equal(created.occurredOn, '2024-08-02')
   assert.equal(created.confidenceLevel, 'UNCERTAIN')
   assert.match(String(created.details), /Hiosina/)
+  assert.match(String(created.details), /Ranitidina/)
 })
 
 test('Documentos: sin categoría sugerida hay que elegirla (no hay "Alergia" por defecto)', async (t) => {

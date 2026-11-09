@@ -6,12 +6,14 @@ import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { Spinner } from '../../components/ui/Spinner'
 import { useFetch } from '../../hooks/useFetch'
+import { useMedicalTermMatcher } from '../../hooks/useMedicalTermMatcher'
 import { useToast } from '../../hooks/useToast'
 import { getAttachment, getAttachmentContent, openAttachment, retryAttachmentOcr } from '../../services/api/attachments'
 import type { HealthEntryFormValues } from '../../schemas/healthEntry'
 import type { HealthEntry } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { isImage } from '../../utils/attachments'
+import { applyAcceptedMatches, type TermMatch } from '../../utils/medicalTermMatcher'
 import { suggestEntryFromOcr, type OcrSuggestion } from '../../utils/ocrSuggestions'
 import { linkClass } from '../../utils/styles'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
@@ -58,6 +60,109 @@ function DocumentPreview({
         </div>
       </Modal>
     </div>
+  )
+}
+
+type Decision = 'accepted' | 'rejected'
+type Decisions = Record<string, Decision | undefined>
+
+const matchKey = (match: TermMatch) => `${match.lineIndex}:${match.original}`
+
+/** Medicamentos y dispositivos hallados en la receta. Las correcciones solo se usan si el cuidador las acepta. */
+function DetectedTermsSection({
+  matches,
+  decisions,
+  onDecide,
+  pendingCount,
+  outdated,
+  upToDate,
+  onApply,
+}: {
+  matches: TermMatch[]
+  decisions: Decisions
+  onDecide: (key: string, decision: Decision | undefined) => void
+  pendingCount: number
+  outdated: boolean
+  upToDate: boolean
+  onApply: () => void
+}) {
+  const pending = pendingCount > 0 || outdated
+  return (
+    <section aria-labelledby="detected-terms-title" className="grid gap-3 rounded-2xl bg-card p-4">
+      <h2 id="detected-terms-title" className="text-xl font-semibold">
+        Medicamentos y dispositivos detectados
+      </h2>
+      <p className="text-muted">
+        Revisa cada sugerencia con la imagen. Solo se usan las que aceptes, al aplicarlas a Detalles.
+      </p>
+      <ul className="grid gap-3">
+        {matches.map((match) => {
+          const key = matchKey(match)
+          if (match.kind === 'known') {
+            return (
+              <li key={key}>
+                <span aria-hidden="true">✓</span> {match.term} <span className="sr-only">reconocido</span>
+              </li>
+            )
+          }
+          const decision = decisions[key]
+          return (
+            <li key={key} className="flex flex-wrap items-center gap-3">
+              <span>
+                {match.original} → ¿{match.term}?
+              </span>
+              {decision ? (
+                <>
+                  <span className="font-semibold">{decision === 'accepted' ? 'Aceptado' : 'Descartado'}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Deshacer decisión sobre ${match.term}`}
+                    onClick={() => onDecide(key, undefined)}
+                  >
+                    Deshacer
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    aria-label={`Aceptar ${match.term} en lugar de ${match.original}`}
+                    onClick={() => onDecide(key, 'accepted')}
+                  >
+                    Aceptar
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    aria-label={`Descartar sugerencia ${match.term}`}
+                    onClick={() => onDecide(key, 'rejected')}
+                  >
+                    Descartar
+                  </Button>
+                </>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      {pending ? (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl bg-accent-tint p-3 text-accent-text">
+          <span>
+            {outdated
+              ? 'Cambiaste las correcciones después de aplicarlas. Actualiza Detalles.'
+              : pendingCount === 1
+                ? '1 corrección aceptada sin aplicar a Detalles.'
+                : `${pendingCount} correcciones aceptadas sin aplicar a Detalles.`}
+          </span>
+          <Button size="sm" onClick={onApply}>
+            {outdated ? 'Actualizar Detalles' : 'Aplicar a Detalles'}
+          </Button>
+        </div>
+      ) : upToDate ? (
+        <p className="text-sm text-muted">Detalles ya incluye las correcciones aceptadas.</p>
+      ) : null}
+    </section>
   )
 }
 
@@ -109,13 +214,56 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
   const [opening, setOpening] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   useOcrPolling(document?.ocrStatus === 'PENDING', reload)
-  const appendDetails = useRef<((text: string) => void) | null>(null)
-  const registerAppendDetails = useCallback((fn: (text: string) => void) => {
+  type PlaceDetails = (text: string, previous?: string) => 'inserted' | 'replaced' | 'unchanged' | 'appended'
+  const appendDetails = useRef<PlaceDetails | null>(null)
+  const registerAppendDetails = useCallback((fn: PlaceDetails) => {
     appendDetails.current = fn
   }, [])
   const done = document?.ocrStatus === 'DONE'
   const ocrText = document?.ocrText ?? ''
   const suggestion = useMemo(() => (done ? suggestEntryFromOcr(ocrText) : null), [done, ocrText])
+  const matcher = useMedicalTermMatcher()
+  const matches = useMemo(
+    () => (done && ocrText && matcher ? matcher.findInText(ocrText) : []),
+    [done, ocrText, matcher],
+  )
+  const [decisionState, setDecisionState] = useState<{
+    forText: string
+    values: Decisions
+  }>({
+    forText: ocrText,
+    values: {},
+  })
+  const decisions = decisionState.forText === ocrText ? decisionState.values : {}
+  const acceptedSuggestions = matches.filter((m) => m.kind === 'suggestion' && decisions[matchKey(m)] === 'accepted')
+  function decide(key: string, decision: Decision | undefined) {
+    setDecisionState({
+      forText: ocrText,
+      values: { ...decisions, [key]: decision },
+    })
+  }
+
+  // Último bloque puesto en Detalles; se reinicia si cambia el texto leído
+  const [insertedState, setInsertedState] = useState<{ forText: string; value: string | null }>({
+    forText: ocrText,
+    value: null,
+  })
+  const inserted = insertedState.forText === ocrText ? insertedState.value : null
+  const corrected = applyAcceptedMatches(ocrText, acceptedSuggestions)
+  const pendingCount = inserted === null ? acceptedSuggestions.length : 0
+  const outdated = inserted !== null && inserted !== corrected
+  const upToDate = inserted !== null && inserted === corrected && acceptedSuggestions.length > 0
+
+  function placeDetails() {
+    const result = appendDetails.current?.(corrected, inserted ?? undefined)
+    if (!result) return
+    setInsertedState({ forText: ocrText, value: corrected })
+    if (result === 'inserted') toast.success('Texto copiado a Detalles.')
+    else if (result === 'replaced') toast.success('Detalles actualizado con las correcciones.')
+    else if (result === 'unchanged') toast.success('Detalles ya tiene este texto.')
+    else if (result === 'appended')
+      toast.info('Editaste el texto en Detalles, así que agregamos la versión corregida al final.')
+  }
 
   const backToDocuments = `/personas/${subjectId}?tab=documentos`
 
@@ -240,12 +388,18 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
                     ? 'Sugerimos algunos campos a partir del documento. Revísalos con la imagen antes de guardar.'
                     : 'No pudimos sugerir campos. Completa el registro mirando el documento.'}
               </p>
-              {document.ocrText ? (
-                <OcrTextSection
-                  text={document.ocrText}
-                  onAppend={() => appendDetails.current?.(document.ocrText ?? '')}
+              {document.ocrText && matches.length > 0 ? (
+                <DetectedTermsSection
+                  matches={matches}
+                  decisions={decisions}
+                  onDecide={decide}
+                  pendingCount={pendingCount}
+                  outdated={outdated}
+                  upToDate={upToDate}
+                  onApply={placeDetails}
                 />
               ) : null}
+              {document.ocrText ? <OcrTextSection text={document.ocrText} onAppend={placeDetails} /> : null}
               {form(
                 {
                   title: suggestion.title,
