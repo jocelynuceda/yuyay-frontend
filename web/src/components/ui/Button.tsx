@@ -4,15 +4,15 @@ import { cx } from './cx'
 import { Spinner } from './Spinner'
 
 const variants = {
-  primary: 'bg-primary text-white',
-  secondary: 'border border-line bg-card text-ink',
+  primary: 'bg-primary text-white shadow-[var(--shadow-soft)]',
+  secondary: 'bg-card text-ink shadow-[var(--shadow-soft)]',
   ghost: 'text-ink hover:bg-primary-tint',
   danger: 'bg-danger text-white',
 } as const
 
 const sizes = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-5 py-2.5',
+  sm: 'px-4 py-1.5 text-sm',
+  md: 'px-6 py-3',
 } as const
 
 export interface ButtonProps extends ComponentPropsWithRef<'button'> {
@@ -39,7 +39,7 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold disabled:opacity-60',
+        'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-[filter,background-color] hover:brightness-105 disabled:opacity-60',
         variants[variant],
         sizes[size],
         focusRing,

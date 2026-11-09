@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ThemeToggle } from '../../components/layout/ThemeToggle'
+import { AuthShell } from '../../components/layout/AuthShell'
 import { useAuth } from '../../hooks/useAuth'
 import { loginSchema } from '../../schemas/auth'
 import { applyServerErrors } from '../../utils/apiErrors'
+import { linkClass } from '../../utils/styles'
 import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
@@ -32,11 +33,18 @@ export default function LoginPage() {
   })
 
   return (
-    <main className="mx-auto max-w-lg px-6 py-12">
-      <div className="mb-2 flex justify-end">
-        <ThemeToggle />
-      </div>
-      <h1 className="mb-6 text-center text-4xl font-semibold text-primary">Yuyay</h1>
+    <AuthShell
+      title="Hola de nuevo"
+      subtitle="Tu familia y tus cuidados, en un solo lugar."
+      footer={
+        <>
+          ¿Aún no tienes cuenta?{' '}
+          <Link to="/registro" className={linkClass}>
+            Regístrate
+          </Link>
+        </>
+      }
+    >
       <FormShell title="Iniciar sesión" onSubmit={onSubmit}>
         <ServerError message={serverError} />
         <Field id="auth-email" label="Correo electrónico" error={errors.email}>
@@ -52,12 +60,6 @@ export default function LoginPage() {
         </Field>
         <FormActions submitting={isSubmitting} submitLabel="Entrar" submittingLabel="Ingresando…" />
       </FormShell>
-      <p className="mt-5 text-center text-sm">
-        ¿Aún no tienes cuenta?{' '}
-        <Link to="/registro" className="font-semibold text-primary underline">
-          Regístrate
-        </Link>
-      </p>
-    </main>
+    </AuthShell>
   )
 }

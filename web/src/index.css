@@ -1,62 +1,78 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: 'Plus Jakarta Sans', sans-serif;
-  --font-display: 'Fraunces', Georgia, serif;
-  --color-primary: #3E5BA3;
-  --color-ink: #0C0D45;
-  --color-accent: #75CBD1;
-  --color-soft: #F2D2FF;
-  --color-cream: #F2D2FF;
-  --color-surface: #DAE8FB;
+  --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  /* Paleta "frosted", la misma de la app móvil (mobile/src/theme/index.ts) */
+  --color-primary: #6A64C2;
+  --color-ink: #1E2158;
+  --color-accent: #80A4D4;
+  --color-soft: #C4E8EF;
+  --color-cream: #E4F5F8;
+  --color-surface: #F0FAFC;
   --color-card: #FFFFFF;
-  --color-scrim: rgba(12, 13, 69, 0.4);
-  --color-muted: #5B6187;
-  /* danger y accent-text oscurecidos para contraste AA (4.5:1) sobre sus fondos */
-  --color-danger: #BE2A60;
-  --color-danger-bg: #FDECF2;
-  --color-accent-text: #186A70;
-  --color-soft-text: #5E2C7A;
-  --color-on-accent: #0C0D45;
-  --color-on-hero: #0C0D45;
-  --color-on-hero-soft: #2A3A6B;
-  --color-border: rgba(12, 13, 69, 0.08);
-  --color-line: rgba(12, 13, 69, 0.12);
-  --color-primary-tint: rgba(62, 91, 163, 0.1);
-  --color-accent-tint: rgba(117, 203, 209, 0.28);
-  --color-placeholder: rgba(91, 97, 135, 0.55);
+  --color-scrim: rgba(30, 33, 88, 0.4);
+  --color-muted: #4A5680;
+  --color-danger: #B02A63;
+  --color-danger-bg: #FCE8F0;
+  --color-accent-text: #1F4F7A;
+  --color-soft-text: #2E2C7E;
+  --color-on-accent: #1E2158;
+  --color-on-hero: #1E2158;
+  --color-on-hero-soft: #262A6B;
+  --color-border: rgba(30, 33, 88, 0.08);
+  --color-line: rgba(30, 33, 88, 0.12);
+  --color-primary-tint: rgba(123, 117, 201, 0.14);
+  --color-accent-tint: rgba(128, 164, 212, 0.28);
+  --color-placeholder: rgba(74, 86, 128, 0.55);
+  --color-hero-from: #80A4D4;
+  --color-hero-via: #A3C6E2;
+  --color-hero-to: #C4E8EF;
+  --shadow-soft: 0 18px 40px -20px rgba(30, 33, 88, 0.28), 0 2px 8px -2px rgba(30, 33, 88, 0.06);
 }
 
 /* --color-white solo lo usan los textos sobre fondos sólidos (primary, danger, ink): en oscuro pasa a tinta oscura para mantener el contraste */
 .dark {
-  --color-surface: #0F1230;
-  --color-card: #191D45;
-  --color-ink: #E8EAF8;
-  --color-muted: #A9AECF;
-  --color-primary: #8FA8EE;
-  --color-soft: #3A2455;
-  --color-cream: #3A2455;
-  --color-danger: #FF7FA8;
-  --color-danger-bg: #3A1426;
-  --color-accent-text: #7FD9DF;
-  --color-soft-text: #E2B8FA;
-  --color-on-hero: #E8EAF8;
-  --color-on-hero-soft: #C4C9E6;
-  --color-border: rgba(232, 234, 248, 0.1);
-  --color-line: rgba(232, 234, 248, 0.16);
-  --color-primary-tint: rgba(143, 168, 238, 0.16);
-  --color-accent-tint: rgba(117, 203, 209, 0.18);
-  --color-placeholder: rgba(169, 174, 207, 0.7);
-  --color-scrim: rgba(0, 0, 0, 0.6);
-  --color-white: #0F1230;
+  /* Índigo profundo con lila: los mismos tonos de la paleta, sin el azul marino frío */
+  --color-surface: #16152E;
+  --color-card: #211F42;
+  --color-ink: #EEEBFA;
+  --color-muted: #B3B0D6;
+  --color-primary: #ABA6F2;
+  --color-accent: #9DB9E3;
+  --color-soft: #2F2C5E;
+  --color-cream: #28264F;
+  --color-danger: #FF8DB5;
+  --color-danger-bg: #3D1730;
+  --color-accent-text: #A9D3F0;
+  --color-soft-text: #D8D4FF;
+  --color-on-accent: #16152E;
+  --color-on-hero: #EEEBFA;
+  --color-on-hero-soft: #CFCBEE;
+  --color-border: rgba(238, 235, 250, 0.08);
+  --color-line: rgba(238, 235, 250, 0.14);
+  --color-primary-tint: rgba(171, 166, 242, 0.16);
+  --color-accent-tint: rgba(157, 185, 227, 0.18);
+  --color-placeholder: rgba(179, 176, 214, 0.7);
+  --color-scrim: rgba(6, 5, 20, 0.6);
+  --color-hero-from: #3D3A96;
+  --color-hero-via: #4A4FA3;
+  --color-hero-to: #2F4B78;
+  --shadow-soft: 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --color-white: #16152E;
 }
 
 @layer base {
   body {
     @apply bg-surface text-ink font-sans;
+    /* Fondo "aurora" como en la app: manchas suaves de color sobre el fondo claro */
+    background-image:
+      radial-gradient(40rem 28rem at -8% -10%, color-mix(in srgb, var(--color-soft) 70%, transparent), transparent 70%),
+      radial-gradient(34rem 26rem at 108% 108%, color-mix(in srgb, var(--color-primary-tint) 100%, transparent), transparent 70%);
+    background-attachment: fixed;
   }
 
   h1, h2, h3 {

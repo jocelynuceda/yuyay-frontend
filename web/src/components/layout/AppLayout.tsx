@@ -10,10 +10,10 @@ export default function AppLayout() {
   return (
     <UnreadCountProvider>
       <SideNav />
-      <div className="min-h-svh lg:pl-64">
+      <div className="min-h-svh lg:pl-28">
         <AppHeader />
         <OfflineBanner />
-        <div className="pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <div className="pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0">
           <Outlet />
         </div>
       </div>

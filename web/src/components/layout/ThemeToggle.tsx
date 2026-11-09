@@ -11,7 +11,7 @@ export function ThemeToggle() {
       variant="ghost"
       aria-label={dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
       onClick={toggle}
-      className="h-10 w-10 rounded-full p-0!"
+      className="h-10 w-10 rounded-full bg-card p-0! shadow-[var(--shadow-soft)]"
     >
       <Icon name={dark ? 'sun' : 'moon'} />
     </Button>
