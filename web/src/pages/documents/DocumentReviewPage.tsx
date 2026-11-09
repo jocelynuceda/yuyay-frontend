@@ -83,7 +83,10 @@ function DetectedTermsSection({
       <h2 id="detected-terms-title" className="text-xl font-semibold">
         Medicamentos y dispositivos detectados
       </h2>
-      <p className="text-muted">Revisa cada sugerencia con la imagen. Solo se usan las que aceptes.</p>
+      <p className="text-muted">
+        Revisa cada sugerencia con la imagen. Solo se usan las que aceptes. Deshacer no cambia lo que ya copiaste a
+        Detalles.
+      </p>
       <ul className="grid gap-3">
         {matches.map((match) => {
           const key = matchKey(match)

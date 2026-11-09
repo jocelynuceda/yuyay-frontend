@@ -24,6 +24,7 @@ export type TermMatch =
   | {
       kind: 'known'
       lineIndex: number
+      start: number
       original: string
       term: string
       source: TermSource
@@ -31,6 +32,7 @@ export type TermMatch =
   | {
       kind: 'suggestion'
       lineIndex: number
+      start: number
       original: string
       term: string
       source: TermSource
@@ -77,7 +79,11 @@ const SOURCE_RANK: Record<TermSource, number> = {
 }
 const START_MARKER = /^(rp|r\/p|rx)\s*[.:]?(\s|$)/i
 const END_MARKER = /(firma|sello|fecha de atenci[oó]n|v[aá]lido hasta|indicaciones)/i
-const DOSE = /\d+(?:[.,]\d+)?\s*(mg|mcg|ug|g|ml|cc|ui|%)(?![\p{L}\d])/iu
+// Unidades de laboratorio (mg/dL, g/L, mg/24h) no cuentan como dosis; mmol, meq y u tampoco están en la lista
+const DOSE = /\d+(?:[.,]\d+)?\s*(mg|mcg|ug|g|ml|cc|ui|%)(?![\p{L}\d])(?!\s*\/\s*(?:dl|l|24\s?h)(?!\p{L}))/iu
+// Contexto de receta (sobre texto sin tildes)
+const PRESCRIPTION_CONTEXT =
+  /\b(receta|indicaciones|posologia|prescripcion|tomar|aplicar|cada\s*\d+\s*(h|hr|hrs|horas)\b|c\/\s*\d+\s*h)/i
 const WORD = /^([^\p{L}]*)(\p{L}+(?:-\p{L}+)*)[^\p{L}]*$/u
 
 /** Minúsculas, sin tildes y solo letras a-z separadas por un espacio. Solo para comparar. */
@@ -144,29 +150,38 @@ function leadingWords(line: string): Word[] {
   return words
 }
 
-type Segment = { lineIndex: number; text: string }
+/** offset: posición en la línea original donde empieza text */
+type Segment = { lineIndex: number; text: string; offset: number }
 
 function prescriptionZone(lines: string[]): Segment[] {
   const startIndex = lines.findIndex((line) => START_MARKER.test(line.trim()))
   if (startIndex >= 0) {
     const segments: Segment[] = []
-    const marker = START_MARKER.exec(lines[startIndex].trim())
-    const trimmed = lines[startIndex].trim()
-    const remainder = marker ? trimmed.slice(marker[0].length) : ''
-    if (remainder.trim()) segments.push({ lineIndex: startIndex, text: remainder })
+    const original = lines[startIndex]
+    const trimmed = original.trim()
+    const marker = START_MARKER.exec(trimmed)
+    // El resto va sin recortar, desde justo después del marcador en la línea original
+    const offset = marker ? original.length - original.trimStart().length + marker[0].length : original.length
+    const remainder = original.slice(offset)
+    if (remainder.trim()) segments.push({ lineIndex: startIndex, text: remainder, offset })
     for (let i = startIndex + 1; i < lines.length; i++) {
       if (END_MARKER.test(lines[i])) break
-      segments.push({ lineIndex: i, text: lines[i] })
+      segments.push({ lineIndex: i, text: lines[i], offset: 0 })
     }
     return segments
   }
+  // Sin "Rp.": exige algún contexto de receta en el texto
+  const hasContext = lines.some((line) =>
+    PRESCRIPTION_CONTEXT.test(line.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')),
+  )
+  if (!hasContext) return []
   const included = new Set<number>()
   lines.forEach((line, i) => {
     if (!DOSE.test(line)) return
     included.add(i)
     if (i > 0 && /^\d/.test(line.trim())) included.add(i - 1)
   })
-  return [...included].sort((a, b) => a - b).map((i) => ({ lineIndex: i, text: lines[i] }))
+  return [...included].sort((a, b) => a - b).map((i) => ({ lineIndex: i, text: lines[i], offset: 0 }))
 }
 
 export function createMedicalTermMatcher(
@@ -276,10 +291,12 @@ export function createMedicalTermMatcher(
         const result = matchWord(window.map((w) => w.text).join(' '))
         if (!result) continue
         const original = segment.text.slice(window[0].start, window[size - 1].end)
+        const start = segment.offset + window[0].start
         if (result.kind === 'known') {
           return {
             kind: 'known',
             lineIndex: segment.lineIndex,
+            start,
             original,
             term: result.term,
             source: result.source,
@@ -288,6 +305,7 @@ export function createMedicalTermMatcher(
         return {
           kind: 'suggestion',
           lineIndex: segment.lineIndex,
+          start,
           original,
           term: result.term,
           source: result.source,
@@ -312,16 +330,18 @@ export function createMedicalTermMatcher(
   return { matchWord, findInText }
 }
 
-/** Aplica solo las sugerencias aceptadas, reemplazando la primera aparición en su línea. */
+/** Aplica solo las sugerencias aceptadas en su posición exacta; si el texto no coincide, la omite. */
 export function applyAcceptedMatches(ocrText: string, accepted: TermMatch[]): string {
   const lines = ocrText.split(/\r?\n/)
-  for (const match of accepted) {
-    if (match.kind !== 'suggestion') continue
+  // De derecha a izquierda para que los offsets anteriores sigan válidos
+  const ordered = accepted
+    .filter((match) => match.kind === 'suggestion')
+    .sort((a, b) => a.lineIndex - b.lineIndex || b.start - a.start)
+  for (const match of ordered) {
     const line = lines[match.lineIndex]
     if (line === undefined) continue
-    const at = line.indexOf(match.original)
-    if (at < 0) continue
-    lines[match.lineIndex] = line.slice(0, at) + match.term + line.slice(at + match.original.length)
+    if (line.slice(match.start, match.start + match.original.length) !== match.original) continue
+    lines[match.lineIndex] = line.slice(0, match.start) + match.term + line.slice(match.start + match.original.length)
   }
   return lines.join('\n')
 }

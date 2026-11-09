@@ -121,7 +121,50 @@ test('applyAcceptedMatches: solo cambia las sugerencias aceptadas en su línea',
   const text = 'Rp.\nPanitidina 10mg\nHiosina 20mg\nNota: Panitidina'
   const matches = matcher.findInText(text)
   const ranitidina = matches.find((m) => m.term === 'Ranitidina')!
-  const known: TermMatch = { kind: 'known', lineIndex: 2, original: 'Hiosina', term: 'Hioscina', source: 'COMUN' }
+  const known: TermMatch = {
+    kind: 'known',
+    lineIndex: 2,
+    start: 0,
+    original: 'Hiosina',
+    term: 'Hioscina',
+    source: 'COMUN',
+  }
   assert.equal(applyAcceptedMatches(text, [ranitidina, known]), 'Rp.\nRanitidina 10mg\nHiosina 20mg\nNota: Panitidina')
   assert.equal(applyAcceptedMatches(text, []), text)
+})
+
+test('applyAcceptedMatches: reemplaza en la posición detectada, no en la primera coincidencia', () => {
+  const text = 'Rp.\nxPanitidina Panitidina 10mg'
+  const [match] = matcher.findInText(text)
+  assert.equal(match.term, 'Ranitidina')
+  assert.equal(match.start, 12)
+  assert.equal(applyAcceptedMatches(text, [match]), 'Rp.\nxPanitidina Ranitidina 10mg')
+})
+
+test('applyAcceptedMatches: la posición se cuenta sobre la línea completa aunque empiece con "Rp:"', () => {
+  const text = '  Rp: Panitidina 150 mg'
+  const [match] = matcher.findInText(text)
+  assert.equal(text.slice(match.start, match.start + match.original.length), 'Panitidina')
+  assert.equal(applyAcceptedMatches(text, [match]), '  Rp: Ranitidina 150 mg')
+})
+
+test('applyAcceptedMatches: si el texto ya no coincide en esa posición, no cambia nada', () => {
+  const [match] = matcher.findInText('Rp.\nPanitidina 10mg')
+  assert.equal(applyAcceptedMatches('Rp.\n  Panitidina 10mg', [match]), 'Rp.\n  Panitidina 10mg')
+})
+
+test('findInText: un análisis de laboratorio no activa detecciones', () => {
+  const lab = 'LABORATORIO CLÍNICO\nGlucosa 95 mg/dL\nColesterol 200 mg/dL\nUrea 30 mg/dl\nProteínas 150 mg/24h'
+  assert.deepEqual(matcher.findInText(lab), [])
+  // aunque aparezca una palabra de contexto, mg/dL no es una dosis
+  assert.deepEqual(matcher.findInText(`${lab}\nIndicaciones: ayuno de 8 horas`), [])
+})
+
+test('findInText: sin "Rp." ni contexto de receta no revisa nada; mg/mL sigue siendo dosis', () => {
+  assert.deepEqual(matcher.findInText('Panitidina 150 mg'), [])
+  const withContext = matcher.findInText('Indicaciones\nPanitidina 10 mg/mL cada 12 horas')
+  assert.deepEqual(
+    withContext.map((m) => m.term),
+    ['Ranitidina'],
+  )
 })
