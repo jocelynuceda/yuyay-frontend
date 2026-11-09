@@ -1,9 +1,16 @@
-import axios from 'axios'
-import type { InternalAxiosRequestConfig } from 'axios'
+import axios, { CanceledError } from 'axios'
+import type { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import type { AuthResponse } from '../types'
 
 const baseURL = `${(import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')}/api/v1`
 const REFRESH_TOKEN_KEY = 'yuyay.refreshToken'
+
+/** Tiempo máximo de espera de cada petición, en milisegundos. */
+export const REQUEST_TIMEOUT_MS = 15000
+/** Reintentos automáticos máximos para lecturas idempotentes. */
+export const MAX_RETRIES = 2
+/** Espera base del reintento; se duplica en cada intento (300, 600, ...). */
+export const RETRY_BASE_DELAY_MS = 300
 
 export interface AuthTokens {
   accessToken: string
@@ -18,6 +25,8 @@ export interface RefreshResponse extends AuthTokens {
 
 interface AuthRequestConfig extends InternalAxiosRequestConfig {
   _retried?: boolean
+  // Cuenta los reintentos por red/5xx; es independiente de _retried (flujo 401).
+  _retryCount?: number
   _accessToken?: string | null
   _sessionVersion?: number
 }
@@ -89,6 +98,9 @@ const statusMessages: Record<number, string> = {
 export function getHttpErrorMessage(error: unknown): string {
   if (axios.isCancel(error)) return 'La solicitud fue cancelada.'
   if (axios.isAxiosError(error)) {
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      return 'El servidor tardó demasiado en responder. Inténtalo de nuevo.'
+    }
     if (!error.response) return 'No se pudo conectar con el servidor. Revisa tu conexión.'
     if (error.response.status >= 500) return statusMessages[500]
     const message: unknown = error.response.data?.message
@@ -108,12 +120,14 @@ function rejectWithFriendlyMessage(error: unknown): never {
 
 export const api = axios.create({
   baseURL,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: { 'Content-Type': 'application/json' },
 })
 
 /** No adjunta la sesión del usuario ni renueva tokens del delegado. */
 export const publicApi = axios.create({
   baseURL,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -124,6 +138,65 @@ export function bearer(token: string) {
 function isRefreshRequest(config: InternalAxiosRequestConfig) {
   const pathname = new URL(config.url ?? '', 'https://yuyay.invalid').pathname
   return pathname.replace(/\/+$/, '').endsWith('/auth/refresh')
+}
+
+// Los timeouts (ECONNABORTED/ETIMEDOUT) no se reintentan: la petición ya esperó
+// REQUEST_TIMEOUT_MS, así que el peor caso de espera es aproximadamente un timeout.
+const RETRYABLE_CODES = ['ERR_NETWORK']
+const RETRYABLE_STATUSES = [502, 503, 504]
+
+function isRetryable(error: AxiosError, config: AuthRequestConfig) {
+  if (axios.isCancel(error)) return false
+  const method = (config.method ?? 'get').toLowerCase()
+  if (method !== 'get' && method !== 'head') return false
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false
+  if (isRefreshRequest(config)) return false
+  if (!error.response) return error.code !== undefined && RETRYABLE_CODES.includes(error.code)
+  return RETRYABLE_STATUSES.includes(error.response.status)
+}
+
+/** Espera ms; si el signal se aborta antes o durante la espera, rechaza con CanceledError. */
+function waitWithSignal(ms: number, config: AuthRequestConfig): Promise<void> {
+  const signal = config.signal as AbortSignal | null | undefined
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new CanceledError<unknown>(undefined, config))
+      return
+    }
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(new CanceledError<unknown>(undefined, config))
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+/**
+ * Reintenta lecturas idempotentes ante fallos de red o 502/503/504 (no timeouts).
+ * Devuelve null si el error no es reintentable o se agotaron los intentos.
+ * La petición reintentada vuelve a pasar por el interceptor de request (token actual).
+ */
+async function retryRequest(
+  instance: AxiosInstance,
+  error: unknown,
+): Promise<AxiosResponse | null> {
+  if (!axios.isAxiosError(error)) return null
+  const config = error.config as AuthRequestConfig | undefined
+  if (!config || !isRetryable(error, config)) return null
+  const attempt = (config._retryCount ?? 0) + 1
+  if (attempt > MAX_RETRIES) return null
+  // Un reintento nunca debe salir con el token de otro usuario.
+  const sessionChanged = () =>
+    config._sessionVersion !== undefined && config._sessionVersion !== sessionVersion
+  if (sessionChanged()) throw new CanceledError<unknown>('La sesión cambió.', config)
+  config._retryCount = attempt
+  await waitWithSignal(RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), config)
+  if (sessionChanged()) throw new CanceledError<unknown>('La sesión cambió.', config)
+  return instance.request(config)
 }
 
 async function refreshSession(version: number) {
@@ -186,6 +259,9 @@ api.interceptors.request.use((config: AuthRequestConfig) => {
 api.interceptors.response.use(
   (response) => response,
   async (error: unknown) => {
+    // Un error reintentable nunca es un 401, así que va antes de la lógica de sesión.
+    const retried = await retryRequest(api, error)
+    if (retried) return retried
     if (!axios.isAxiosError(error) || axios.isCancel(error)) throw error
     const config = error.config as AuthRequestConfig | undefined
     if (error.response?.status !== 401 || !config || config._retried || isRefreshRequest(config)) {
@@ -212,5 +288,9 @@ api.interceptors.response.use(
 
 publicApi.interceptors.response.use(
   (response) => response,
-  rejectWithFriendlyMessage,
+  async (error: unknown) => {
+    const retried = await retryRequest(publicApi, error)
+    if (retried) return retried
+    return rejectWithFriendlyMessage(error)
+  },
 )
