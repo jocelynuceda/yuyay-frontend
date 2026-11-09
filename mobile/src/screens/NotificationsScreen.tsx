@@ -15,6 +15,7 @@ const typeStyleFor = (colors: Colors): Record<NotificationType, { icon: keyof ty
   ENTRY_CHANGED: { icon: 'create-outline', bg: colors.soft, fg: colors.softText },
   INVITATION: { icon: 'people-outline', bg: colors.soft, fg: colors.softText },
   DELEGATION: { icon: 'link-outline', bg: colors.accentTint, fg: colors.accentText },
+  CAREGIVER_JOINED: { icon: 'person-add-outline', bg: colors.accentTint, fg: colors.accentText },
 });
 
 type Filter = 'all' | 'unread';

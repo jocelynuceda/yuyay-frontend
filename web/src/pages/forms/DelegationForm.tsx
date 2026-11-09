@@ -51,7 +51,7 @@ export function DelegationForm({
   return (
     <FormShell
       title="Delegar acceso"
-      description="Para alguien sin cuenta (por ejemplo, una enfermera o un familiar de viaje): solo verá las categorías que elijas, hasta la fecha que indiques."
+      description="Para alguien sin cuenta (por ejemplo, una enfermera o un familiar de viaje): solo verá lo que elijas, hasta la fecha que indiques."
       onSubmit={onSubmit}
     >
       <ServerError message={serverError} />
@@ -83,7 +83,16 @@ export function DelegationForm({
               {categoryLabels[code].plural}
             </label>
           ))}
+          <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-card px-4 py-2 has-checked:border-primary has-checked:bg-primary-tint">
+            <input
+              type="checkbox"
+              className={`accent-primary ${focusRing}`}
+              {...register('includeConsultations', { deps: ['categoryCodes'] })}
+            />
+            Citas
+          </label>
         </div>
+        <p className="text-sm text-muted">De las citas verá la fecha, la hora y el motivo, pero no las notas.</p>
         {errors.categoryCodes ? (
           <p id="delegation-categories-error" role="alert" className="text-sm text-danger">
             {errors.categoryCodes.message}

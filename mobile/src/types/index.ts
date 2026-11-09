@@ -8,7 +8,7 @@ export type ConfidenceLevel = 'CONFIRMED' | 'UNCERTAIN';
 export type ChangeType = 'CREATED' | 'UPDATED' | 'DELETED';
 export type OcrStatus = 'PENDING' | 'DONE' | 'FAILED';
 export type AccessAction = 'VIEW' | 'CREATE' | 'UPDATE' | 'DELETE' | 'OPEN_HANDOFF_LINK' | 'EXCHANGE_DELEGATION';
-export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION';
+export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION' | 'CAREGIVER_JOINED';
 
 export interface User {
   id: number;

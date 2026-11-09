@@ -12,7 +12,14 @@ import { listCareSubjects } from '../../services/api/careSubjects'
 import { listMyPendingInvitations } from '../../services/api/caregivers'
 import { listConsultations } from '../../services/api/consultations'
 import type { CareSubject, Consultation } from '../../types'
-import { careRoleLabels, daysUntil, describeDaysUntil, formatWeekdayDate } from '../../utils/format'
+import {
+  careRoleLabels,
+  consultationOrder,
+  daysUntil,
+  describeDaysUntil,
+  formatTime,
+  formatWeekdayDate,
+} from '../../utils/format'
 import { linkClass } from '../../utils/styles'
 
 interface NextAppointment {
@@ -32,7 +39,7 @@ async function loadPeopleSummary(signal: AbortSignal): Promise<PeopleSummary> {
   let next: NextAppointment | null = null
   for (const [index, subject] of subjects.entries()) {
     for (const consultation of lists[index] ?? []) {
-      if (consultation.date >= today && (next === null || consultation.date < next.consultation.date)) {
+      if (consultation.date >= today && (next === null || consultationOrder(consultation) < consultationOrder(next.consultation))) {
         next = { subject, consultation }
       }
     }
@@ -139,7 +146,10 @@ export default function DashboardPage() {
             <CardSkeleton />
           ) : next ? (
             <div className="mt-2 grid gap-1">
-              <p className="font-display text-2xl font-bold first-letter:uppercase">{formatWeekdayDate(next.consultation.date)}</p>
+              <p className="font-display text-2xl font-bold first-letter:uppercase">
+                {formatWeekdayDate(next.consultation.date)}
+                {next.consultation.time ? ` · ${formatTime(next.consultation.time)}` : ''}
+              </p>
               <p className="font-medium opacity-80">
                 {describeDaysUntil(daysUntil(next.consultation.date))} · {next.subject.name}
               </p>

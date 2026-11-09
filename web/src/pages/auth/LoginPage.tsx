@@ -10,12 +10,14 @@ import { linkClass } from '../../utils/styles'
 import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
+import { PasswordInput } from './PasswordFields'
 
 export default function LoginPage() {
   const { login: submitAuth } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [serverError, setServerError] = useState<string | null>(null)
+  const [shown, setShown] = useState(false)
   const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
@@ -51,13 +53,18 @@ export default function LoginPage() {
           <input {...register('email')} {...a11yProps('auth-email', errors.email)} type="email" autoComplete="email" />
         </Field>
         <Field id="auth-password" label="Contraseña" error={errors.password}>
-          <input
+          <PasswordInput
             {...register('password')}
-            {...a11yProps('auth-password', errors.password)}
-            type="password"
+            id="auth-password"
+            error={errors.password}
+            shown={shown}
+            onToggle={() => setShown((value) => !value)}
             autoComplete="current-password"
           />
         </Field>
+        <Link to="/recuperar-contrasena" className="-mt-2 justify-self-end text-sm font-semibold text-primary underline">
+          ¿Olvidaste tu contraseña?
+        </Link>
         <FormActions submitting={isSubmitting} submitLabel="Entrar" submittingLabel="Ingresando…" />
       </FormShell>
     </AuthShell>

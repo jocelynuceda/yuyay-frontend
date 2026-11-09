@@ -26,11 +26,11 @@ export function LoginScreen({ navigation }: Props) {
   const [submitted, setSubmitted] = useState(false);
 
   const emailError = submitted && !isEmail(email) ? 'Ingresa un correo válido.' : undefined;
-  const passwordError = submitted && !password ? 'Ingresa tu contraseña.' : undefined;
+  const passwordError = submitted && !password.trim() ? 'Ingresa tu contraseña.' : undefined;
 
   async function handleSubmit() {
     setSubmitted(true);
-    if (!isEmail(email) || !password) return;
+    if (!isEmail(email) || !password.trim()) return;
     setLoading(true);
     setError(null);
     try {

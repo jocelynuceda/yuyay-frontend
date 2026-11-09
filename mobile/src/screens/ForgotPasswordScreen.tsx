@@ -12,7 +12,7 @@ import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { AuthStackParamList } from '../types';
 import { isEmail } from '../utils/format';
-import { passwordChecks } from '../utils/password';
+import { passwordChecks, passwordError, utf8Bytes } from '../utils/password';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
@@ -28,6 +28,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -35,6 +36,12 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   const checks = passwordChecks(password);
   const mismatch = confirm.length > 0 && confirm !== password;
   const canReset = /^\d{6}$/.test(code) && checks.every((c) => c.ok) && confirm === password;
+  const passwordMessage = submitted || utf8Bytes(password) > 72 ? passwordError(password) : undefined;
+  const confirmMessage = mismatch
+    ? 'Las contraseñas no coinciden.'
+    : submitted && !confirm
+      ? 'Confirma tu contraseña.'
+      : undefined;
 
   async function requestCode() {
     setSubmitted(true);
@@ -58,13 +65,25 @@ export function ForgotPasswordScreen({ navigation }: Props) {
     if (!canReset) return;
     setLoading(true);
     setError(null);
+    setFieldErrors({});
     try {
       await resetPassword(email.trim(), code, password);
+    } catch (e) {
+      if (e instanceof ApiError) {
+        setError(e.message);
+        setFieldErrors(e.fieldErrors);
+      } else {
+        setError('No pudimos cambiar tu contraseña.');
+      }
+      setLoading(false);
+      return;
+    }
+    try {
       // Al autenticarse, el RootNavigator muestra la app automáticamente
       await login(email.trim(), password);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No pudimos cambiar tu contraseña.');
-      setLoading(false);
+    } catch {
+      // La contraseña ya cambió y el código ya no sirve: se entra desde el login
+      navigation.navigate('Login');
     }
   }
 
@@ -93,7 +112,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
             keyboardType="number-pad"
             maxLength={6}
             textContentType="oneTimeCode"
-            error={submitted && code.length !== 6 ? 'Ingresa los 6 dígitos.' : undefined}
+            error={(submitted && code.length !== 6 ? 'Ingresa los 6 dígitos.' : undefined) ?? fieldErrors.code}
             hint={notice}
           />
           <FormField
@@ -103,7 +122,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
             {...passwordInputProps}
-            maxLength={72}
+            error={passwordMessage ?? fieldErrors.newPassword}
             right={
               <TextInput.Icon
                 icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -131,7 +150,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
             onChangeText={setConfirm}
             secureTextEntry={!showPassword}
             {...passwordInputProps}
-            error={mismatch ? 'Las contraseñas no coinciden.' : undefined}
+            error={confirmMessage}
             onSubmitEditing={handleReset}
           />
           <Button
