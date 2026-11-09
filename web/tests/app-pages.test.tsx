@@ -23,6 +23,7 @@ const { default: AppRoutes } = await import('../src/routes/AppRoutes')
 const http = await import('../src/services/http')
 const { getPostLoginTarget } = await import('../src/utils/redirect')
 const { getNotificationLink } = await import('../src/pages/notifications/notificationLink')
+const { validateDocumentFile, documentsOnly } = await import('../src/utils/attachments')
 
 class MemoryStorage {
   data = new Map<string, string>()
@@ -37,10 +38,21 @@ const day = (offset: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+const attachmentBase = {
+  careSubjectId: 1, consultationId: null, uploadedById: 1, uploadedByName: 'Ana Torres', contentType: 'application/pdf',
+  sizeBytes: 100, ocrText: null as string | null, ocrError: null as string | null, uploadedAt: '2026-11-07T00:00:00Z', ocrCompletedAt: null,
+}
+
 function backend() {
   let tokens = 0
   const calls: string[] = []
   const db = {
+    attachments: [
+      { ...attachmentBase, id: 31, originalFilename: 'nota.m4a', contentType: 'audio/mp4', ocrStatus: 'DONE' },
+      { ...attachmentBase, id: 32, originalFilename: 'examen.png', contentType: 'image/png', ocrStatus: 'FAILED', ocrError: 'No se pudo extraer el texto.' },
+    ],
+    uploads: [] as { form: unknown; timeout: unknown }[],
+    createdEntries: [] as Record<string, unknown>[],
     me: { id: 1, email: 'ana@demo.yuyay', name: 'Ana Torres', role: 'USER', createdAt: '2026-10-01T00:00:00Z' },
     subjects: [
       { id: 1, name: 'Rosa', birthDate: '1954-01-01', notes: null, createdAt: '2026-10-01T00:00:00Z', myRole: 'PRINCIPAL' },
@@ -85,7 +97,7 @@ function backend() {
   const adapter = async (config: any) => {
     const url: string = config.url.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api\/v1/, '')
     const method = (config.method ?? 'get').toUpperCase()
-    const body = config.data ? JSON.parse(config.data) : {}
+    const body = typeof config.data === 'string' ? JSON.parse(config.data) : {}
     const params = config.params ?? {}
     calls.push(`${method} ${url}${params.unread !== undefined ? `?unread=${params.unread}` : ''}`)
     await new Promise((r) => setTimeout(r, 1))
@@ -97,6 +109,36 @@ function backend() {
       return ok(config, db.me)
     }
     if (url === '/care-subjects') return ok(config, db.subjects)
+    const subject = url.match(/^\/care-subjects\/(\d+)$/)
+    if (subject) return ok(config, db.subjects.find((s) => s.id === Number(subject[1])))
+    if (/^\/care-subjects\/\d+\/relationships$/.test(url)) return ok(config, [])
+    if (/^\/care-subjects\/\d+\/health-entries$/.test(url) && method === 'POST') {
+      db.createdEntries.push(body)
+      return ok(config, { id: 99 }, 201)
+    }
+    if (/^\/care-subjects\/\d+\/attachments\/\d+\/access$/.test(url)) {
+      return ok(config, { url: 'https://archivos.example/receta', expiresAt: '2026-11-08T00:05:00Z' })
+    }
+    const attachments = url.match(/^\/care-subjects\/\d+\/attachments(?:\/(\d+))?(\/ocr-retry)?$/)
+    if (attachments && method === 'POST' && !attachments[1]) {
+      db.uploads.push({ form: config.data, timeout: config.timeout })
+      db.attachments.push({ ...attachmentBase, id: 30, originalFilename: 'receta.pdf', ocrStatus: 'PENDING' })
+      return ok(config, db.attachments.at(-1), 201)
+    }
+    if (attachments && method === 'GET' && !attachments[1]) return ok(config, db.attachments)
+    if (attachments && method === 'GET') {
+      const found = db.attachments.find((a) => a.id === Number(attachments[1]))
+      if (!found) throw fail(config, 404)
+      const current = { ...found }
+      // La primera consulta encuentra la lectura en curso; la siguiente, ya terminada
+      if (found.ocrStatus === 'PENDING') Object.assign(found, { ocrStatus: 'DONE', ocrText: 'Losartán 50 mg cada 12 h' })
+      return ok(config, current)
+    }
+    if (attachments && method === 'POST' && attachments[2]) {
+      const found = db.attachments.find((a) => a.id === Number(attachments[1]))!
+      found.ocrStatus = 'PENDING'
+      return ok(config, { ...found }, 202)
+    }
     const consultations = url.match(/^\/care-subjects\/(\d+)\/consultations$/)
     if (consultations) return ok(config, db.consultations[Number(consultations[1])] ?? [])
     if (url === '/me/relationships/pending') return ok(config, db.pending)
@@ -185,6 +227,90 @@ async function mountApp(path: string, { loggedIn }: { loggedIn: boolean }) {
   })
   return { b, unmount: () => act(async () => root.unmount()) }
 }
+
+test('validateDocumentFile: acepta JPG, PNG y PDF de hasta 10 MB', () => {
+  assert.equal(validateDocumentFile({ type: 'image/jpeg', size: 1 }), null)
+  assert.equal(validateDocumentFile({ type: 'application/pdf', size: 10 * 1024 * 1024 }), null)
+  assert.match(validateDocumentFile({ type: 'image/heic', size: 1 })!, /Formato/)
+  assert.match(validateDocumentFile({ type: 'image/png', size: 10 * 1024 * 1024 + 1 })!, /10 MB/)
+})
+
+test('documentsOnly: oculta los audios y ordena del más nuevo al más antiguo', () => {
+  const doc = (id: number, contentType: string, uploadedAt: string) => ({ ...attachmentBase, id, contentType, uploadedAt, originalFilename: '', ocrStatus: 'DONE' as const })
+  const result = documentsOnly([doc(1, 'image/png', '2026-01-01T00:00:00Z'), doc(2, 'audio/mp4', '2026-03-01T00:00:00Z'), doc(3, 'application/pdf', '2026-02-01T00:00:00Z')])
+  assert.deepEqual(result.map((d) => d.id), [3, 1])
+})
+
+async function chooseFile(input: HTMLInputElement, file: File) {
+  await act(async () => {
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] })
+    input.dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+}
+
+test('Documentos: sube el archivo, espera la lectura y crea el registro con el texto', async (t) => {
+  const { b, unmount } = await mountApp('/personas/1?tab=documentos', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /examen\.png/.test(text()), 'lista de documentos')
+  assert.doesNotMatch(text(), /nota\.m4a/, 'las notas de voz no se listan')
+  assert.match(text(), /Sin leer/)
+
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+  await chooseFile(input, new File(['x'], 'foto.heic', { type: 'image/heic' }))
+  await waitFor(() => /Formato no permitido/.test(text()), 'rechazo del formato')
+  assert.equal(b.db.uploads.length, 0, 'no sube un formato no permitido')
+
+  await chooseFile(input, new File(['%PDF'], 'receta.pdf', { type: 'application/pdf' }))
+  await waitFor(() => pathname() === '/personas/1/documentos/30', 'ir a la revisión')
+  const [upload] = b.db.uploads
+  assert.ok(upload.form instanceof FormData, 'se envía como FormData, no como JSON')
+  assert.equal((upload.form.get('file') as File).name, 'receta.pdf')
+  assert.equal(upload.timeout, 60000)
+
+  await waitFor(() => /Leyendo el documento/.test(text()), 'lectura en curso')
+  await waitFor(() => !!document.querySelector<HTMLTextAreaElement>('#entry-details')?.value, 'texto leído en el formulario', 6000)
+  assert.equal(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value, 'Losartán 50 mg cada 12 h')
+
+  await type(document.querySelector<HTMLInputElement>('#entry-title')!, 'Losartán')
+  await click(byText('button', 'Registrar'), 'Registrar')
+  await waitFor(() => pathname() === '/personas/1/registros/99', 'ir al registro creado')
+  assert.equal(b.db.createdEntries[0].sourceAttachmentId, 30)
+  assert.equal(b.db.createdEntries[0].details, 'Losartán 50 mg cada 12 h')
+  assert.equal(b.db.createdEntries[0].title, 'Losartán')
+})
+
+test('Documentos: una lectura fallida permite escribir el registro a mano o reintentar', async (t) => {
+  const { b, unmount } = await mountApp('/personas/1/documentos/32', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /No se pudo extraer el texto/.test(text()), 'mensaje de error')
+  assert.equal(document.querySelector('#entry-title'), null, 'el formulario no aparece hasta elegirlo')
+
+  await click(byText('button', 'Escribir el registro'), 'Escribir el registro')
+  await waitFor(() => !!document.querySelector('#entry-title'), 'formulario manual')
+
+  await click(byText('button', 'Reintentar'), 'Reintentar')
+  await waitFor(() => /Leyendo el documento/.test(text()), 'lectura reiniciada')
+  assert.ok(b.calls.includes('POST /care-subjects/1/attachments/32/ocr-retry'))
+  assert.equal(document.querySelector('#entry-title'), null, 'el formulario se oculta al reintentar')
+})
+
+test('Documentos: abre el archivo en otra pestaña y avisa si el navegador la bloquea', async (t) => {
+  const { unmount } = await mountApp('/personas/1/documentos/32', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => !!byText('button', 'Abrir archivo'), 'botón Abrir archivo')
+  const original = window.open
+  t.after(() => { window.open = original })
+
+  const tab = { opener: {} as unknown, location: { href: '' }, close() {} }
+  window.open = (() => tab) as never
+  await click(byText('button', 'Abrir archivo'), 'Abrir archivo')
+  await waitFor(() => tab.location.href === 'https://archivos.example/receta', 'enlace en la pestaña nueva')
+  assert.equal(tab.opener, null, 'la pestaña no conserva acceso a la app')
+
+  window.open = (() => null) as never
+  await click(byText('button', 'Abrir archivo'), 'Abrir archivo')
+  await waitFor(() => /bloqueó la pestaña nueva/.test(text()), 'aviso de pestaña bloqueada')
+})
 
 test('getPostLoginTarget: vuelve a la ruta guardada y rechaza destinos inválidos', () => {
   assert.equal(getPostLoginTarget(null), '/')

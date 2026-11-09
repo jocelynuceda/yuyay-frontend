@@ -325,4 +325,29 @@ export interface UserProfile {
   createdAt: string
 }
 
+// ---- Documentos ----
+
+export type OcrStatus = 'PENDING' | 'DONE' | 'FAILED'
+
+export interface Attachment {
+  id: number
+  careSubjectId: number
+  consultationId: number | null
+  uploadedById: number
+  uploadedByName: string
+  originalFilename: string
+  contentType: string
+  sizeBytes: number
+  ocrStatus: OcrStatus
+  ocrText: string | null
+  ocrError: string | null
+  uploadedAt: string
+  ocrCompletedAt: string | null
+}
+
+export interface AttachmentAccess {
+  url: string
+  expiresAt: string
+}
+
 export type { User, LoginRequest, RegisterRequest, AuthResponse } from './auth'

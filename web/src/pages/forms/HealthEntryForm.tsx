@@ -25,6 +25,8 @@ export function HealthEntryForm({
   subjectId,
   entry,
   initialCategory,
+  initialDetails,
+  sourceAttachmentId,
   onSaved,
   onCancel,
 }: {
@@ -32,6 +34,10 @@ export function HealthEntryForm({
   entry?: HealthEntry
   /** Categoría preseleccionada al crear (por ejemplo, desde la pestaña filtrada). */
   initialCategory?: CategoryCode
+  /** Detalles precargados al crear (por ejemplo, el texto leído de un documento). */
+  initialDetails?: string
+  /** Documento que respalda el registro nuevo. */
+  sourceAttachmentId?: number
   /** `entry` es null si se editó sin cambios (no se envía nada). */
   onSaved: (entry: HealthEntry | null) => void
   onCancel?: () => void
@@ -48,7 +54,11 @@ export function HealthEntryForm({
     resolver: zodResolver(healthEntrySchema),
     defaultValues: entry
       ? healthEntryToForm(entry)
-      : { ...emptyHealthEntry, categoryCode: initialCategory ?? emptyHealthEntry.categoryCode },
+      : {
+          ...emptyHealthEntry,
+          categoryCode: initialCategory ?? emptyHealthEntry.categoryCode,
+          details: initialDetails ?? emptyHealthEntry.details,
+        },
     mode: 'onChange',
   })
   const isMedication = useWatch({ control, name: 'categoryCode' }) === MEDICATION
@@ -56,7 +66,7 @@ export function HealthEntryForm({
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
     try {
-      if (!entry) return onSaved(await createHealthEntry(subjectId, values))
+      if (!entry) return onSaved(await createHealthEntry(subjectId, { ...values, sourceAttachmentId }))
       // Cada PATCH crea una versión nueva: si nada cambió, no se envía
       if (!isDirty) return onSaved(null)
       onSaved(await updateHealthEntry(subjectId, entry.id, toUpdateRequest(values)))
