@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { RefreshControl, ScrollView, Text } from 'react-native';
 import { EmptyState } from '../components/EmptyState';
 import { ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
@@ -7,7 +7,7 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getAccessLogs, getCareRelationships, getDelegations } from '../services/api';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { AccessLog, HomeStackParamList } from '../types';
 import { accessActionMeta, accessTargetLabel } from '../utils/accessLog';
 import { formatDateTime, timeAgo } from '../utils/format';
@@ -34,6 +34,8 @@ function actorOf(log: AccessLog, users: Map<number, string>, delegates: Map<numb
 }
 
 export function AccessLogScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId } = route.params;
   const data = useFetch(() => loadLogs(subjectId), [subjectId]);
   useRefreshOnFocus(data.reload);
@@ -71,7 +73,7 @@ export function AccessLogScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
-});
+}));

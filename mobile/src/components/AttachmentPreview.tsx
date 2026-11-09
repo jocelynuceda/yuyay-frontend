@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Text, View } from 'react-native';
 import { useAttachmentSource } from '../hooks/useAttachmentSource';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 /** Muestra la foto guardada para compararla con el texto leído. */
 export function AttachmentPreview({ subjectId, attachmentId }: { subjectId: number; attachmentId: number }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { source, failed } = useAttachmentSource(subjectId, attachmentId, true);
   const [broken, setBroken] = useState(false);
   return (
@@ -24,15 +26,15 @@ export function AttachmentPreview({ subjectId, attachmentId }: { subjectId: numb
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   frame: {
     height: 300,
     borderRadius: radius.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   image: { width: '100%', height: '100%' },
   message: { fontFamily: fonts.medium, fontSize: 14, color: colors.muted },
-});
+}));

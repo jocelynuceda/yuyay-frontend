@@ -1,5 +1,5 @@
 import Svg, { Path } from 'react-native-svg';
-import { colors } from '../theme';
+import { useTheme } from '../theme';
 
 /** Isotipo de Yuyay: corazón en dos tonos con su estrella. `color` lo vuelve de un solo color. */
 export function Isotipo({
@@ -12,6 +12,7 @@ export function Isotipo({
   /** Reemplaza el celeste en fondos donde se perdería. */
   rightColor?: string;
 }) {
+  const { colors } = useTheme();
   return (
     <Svg width={size} height={size} viewBox="190 134 1514 1514">
       <Path fill={color ?? colors.ink} d="M965 1603C640 1375 400 1170 280 960C150 760 215 445 515 445C665 445 800 535 880 680C960 825 975 1000 975 1160C975 1230 970 1295 962 1355C850 1140 750 950 630 790C560 705 490 653 425 653C360 653 318 705 318 780C318 870 380 985 450 1070C590 1245 760 1390 928 1502L965 1603Z" />

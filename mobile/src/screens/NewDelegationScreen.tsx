@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 import { ChoiceChips, FormCard, formStyles, SubmitButton } from '../components/FormKit';
 import { DateField, parseDateParts } from '../components/DateField';
 import { FormField } from '../components/FormField';
@@ -9,7 +9,7 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { createDelegation, getHealthCategories } from '../services/api';
 import { API_URL, ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles } from '../theme';
 import type { DelegationCreated, HomeStackParamList } from '../types';
 import { categoryMeta } from '../utils/categories';
 import { shareText } from '../utils/confirm';
@@ -21,6 +21,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'NewDelegation'>;
 const CONSULTATIONS = 'CONSULTATIONS';
 
 export function NewDelegationScreen({ route, navigation }: Props) {
+  const styles = useStyles();
   const { subjectId } = route.params;
   const categories = useFetch(getHealthCategories);
   const [name, setName] = useState('');
@@ -157,7 +158,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   help: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.muted },
   value: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: colors.ink },
-});
+}));

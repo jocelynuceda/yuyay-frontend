@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
@@ -12,7 +12,7 @@ import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getCareRelationships, removeCaregiver } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { CareRelationship, HomeStackParamList } from '../types';
 import { confirmAction } from '../utils/confirm';
 import { careRoleLabel, initialsOf } from '../utils/format';
@@ -26,6 +26,8 @@ const statusBadge = {
 } as const;
 
 export function CaregiversScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId, isPrincipal } = route.params;
   const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
@@ -115,8 +117,8 @@ export function CaregiversScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
   right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-});
+}));

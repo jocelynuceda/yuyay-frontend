@@ -6,7 +6,7 @@ import {
   RefreshControl,
   ScrollView,
   type ScrollViewInstance,
-  StyleSheet,
+  
   Text,
   useWindowDimensions,
   View,
@@ -24,7 +24,7 @@ import {
   getHealthCategories,
   getHealthEntries,
 } from '../services/api';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { categoryMeta, EXAM_CATEGORY, fallbackCategory } from '../utils/categories';
 import { ageFrom, careRoleLabel, formatDate, initialsOf } from '../utils/format';
@@ -35,6 +35,7 @@ type QuickAction = { icon: keyof typeof Ionicons.glyphMap; label: string; onPres
 
 /** Con dos o más personas a cargo, se pasa de un perfil a otro deslizando a los lados. */
 export function SubjectDetailScreen({ route, navigation }: Props) {
+  const styles = useStyles();
   const { subjectId } = route.params;
   const { width } = useWindowDimensions();
   const [visibleId, setVisibleId] = useState(subjectId);
@@ -114,6 +115,8 @@ function SubjectProfile({
   navigation: Props['navigation'];
   onSwipeLock?: (locked: boolean) => void;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   // Categorías desplegadas en el perfil clínico (se pueden abrir varias)
   const [open, setOpen] = useState<Set<string>>(new Set());
 
@@ -248,8 +251,8 @@ function SubjectProfile({
                   accessibilityState={{ expanded }}
                   accessibilityLabel={`${meta.plural}, ${items.length} registros`}
                 >
-                  <View style={[styles.rowIcon, { backgroundColor: meta.bg }]}>
-                    <Ionicons name={meta.icon} size={20} color={meta.fg} />
+                  <View style={[styles.rowIcon, { backgroundColor: colors[meta.bg] }]}>
+                    <Ionicons name={meta.icon} size={20} color={colors[meta.fg]} />
                   </View>
                   <Text style={styles.rowLabel}>{meta.plural}</Text>
                   {items.length > 0 ? (
@@ -283,8 +286,8 @@ function SubjectProfile({
                       style={({ pressed }) => [styles.add, pressed && { opacity: 0.8 }]}
                       accessibilityRole="button"
                     >
-                      <Ionicons name="add-circle" size={20} color={meta.fg} />
-                      <Text style={[styles.addText, { color: meta.fg }]}>Agregar {c.name.toLowerCase()}</Text>
+                      <Ionicons name="add-circle" size={20} color={colors[meta.fg]} />
+                      <Text style={[styles.addText, { color: colors[meta.fg] }]}>Agregar {c.name.toLowerCase()}</Text>
                     </Pressable>
                   </View>
                 ) : null}
@@ -299,7 +302,7 @@ function SubjectProfile({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
   dots: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, paddingTop: 4, paddingBottom: 8 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.line },
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
     width: 84,
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.md,
     paddingVertical: 12,
     ...shadow,
@@ -340,7 +343,7 @@ const styles = StyleSheet.create({
   quickLabel: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
   section: { fontFamily: fonts.display, fontSize: 22, color: colors.ink, marginTop: 18, marginBottom: 10 },
   clinical: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
     paddingHorizontal: 8,
     ...shadow,
@@ -353,7 +356,7 @@ const styles = StyleSheet.create({
   rowIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { flex: 1, fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
   count: { backgroundColor: colors.ink, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 2 },
-  countText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.white },
+  countText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.onInk },
   panel: { paddingHorizontal: 4, paddingTop: 10, paddingBottom: 12 },
   panelEmpty: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: 10 },
   add: {
@@ -368,4 +371,4 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   addText: { fontFamily: fonts.semibold, fontSize: 14 },
-});
+}));

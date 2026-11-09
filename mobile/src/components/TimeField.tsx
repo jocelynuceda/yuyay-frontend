@@ -1,5 +1,5 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { colors, fonts, radius } from '../theme';
+import { Text, TextInput, View } from 'react-native';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { TimeParts } from '../utils/calendar';
 import { ChoiceChips } from './FormKit';
 
@@ -22,6 +22,8 @@ export function TimeField({
   onChange: (value: TimeParts) => void;
   error?: string;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const boxStyle = [styles.input, !!error && styles.inputError];
   return (
     <View>
@@ -61,7 +63,7 @@ export function TimeField({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   label: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink, marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   input: {
@@ -79,4 +81,4 @@ const styles = StyleSheet.create({
   inputError: { borderColor: colors.danger },
   colon: { fontFamily: fonts.semibold, fontSize: 20, color: colors.ink },
   error: { fontFamily: fonts.medium, fontSize: 12, color: colors.danger, marginTop: 6, marginLeft: 4 },
-});
+}));

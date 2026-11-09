@@ -7,21 +7,27 @@ import {
   PlusJakartaSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoadingView } from './src/components/LoadingView';
+import { OfflineBanner } from './src/components/OfflineBanner';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { linking, RootNavigator } from './src/navigation/RootNavigator';
-import { colors, paperTheme } from './src/theme';
-
-const navigationTheme = {
-  ...DefaultTheme,
-  colors: { ...DefaultTheme.colors, primary: colors.primary, background: colors.surface, text: colors.ink },
-};
+import { ThemeProvider, useTheme, useThemePreference } from './src/theme';
 
 export default function App() {
+  return (
+    <ThemeProvider>
+      <ThemedApp />
+    </ThemeProvider>
+  );
+}
+
+function ThemedApp() {
+  const theme = useTheme();
+  const { ready } = useThemePreference();
   const [fontsLoaded] = useFonts({
     Fraunces_500Medium,
     Fraunces_600SemiBold,
@@ -36,17 +42,18 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={paperTheme}>
-        {fontsLoaded ? (
+      <PaperProvider theme={theme.paperTheme}>
+        {fontsLoaded && ready ? (
           <AuthProvider>
-            <NavigationContainer theme={navigationTheme} linking={linking}>
+            <NavigationContainer theme={theme.navigationTheme} linking={linking}>
               <RootNavigator />
             </NavigationContainer>
           </AuthProvider>
         ) : (
           <LoadingView label="" />
         )}
-        <StatusBar style="dark" />
+        <OfflineBanner />
+        <StatusBar style={theme.dark ? 'light' : 'dark'} />
       </PaperProvider>
     </SafeAreaProvider>
   );

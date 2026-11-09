@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { RefreshControl, ScrollView, Text } from 'react-native';
 import { Badge, type BadgeTone } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
@@ -15,7 +15,7 @@ import { getAttachments, uploadAttachment } from '../services/api';
 import { documentFormData, imageFormData, imagePickerOptions } from '../services/attachmentFiles';
 import { AttachmentValidationError } from '../services/attachmentUpload';
 import { ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { HomeStackParamList, OcrStatus } from '../types';
 import { isAudio, isImage } from '../utils/attachments';
 import { formatDate } from '../utils/format';
@@ -32,6 +32,8 @@ export const ocrBadge: Record<OcrStatus, { label: string; tone: BadgeTone }> = {
 export const OCR_POLL_MS = 3000;
 
 export function DocumentsScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId } = route.params;
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,7 +145,7 @@ export function DocumentsScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
-});
+}));

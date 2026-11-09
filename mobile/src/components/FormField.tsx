@@ -1,6 +1,6 @@
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { HelperText, TextInput, type TextInputProps } from 'react-native-paper';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 /**
  * En iOS, «none» no evita que el sistema proponga una contraseña segura y pinte el campo de amarillo.
@@ -22,6 +22,8 @@ interface FormFieldProps extends Omit<TextInputProps, 'error'> {
 
 /** TextInput de Paper con ícono, mensaje de error y texto de ayuda. */
 export function FormField({ error, hint, icon, style, ...rest }: FormFieldProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const message = error || hint;
   return (
     <View>
@@ -45,8 +47,8 @@ export function FormField({ error, hint, icon, style, ...rest }: FormFieldProps)
   );
 }
 
-const styles = StyleSheet.create({
-  input: { backgroundColor: colors.white },
+const useStyles = makeStyles(({ colors }) => ({
+  input: { backgroundColor: colors.card },
   outline: { borderRadius: radius.md },
   content: { fontFamily: fonts.regular },
-});
+}));

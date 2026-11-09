@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { EmptyState } from '../components/EmptyState';
 import { FormCard, formStyles, SubmitButton } from '../components/FormKit';
 import { FormField } from '../components/FormField';
@@ -18,7 +18,7 @@ import {
   parseAccessCode,
 } from '../services/delegate';
 import { ApiError } from '../services/http';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { DelegateSession, RootStackParamList } from '../types';
 import { categoryMeta } from '../utils/categories';
 import { confirmAction } from '../utils/confirm';
@@ -45,6 +45,7 @@ export function DelegateScreen({ route }: Props) {
 
 /** Abrir el acceso es un botón y no algo automático: el enlace solo se puede usar una vez. */
 function AccessForm({ initialCode, onOpen }: { initialCode: string; onOpen: (session: DelegateSession) => void }) {
+  const styles = useStyles();
   const [code, setCode] = useState(initialCode);
   const [submitted, setSubmitted] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -90,6 +91,8 @@ function AccessForm({ initialCode, onOpen }: { initialCode: string; onOpen: (ses
 }
 
 function SharedInfo({ session, onExit }: { session: DelegateSession; onExit: () => void }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const entries = useFetch(() => getDelegateEntries(session), [session.accessToken]);
   const consultations = useFetch(
     () => (session.includeConsultations ? getDelegateConsultations(session) : Promise.resolve([])),
@@ -172,16 +175,16 @@ function SharedInfo({ session, onExit }: { session: DelegateSession; onExit: () 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 14, paddingBottom: 40 },
   name: { fontFamily: fonts.display, fontSize: 24, color: colors.ink },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
   section: { fontFamily: fonts.display, fontSize: 20, color: colors.ink, marginBottom: 10 },
   sectionTight: { fontFamily: fonts.display, fontSize: 20, color: colors.ink },
   appointments: { gap: 10 },
-  appointment: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 16, gap: 4 },
+  appointment: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 16, gap: 4 },
   appointmentReason: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
   appointmentDate: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   exit: { alignSelf: 'center', paddingVertical: 8 },
   exitText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },
-});
+}));

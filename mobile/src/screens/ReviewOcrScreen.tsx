@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { AttachmentPreview } from '../components/AttachmentPreview';
 import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormScroll } from '../components/FormScroll';
@@ -10,7 +10,7 @@ import { useFetch } from '../hooks/useFetch';
 import { deleteAttachment, getAttachment, retryOcr } from '../services/api';
 import { openAttachmentFile } from '../services/attachmentFiles';
 import { ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { deleteErrorMessage, isImage } from '../utils/attachments';
 import { confirmAction } from '../utils/confirm';
@@ -19,6 +19,8 @@ import { OCR_POLL_MS } from './DocumentsScreen';
 type Props = NativeStackScreenProps<HomeStackParamList, 'ReviewOcr'>;
 
 export function ReviewOcrScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId, attachmentId } = route.params;
   const [retrying, setRetrying] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -126,6 +128,7 @@ export function ReviewOcrScreen({ route, navigation }: Props) {
 
 /** Se monta cuando el texto ya está listo, para que lo editado no se pierda al recargar. */
 function ReviewForm({ text, onConfirm }: { text: string; onConfirm: (details: string) => void }) {
+  const styles = useStyles();
   const [value, setValue] = useState(text);
   return (
     <>
@@ -143,10 +146,10 @@ function ReviewForm({ text, onConfirm }: { text: string; onConfirm: (details: st
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   file: { fontFamily: fonts.display, fontSize: 18, color: colors.ink },
   reading: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 },
   readingText: { fontFamily: fonts.medium, fontSize: 14, color: colors.muted },
   help: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.muted },
   delete: { fontFamily: fonts.semibold, fontSize: 15, color: colors.danger, textAlign: 'center' },
-});
+}));

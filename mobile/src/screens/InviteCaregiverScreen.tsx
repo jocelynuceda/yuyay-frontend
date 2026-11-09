@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { ChoiceChips, FormCard, formStyles, SubmitButton } from '../components/FormKit';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
 import { inviteCaregiver } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRole, HomeStackParamList } from '../types';
 import { careRoleLabel, isEmail } from '../utils/format';
 
@@ -22,6 +22,8 @@ const roleOptions: { value: CareRole; label: string }[] = [
 const labelSuggestions = ['Hija', 'Hijo', 'Pareja', 'Hermana', 'Hermano', 'Enfermera', 'Amiga'];
 
 export function InviteCaregiverScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId } = route.params;
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CareRole>('CAREGIVER');
@@ -99,7 +101,7 @@ export function InviteCaregiverScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   help: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.muted },
   info: {
     flexDirection: 'row',
@@ -110,4 +112,4 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   infoText: { flex: 1, fontFamily: fonts.medium, fontSize: 13, color: colors.primary, lineHeight: 18 },
-});
+}));

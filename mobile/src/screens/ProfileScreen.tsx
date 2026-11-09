@@ -1,19 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { AppearancePicker } from '../components/AppearancePicker';
 import { ProfileCard } from '../components/ProfileCard';
 import { useAuth } from '../hooks/useAuth';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getCareSubjects, getNotifications } from '../services/api';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { RootStackParamList, TabNavigatorParamList } from '../types';
 import { formatDate, initialsOf } from '../utils/format';
 
 type Props = BottomTabScreenProps<TabNavigatorParamList, 'Profile'>;
 
 export function ProfileScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { user, logout } = useAuth();
   const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
   const subjects = useFetch(getCareSubjects);
@@ -101,6 +104,9 @@ export function ProfileScreen({ navigation }: Props) {
         ))}
       </View>
 
+      <Text style={styles.groupLabel}>Apariencia</Text>
+      <AppearancePicker />
+
       <Text style={styles.groupLabel}>Cuenta</Text>
       <Pressable
         onPress={() => rootNavigation.navigate('Delegate')}
@@ -119,7 +125,7 @@ export function ProfileScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
   container: { paddingHorizontal: 20, paddingBottom: 32 },
   actions: { flexDirection: 'row', gap: 12, marginTop: 16 },
@@ -145,7 +151,7 @@ const styles = StyleSheet.create({
   actionLabelPeople: { color: colors.onPeopleAction },
   actionLabelFeatured: { color: colors.white },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.xl,
     paddingHorizontal: 16,
     paddingVertical: 4,
@@ -160,7 +166,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow,
@@ -174,4 +180,4 @@ const styles = StyleSheet.create({
   groupLabel: { fontFamily: fonts.medium, fontSize: 14, color: colors.muted, marginTop: 24, marginBottom: 10 },
   logout: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   logoutText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.danger },
-});
+}));

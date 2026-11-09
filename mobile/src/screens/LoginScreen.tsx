@@ -1,20 +1,21 @@
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { Text } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { AuthLayout } from '../components/AuthLayout';
 import { FormField, passwordInputProps } from '../components/FormField';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../services/http';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius } from '../theme';
 import type { AuthStackParamList, RootStackParamList } from '../types';
 import { isEmail } from '../utils/format';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export function LoginScreen({ navigation }: Props) {
+  const styles = useStyles();
   const { login } = useAuth();
   const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [email, setEmail] = useState('');
@@ -120,7 +121,7 @@ export function LoginScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   footer: { fontFamily: fonts.regular, color: colors.muted, fontSize: 14 },
   link: { fontFamily: fonts.semibold, color: colors.primary },
   codeLink: { marginTop: 10 },
@@ -128,4 +129,4 @@ const styles = StyleSheet.create({
   button: { marginTop: 12, borderRadius: radius.pill },
   buttonContent: { height: 52, flexDirection: 'row-reverse' },
   buttonLabel: { fontFamily: fonts.semibold, fontSize: 16 },
-});
+}));

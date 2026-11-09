@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text } from 'react-native';
 import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
@@ -11,7 +11,7 @@ import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { deleteConsultation, getConsultations } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { Consultation, HomeStackParamList } from '../types';
 import { confirmAction } from '../utils/confirm';
 import { appointmentOrder, formatDate, formatTime, todayIso } from '../utils/format';
@@ -19,6 +19,8 @@ import { appointmentOrder, formatDate, formatTime, todayIso } from '../utils/for
 type Props = NativeStackScreenProps<HomeStackParamList, 'Consultations'>;
 
 export function ConsultationsScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId, subjectName, isPrincipal } = route.params;
   const [error, setError] = useState<string | null>(null);
   const consultations = useFetch(() => getConsultations(subjectId), [subjectId]);
@@ -115,9 +117,9 @@ export function ConsultationsScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
   changes: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary, marginTop: 10, marginLeft: 56 },
   section: { fontFamily: fonts.display, fontSize: 20, color: colors.ink, marginTop: 8 },
-});
+}));

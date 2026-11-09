@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Button, Chip, SegmentedButtons } from 'react-native-paper';
 import { DateField, parseDateParts } from '../components/DateField';
 import { EntryAttachmentField } from '../components/EntryAttachmentField';
@@ -14,13 +14,15 @@ import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { createHealthEntry, getHealthCategories, uploadAttachment } from '../services/api';
 import { audioFormData, imageFormData } from '../services/attachmentFiles';
 import { ApiError } from '../services/http';
-import { colors, fonts } from '../theme';
+import { fonts, makeStyles, useTheme } from '../theme';
 import type { ConfidenceLevel, HomeStackParamList } from '../types';
 import { EXAM_CATEGORY } from '../utils/categories';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewEntry'>;
 
 export function NewEntryScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId, categoryCode: initialCategory, details: initialDetails, sourceAttachmentId, returnToSource } = route.params;
   const categories = useFetch(getHealthCategories);
   const [categoryCode, setCategoryCode] = useState(initialCategory ?? 'MEDICATION');
@@ -104,8 +106,8 @@ export function NewEntryScreen({ route, navigation }: Props) {
               showSelectedCheck={false}
               selected={active}
               onPress={() => setCategoryCode(c.code)}
-              style={{ backgroundColor: active ? colors.ink : colors.white }}
-              textStyle={{ fontFamily: fonts.medium, color: active ? colors.white : colors.ink }}
+              style={{ backgroundColor: active ? colors.ink : colors.card }}
+              textStyle={{ fontFamily: fonts.medium, color: active ? colors.onInk : colors.ink }}
             >
               {c.name}
             </Chip>
@@ -169,7 +171,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   flex: { flex: 1 },
   container: { padding: 20, gap: 6, paddingBottom: 40 },
   intro: { fontFamily: fonts.regular, color: colors.muted, fontSize: 14, marginBottom: 8 },
@@ -179,4 +181,4 @@ const styles = StyleSheet.create({
   button: { marginTop: 20 },
   buttonContent: { height: 50 },
   buttonLabel: { fontFamily: fonts.semibold, fontSize: 16 },
-});
+}));

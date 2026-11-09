@@ -6,7 +6,7 @@ import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { DelegateScreen } from '../screens/DelegateScreen';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme } from '../theme';
 import type { RootStackParamList } from '../types';
 import { AuthStackNavigator } from './AuthStackNavigator';
 import { TabNavigator } from './TabNavigator';
@@ -43,6 +43,7 @@ function MainScreen() {
 
 /** El acceso delegado queda fuera de la sesión: quien lo abre normalmente no tiene cuenta. */
 export function RootNavigator() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator>
       <Stack.Screen name="Main" component={MainScreen} options={{ title: 'Yuyay', headerShown: false }} />

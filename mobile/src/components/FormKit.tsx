@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from 'react-native-paper';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 /** Tarjeta blanca con título, la misma de los formularios de Nueva persona y Nuevo registro. */
 export function FormCard({ title, children }: { title?: string; children: ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={styles.card}>
       {title ? <Text style={styles.cardTitle}>{title}</Text> : null}
@@ -25,6 +26,7 @@ export function SubmitButton({
   onPress: () => void;
   loading?: boolean;
 }) {
+  const styles = useStyles();
   return (
     <Button
       mode="contained"
@@ -51,6 +53,7 @@ export function ChoiceChips<T extends string | number>({
   selected: T[];
   onToggle: (value: T) => void;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.chips}>
       {options.map((o) => {
@@ -83,6 +86,8 @@ export function TextArea({
   placeholder: string;
   maxLength?: number;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <View>
       <TextInput
@@ -104,12 +109,13 @@ export function TextArea({
 export const formStyles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: 20, gap: 14, paddingBottom: 40 },
-  error: { fontFamily: fonts.medium, fontSize: 12, color: colors.danger, marginLeft: 4 },
+  /** El color va aparte porque depende del tema: [formStyles.error, { color: colors.danger }] */
+  error: { fontFamily: fonts.medium, fontSize: 12, marginLeft: 4 },
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 16,
     gap: 12,
@@ -126,13 +132,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   chipText: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
-  chipTextActive: { color: colors.white },
+  chipTextActive: { color: colors.onInk },
   textArea: {
     minHeight: 96,
     backgroundColor: colors.surface,
@@ -144,4 +150,4 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   counter: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, alignSelf: 'flex-end', marginTop: 6 },
-});
+}));

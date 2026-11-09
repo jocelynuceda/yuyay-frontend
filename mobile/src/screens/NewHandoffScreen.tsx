@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { EmptyState } from '../components/EmptyState';
 import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
@@ -11,13 +11,15 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { createHandoff, getHealthCategories, getHealthEntries } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewHandoff'>;
 
 export function NewHandoffScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { subjectId } = route.params;
   const categories = useFetch(getHealthCategories);
   const entries = useFetch(() => getHealthEntries(subjectId), [subjectId]);
@@ -99,8 +101,8 @@ export function NewHandoffScreen({ route, navigation }: Props) {
             return (
               <View key={c.code} style={styles.group}>
                 <Pressable onPress={() => toggle(ids)} style={styles.groupHeader} accessibilityRole="button">
-                  <View style={[styles.groupIcon, { backgroundColor: meta.bg }]}>
-                    <Ionicons name={meta.icon} size={16} color={meta.fg} />
+                  <View style={[styles.groupIcon, { backgroundColor: colors[meta.bg] }]}>
+                    <Ionicons name={meta.icon} size={16} color={colors[meta.fg]} />
                   </View>
                   <Text style={styles.groupTitle}>{meta.plural}</Text>
                   <Text style={styles.groupToggle}>{allOn ? 'Quitar todos' : 'Marcar todos'}</Text>
@@ -135,7 +137,7 @@ export function NewHandoffScreen({ route, navigation }: Props) {
             );
           })
         )}
-        {pickError ? <Text style={formStyles.error}>{pickError}</Text> : null}
+        {pickError ? <Text style={[formStyles.error, { color: colors.danger }]}>{pickError}</Text> : null}
       </FormCard>
 
       <SubmitButton label="Crear resumen" onPress={handleSave} loading={saving} />
@@ -143,7 +145,7 @@ export function NewHandoffScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   group: { gap: 4 },
   groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   groupIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
@@ -160,4 +162,4 @@ const styles = StyleSheet.create({
   },
   itemTitle: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
   itemMeta: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 2 },
-});
+}));

@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import type { CareSubject } from '../types';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme, type Colors } from '../theme';
 import { ageFrom, careRoleLabel } from '../utils/format';
 import { Sparkle } from './Sparkle';
 
 // Combinaciones de fondo y estrella tomadas de la paleta
-const cardTones = [
+const cardTonesFor = (colors: Colors) => [
   { bg: colors.peopleStar, star: colors.primary },
   { bg: colors.accent, star: colors.white },
   { bg: colors.primary, star: colors.accent },
@@ -23,6 +23,9 @@ export function CareSubjectCard({
   index: number;
   onPress: () => void;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const cardTones = cardTonesFor(colors);
   const tone = cardTones[index % cardTones.length];
   const age = ageFrom(subject.birthDate);
 
@@ -59,12 +62,12 @@ export function CareSubjectCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 14,
     marginBottom: 12,
@@ -88,4 +91,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
 import { ListItem } from '../components/ListItem';
@@ -8,7 +8,7 @@ import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getCareSubjects, getConsultations } from '../services/api';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { appointmentOrder, formatTime, initialsOf, todayIso } from '../utils/format';
 
@@ -38,6 +38,8 @@ async function loadUpcoming() {
 }
 
 export function UpcomingConsultationsScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const upcoming = useFetch(loadUpcoming);
   useRefreshOnFocus(upcoming.reload);
 
@@ -99,7 +101,7 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   flex: { flex: 1 },
   list: { padding: 20, gap: 12, paddingBottom: 40 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -125,4 +127,4 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginTop: 10,
   },
-});
+}));

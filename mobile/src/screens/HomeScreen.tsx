@@ -4,7 +4,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CareSubjectCard } from '../components/CareSubjectCard';
@@ -26,7 +26,7 @@ import {
   getPendingInvitations,
 } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts, gradients, heroIsDark, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
 import { appointmentOrder, careRoleLabel, formatTime, initialsOf, todayIso } from '../utils/format';
 
@@ -58,6 +58,8 @@ function greeting() {
 }
 
 export function HomeScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { gradients, heroIsDark, colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const subjects = useFetch(getCareSubjects);
@@ -154,7 +156,7 @@ export function HomeScreen({ navigation }: Props) {
                 ))}
                 {people.length > 3 ? (
                   <View style={[styles.face, styles.faceOverlap, { backgroundColor: colors.ink }]}>
-                    <Text style={[styles.faceText, { color: colors.white }]}>+{people.length - 3}</Text>
+                    <Text style={[styles.faceText, { color: colors.onInk }]}>+{people.length - 3}</Text>
                   </View>
                 ) : null}
               </View>
@@ -178,7 +180,7 @@ export function HomeScreen({ navigation }: Props) {
             </PressableScale>
           </FadeIn>
           <FadeIn delay={240}>
-            <View style={[styles.tile, styles.tileShort, { backgroundColor: colors.white }]}>
+            <View style={[styles.tile, styles.tileShort, { backgroundColor: colors.card }]}>
               <View style={styles.tileRow}>
                 <Text style={[styles.tileLabel, { color: colors.muted }]}>Invitaciones</Text>
                 <Ionicons name="mail-open-outline" size={18} color={colors.accentText} />
@@ -308,6 +310,8 @@ export function HomeScreen({ navigation }: Props) {
 }
 
 function Invitations({ items, onAccepted }: { items: CareRelationship[]; onAccepted: () => void }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -355,7 +359,7 @@ function Invitations({ items, onAccepted }: { items: CareRelationship[]; onAccep
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
   list: { paddingHorizontal: 20, paddingBottom: 24 },
   topBar: {
@@ -368,7 +372,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -383,7 +387,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.accent,
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: colors.card,
   },
   avatar: {
     width: 48,
@@ -436,7 +440,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderWidth: 2,
     borderColor: colors.accent,
     alignItems: 'center',
@@ -444,7 +448,7 @@ const styles = StyleSheet.create({
   },
   faceOverlap: { marginLeft: -8 },
   faceText: { fontFamily: fonts.bold, fontSize: 11, color: colors.primary },
-  appointment: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.white, marginTop: 12 },
+  appointment: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.card, marginTop: 12 },
   dateBlock: {
     width: 60,
     height: 64,
@@ -464,7 +468,7 @@ const styles = StyleSheet.create({
     textTransform: 'none',
   },
   invitations: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 16,
     marginTop: 16,
@@ -516,4 +520,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.softText,
   },
-});
+}));

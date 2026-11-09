@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, radius } from '../theme';
+import { Text, View } from 'react-native';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import { Sparkle } from './Sparkle';
 
 export function EmptyState({
@@ -12,6 +12,8 @@ export function EmptyState({
   description?: string;
   action?: ReactNode;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <View style={styles.box}>
       <View style={styles.icon}>
@@ -24,7 +26,7 @@ export function EmptyState({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   box: {
     alignItems: 'center',
     padding: 28,
@@ -32,7 +34,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: colors.line,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: colors.glass,
   },
   icon: {
     width: 48,
@@ -53,4 +55,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   action: { marginTop: 16 },
-});
+}));

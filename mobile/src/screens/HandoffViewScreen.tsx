@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge } from '../components/Badge';
 import { ChoiceChips, FormCard, SubmitButton } from '../components/FormKit';
@@ -17,7 +17,7 @@ import {
   revokeHandoffSession,
 } from '../services/api';
 import { ApiError } from '../services/http';
-import { colors, fonts, radius } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HandoffItem, HandoffSession, HomeStackParamList } from '../types';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
 import { confirmAction, shareText } from '../utils/confirm';
@@ -44,6 +44,8 @@ function sessionState(s: HandoffSession) {
 }
 
 export function HandoffViewScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { handoffId } = route.params;
   const [doctorMode, setDoctorMode] = useState(false);
   const [expiresIn, setExpiresIn] = useState(24);
@@ -159,8 +161,8 @@ export function HandoffViewScreen({ route, navigation }: Props) {
           <FormCard key={code} title={meta.plural}>
             {items.map((i) => (
               <View key={i.healthEntryId} style={styles.item}>
-                <View style={[styles.itemIcon, { backgroundColor: meta.bg }]}>
-                  <Ionicons name={meta.icon} size={16} color={meta.fg} />
+                <View style={[styles.itemIcon, { backgroundColor: colors[meta.bg] }]}>
+                  <Ionicons name={meta.icon} size={16} color={colors[meta.fg]} />
                 </View>
                 <View style={styles.flex}>
                   <Text style={styles.itemTitle}>{i.title}</Text>
@@ -216,6 +218,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
 }
 
 function ItemFacts({ item, large }: { item: HandoffItem; large?: boolean }) {
+  const styles = useStyles();
   const facts = [item.dose && `Dosis: ${item.dose}`, item.frequency].filter(Boolean).join(' · ');
   return (
     <>
@@ -233,7 +236,7 @@ function groupByCategory(items: HandoffItem[]) {
   return [...map.entries()];
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   flex: { flex: 1, gap: 4 },
   list: { padding: 20, gap: 14, paddingBottom: 40 },
   hero: { backgroundColor: colors.soft, borderRadius: radius.lg, padding: 18, gap: 6 },
@@ -248,7 +251,7 @@ const styles = StyleSheet.create({
   right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   deleteText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },
-  doctor: { flex: 1, backgroundColor: colors.white },
+  doctor: { flex: 1, backgroundColor: colors.card },
   doctorContent: { padding: 24, gap: 20, paddingBottom: 48 },
   doctorTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   doctorEyebrow: { fontFamily: fonts.semibold, fontSize: 13, color: colors.muted, letterSpacing: 0.6 },
@@ -269,4 +272,4 @@ const styles = StyleSheet.create({
   doctorDetails: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 24, color: colors.muted },
   doctorQuestions: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 16, gap: 8 },
   doctorQuestionsText: { fontFamily: fonts.regular, fontSize: 18, lineHeight: 26, color: colors.ink },
-});
+}));

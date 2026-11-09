@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import type { HealthEntry } from '../types';
-import { colors, fonts, radius, shadow } from '../theme';
+import { fonts, makeStyles, radius, useTheme } from '../theme';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
 import { formatDate, formatDateTime } from '../utils/format';
 import { Badge } from './Badge';
@@ -20,6 +20,8 @@ export function HealthEntryCard({
   /** Muestra la foto o el audio sin esperar a que se toque «Ver adjunto». */
   attachmentOpen?: boolean;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [showAttachment, setShowAttachment] = useState(attachmentOpen);
   const v = entry.latestVersion;
   const tone = categoryMeta[entry.categoryCode] ?? fallbackCategory;
@@ -32,8 +34,8 @@ export function HealthEntryCard({
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={[styles.icon, { backgroundColor: tone.bg }]}>
-          <Ionicons name={tone.icon} size={20} color={tone.fg} />
+        <View style={[styles.icon, { backgroundColor: colors[tone.bg] }]}>
+          <Ionicons name={tone.icon} size={20} color={colors[tone.fg]} />
         </View>
         <View style={styles.flex}>
           <Text style={styles.category}>{entry.categoryName.toUpperCase()}</Text>
@@ -78,6 +80,8 @@ function CardAction({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -91,9 +95,9 @@ function CardAction({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors, shadow }) => ({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 16,
     marginBottom: 12,
@@ -129,4 +133,4 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-});
+}));
