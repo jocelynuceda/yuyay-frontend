@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
 import {
@@ -19,10 +19,13 @@ import { Field, FormActions, FormShell, ServerError } from './fields'
 /** Nueva persona (sin `subject`) o editar persona (con `subject`). Pensado para ir dentro de un modal. */
 export function CareSubjectForm({
   subject,
+  inModal = false,
   onSaved,
   onCancel,
 }: {
   subject?: CareSubject
+  /** Dentro de un modal: sin tarjeta ni título propios, y el foco empieza en el nombre. */
+  inModal?: boolean
   onSaved: (subject: CareSubject) => void
   onCancel?: () => void
 }) {
@@ -31,12 +34,20 @@ export function CareSubjectForm({
     register,
     handleSubmit,
     setError,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<CareSubjectFormValues, unknown, z.output<typeof careSubjectSchema>>({
     resolver: zodResolver(careSubjectSchema),
     defaultValues: subject ? careSubjectToForm(subject) : emptyCareSubject,
     mode: 'onChange',
   })
+
+  useEffect(() => {
+    if (!inModal) return
+    // El modal se abre después de montar el formulario
+    const frame = requestAnimationFrame(() => setFocus('name'))
+    return () => cancelAnimationFrame(frame)
+  }, [inModal, setFocus])
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
@@ -51,6 +62,7 @@ export function CareSubjectForm({
     <FormShell
       title={subject ? 'Editar persona' : 'Agregar persona'}
       description="La persona a la que cuidan. Solo el nombre es obligatorio."
+      bare={inModal}
       onSubmit={onSubmit}
     >
       <ServerError message={serverError} />

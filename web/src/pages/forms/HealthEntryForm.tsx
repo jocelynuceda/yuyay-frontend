@@ -93,7 +93,11 @@ export function HealthEntryForm({
           <span className="text-muted">{entry.categoryName}</span>
         </div>
       ) : (
-        <fieldset className="grid gap-2" aria-invalid={!!errors.categoryCode}>
+        <fieldset
+          className="grid gap-2"
+          aria-invalid={!!errors.categoryCode}
+          aria-describedby={errors.categoryCode ? 'entry-category-error' : undefined}
+        >
           <legend className="text-sm font-semibold">Categoría</legend>
           <div className="flex flex-wrap gap-2">
             {CATEGORY_CODES.map((code) => (
@@ -102,7 +106,11 @@ export function HealthEntryForm({
               </ChoiceOption>
             ))}
           </div>
-          {errors.categoryCode ? <p className="text-sm text-danger">{errors.categoryCode.message}</p> : null}
+          {errors.categoryCode ? (
+            <p id="entry-category-error" role="alert" className="text-sm text-danger">
+              {errors.categoryCode.message}
+            </p>
+          ) : null}
         </fieldset>
       )}
 

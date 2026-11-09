@@ -90,7 +90,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
 
       <Stepper current={step} />
 
-      <form onSubmit={onSubmit} noValidate className="grid gap-6 rounded-3xl bg-white p-6 sm:p-8">
+      <form onSubmit={onSubmit} noValidate className="grid gap-6 rounded-3xl bg-card p-6 sm:p-8">
         <ServerError message={serverError} />
 
         {step === 0 ? (
@@ -170,7 +170,7 @@ function Stepper({ current }: { current: number }) {
             key={label}
             aria-current={state === 'current' ? 'step' : undefined}
             className={`rounded-2xl border-2 px-3 py-2 text-sm ${
-              state === 'current' ? 'border-primary bg-white' : state === 'done' ? 'border-accent bg-white' : 'border-transparent bg-white/60 text-muted'
+              state === 'current' ? 'border-primary bg-card' : state === 'done' ? 'border-accent bg-card' : 'border-transparent bg-card/60 text-muted'
             }`}
           >
             <span className="block font-semibold">

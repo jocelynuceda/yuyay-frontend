@@ -6,8 +6,9 @@ import { loadEntryHistory } from '../../utils/entryHistory'
 import { confidenceLabels, formatDate, formatDateTime } from '../../utils/format'
 import { changedFields, changeTypeLabels, displayField, versionFieldLabels } from '../../utils/versions'
 import { focusRing } from '../../utils/styles'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
+import { useSuccessNotice } from '../shared/useSuccessNotice'
 
 type State =
   | { status: 'loading' }
@@ -33,7 +34,7 @@ export function EntryDetailPage({
   const [version, setVersion] = useState(0)
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const { notify, anchorProps } = useSuccessNotice()
 
   useEffect(() => {
     let active = true
@@ -84,7 +85,6 @@ export function EntryDetailPage({
             <button
               type="button"
               onClick={() => {
-                setNotice(null)
                 setEditing(true)
               }}
               className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
@@ -102,11 +102,7 @@ export function EntryDetailPage({
         ) : null}
       </header>
 
-      {notice ? (
-        <p role="status" className="rounded-xl bg-accent-tint p-4 font-semibold text-accent-text">
-          {notice}
-        </p>
-      ) : null}
+      <span {...anchorProps} />
       {deleted ? (
         <p role="status" className="rounded-xl bg-danger-bg p-4 text-danger">
           Este registro fue eliminado el {formatDate(current.declaredAt)}. Se conserva su historial.
@@ -120,12 +116,12 @@ export function EntryDetailPage({
           onCancel={() => setEditing(false)}
           onSaved={(saved) => {
             setEditing(false)
-            setNotice(saved ? 'Cambios guardados. Se creó una versión nueva.' : 'No había cambios que guardar.')
+            notify(saved ? 'Cambios guardados. Se creó una versión nueva.' : 'No había cambios que guardar.')
             if (saved) setVersion((v) => v + 1)
           }}
         />
       ) : (
-        <section aria-labelledby="current-version" className="rounded-3xl bg-white p-6 sm:p-8">
+        <section aria-labelledby="current-version" className="rounded-3xl bg-card p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="current-version" className="text-xl font-semibold">
               {deleted ? 'Última versión' : 'Versión actual'} · v{current.versionNumber}
@@ -164,7 +160,6 @@ export function EntryDetailPage({
         onConfirm={async () => {
           await deleteHealthEntry(subjectId, entryId)
           setConfirmingDelete(false)
-          setNotice(null)
           if (onDeleted) onDeleted()
           else setVersion((v) => v + 1)
         }}
@@ -184,7 +179,7 @@ function VersionItem({
 }) {
   const fields = previous && version.changeType === 'UPDATED' ? changedFields(version, previous) : []
   return (
-    <li className="rounded-2xl bg-white p-5">
+    <li className="rounded-2xl bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-semibold">
           Versión {version.versionNumber} · {changeTypeLabels[version.changeType]}

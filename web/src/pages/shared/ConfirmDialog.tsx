@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { focusRing } from '../../utils/styles'
 
@@ -11,6 +11,8 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel,
+  workingLabel = 'Borrando…',
+  cancelLabel = 'Cancelar',
   onConfirm,
   onCancel,
 }: {
@@ -18,9 +20,13 @@ export function ConfirmDialog({
   title: string
   message: string
   confirmLabel: string
+  /** Texto del botón mientras se ejecuta (por ejemplo, "Revocando…"). */
+  workingLabel?: string
+  cancelLabel?: string
   onConfirm: () => Promise<void>
   onCancel: () => void
 }) {
+  const id = useId()
   const ref = useRef<HTMLDialogElement>(null)
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -51,18 +57,18 @@ export function ConfirmDialog({
   return (
     <dialog
       ref={ref}
-      aria-labelledby="confirm-title"
-      aria-describedby="confirm-message"
+      aria-labelledby={`${id}-title`}
+      aria-describedby={`${id}-message`}
       onCancel={(event) => {
         event.preventDefault()
         if (!working) onCancel()
       }}
-      className="m-auto w-[min(28rem,calc(100%-2rem))] rounded-3xl bg-white p-6 text-ink backdrop:bg-ink/40"
+      className="m-auto w-[min(28rem,calc(100%-2rem))] rounded-3xl bg-card p-6 text-ink backdrop:bg-scrim"
     >
-      <h2 id="confirm-title" className="text-xl font-semibold">
+      <h2 id={`${id}-title`} className="text-xl font-semibold">
         {title}
       </h2>
-      <p id="confirm-message" className="mt-2 text-muted">
+      <p id={`${id}-message`} className="mt-2 text-muted">
         {message}
       </p>
       {error ? (
@@ -78,7 +84,7 @@ export function ConfirmDialog({
           disabled={working}
           className={`rounded-xl border border-line px-5 py-2.5 font-semibold ${focusRing}`}
         >
-          Cancelar
+          {cancelLabel}
         </button>
         <button
           type="button"
@@ -86,7 +92,7 @@ export function ConfirmDialog({
           disabled={working}
           className={`rounded-xl bg-danger px-5 py-2.5 font-semibold text-white disabled:opacity-60 ${focusRing}`}
         >
-          {working ? 'Borrando…' : confirmLabel}
+          {working ? workingLabel : confirmLabel}
         </button>
       </div>
     </dialog>
