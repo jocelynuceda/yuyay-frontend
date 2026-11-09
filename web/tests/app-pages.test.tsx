@@ -24,6 +24,7 @@ const http = await import('../src/services/http')
 const { getPostLoginTarget } = await import('../src/utils/redirect')
 const { getNotificationLink } = await import('../src/pages/notifications/notificationLink')
 const { validateDocumentFile, documentsOnly } = await import('../src/utils/attachments')
+const { RECETA_UNICA_MINSA } = await import('./fixtures/ocr-recetas')
 
 class MemoryStorage {
   data = new Map<string, string>()
@@ -131,7 +132,7 @@ function backend() {
       if (!found) throw fail(config, 404)
       const current = { ...found }
       // La primera consulta encuentra la lectura en curso; la siguiente, ya terminada
-      if (found.ocrStatus === 'PENDING') Object.assign(found, { ocrStatus: 'DONE', ocrText: 'Losartán 50 mg cada 12 h' })
+      if (found.ocrStatus === 'PENDING') Object.assign(found, { ocrStatus: 'DONE', ocrText: RECETA_UNICA_MINSA })
       return ok(config, current)
     }
     if (attachments && method === 'POST' && attachments[2]) {
@@ -268,15 +269,47 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   assert.equal(upload.timeout, 60000)
 
   await waitFor(() => /Leyendo el documento/.test(text()), 'lectura en curso')
-  await waitFor(() => !!document.querySelector<HTMLTextAreaElement>('#entry-details')?.value, 'texto leído en el formulario', 6000)
-  assert.equal(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value, 'Losartán 50 mg cada 12 h')
+  await waitFor(() => !!document.querySelector<HTMLInputElement>('#entry-title'), 'formulario de revisión', 6000)
 
-  await type(document.querySelector<HTMLInputElement>('#entry-title')!, 'Losartán')
+  // Sugerencias por reglas a partir de la receta real; Detalles queda vacío
+  assert.equal(document.querySelector<HTMLInputElement>('#entry-title')!.value, 'Receta médica')
+  assert.equal(document.querySelector<HTMLInputElement>('input[name="categoryCode"][value="MEDICATION"]')!.checked, true)
+  assert.equal(document.querySelector<HTMLInputElement>('#entry-occurredOn, input[name="occurredOn"]')!.value, '2024-08-02')
+  assert.equal(document.querySelector<HTMLInputElement>('input[name="confidenceLevel"][value="UNCERTAIN"]')!.checked, true)
+  assert.equal(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value, '')
+  assert.match(text(), /Sugerido del documento/)
+
+  // El texto original está aparte y se puede copiar a Detalles
+  assert.match(text(), /Texto leído del documento/)
+  await click(byText('button', 'Copiar a Detalles'), 'Copiar a Detalles')
+  await waitFor(() => /Hiosina/.test(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value), 'texto copiado a Detalles')
+
+  // El usuario corrige el título antes de guardar
+  await type(document.querySelector<HTMLInputElement>('#entry-title')!, 'Receta de emergencia')
   await click(byText('button', 'Registrar'), 'Registrar')
   await waitFor(() => pathname() === '/personas/1/registros/99', 'ir al registro creado')
-  assert.equal(b.db.createdEntries[0].sourceAttachmentId, 30)
-  assert.equal(b.db.createdEntries[0].details, 'Losartán 50 mg cada 12 h')
-  assert.equal(b.db.createdEntries[0].title, 'Losartán')
+  const created = b.db.createdEntries[0]
+  assert.equal(created.sourceAttachmentId, 30)
+  assert.equal(created.title, 'Receta de emergencia')
+  assert.equal(created.categoryCode, 'MEDICATION')
+  assert.equal(created.occurredOn, '2024-08-02')
+  assert.equal(created.confidenceLevel, 'UNCERTAIN')
+  assert.match(String(created.details), /Hiosina/)
+})
+
+test('Documentos: sin categoría sugerida hay que elegirla (no hay "Alergia" por defecto)', async (t) => {
+  const { b, unmount } = await mountApp('/personas/1/documentos/32', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /No se pudo extraer el texto/.test(text()), 'mensaje de error')
+  await click(byText('button', 'Escribir el registro'), 'Escribir el registro')
+  await waitFor(() => !!document.querySelector('#entry-title'), 'formulario manual')
+  assert.equal(document.querySelector<HTMLInputElement>('input[name="categoryCode"]:checked'), null, 'ninguna categoría marcada')
+  assert.equal(document.querySelector<HTMLInputElement>('input[name="confidenceLevel"][value="UNCERTAIN"]')!.checked, true)
+
+  await type(document.querySelector<HTMLInputElement>('#entry-title')!, 'Receta')
+  await click(byText('button', 'Registrar'), 'Registrar')
+  await waitFor(() => /Elige una categoría/.test(text()), 'pide elegir categoría')
+  assert.equal(b.db.createdEntries.length, 0, 'no se envía sin categoría')
 })
 
 test('Documentos: una lectura fallida permite escribir el registro a mano o reintentar', async (t) => {
