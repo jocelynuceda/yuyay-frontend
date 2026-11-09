@@ -9,6 +9,7 @@ import { applyServerErrors } from '../../utils/apiErrors'
 import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
+import { AuthBrand } from './AuthBrand'
 import { PasswordChecklist, PasswordInput } from './PasswordFields'
 
 export default function RegisterPage() {
@@ -47,7 +48,7 @@ export default function RegisterPage() {
       <div className="mb-2 flex justify-end">
         <ThemeToggle />
       </div>
-      <h1 className="mb-6 text-center text-4xl font-semibold text-primary">Yuyay</h1>
+      <AuthBrand />
       <FormShell title="Crear una cuenta" onSubmit={onSubmit}>
         <ServerError message={serverError} />
         <Field id="auth-name" label="Nombre" error={errors.name}>

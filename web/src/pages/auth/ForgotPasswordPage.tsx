@@ -10,6 +10,7 @@ import { forgotPassword, resetPassword } from '../../services/api/auth'
 import { applyServerErrors, getErrorMessage } from '../../utils/apiErrors'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
+import { AuthBrand } from './AuthBrand'
 import { PasswordChecklist, PasswordInput } from './PasswordFields'
 
 function RequestCodeForm({ onSent }: { onSent: (email: string) => void }) {
@@ -163,7 +164,7 @@ export default function ForgotPasswordPage() {
       <div className="mb-2 flex justify-end">
         <ThemeToggle />
       </div>
-      <h1 className="mb-6 text-center text-4xl font-semibold text-primary">Yuyay</h1>
+      <AuthBrand />
       {sentTo === null ? <RequestCodeForm onSent={setSentTo} /> : <ResetForm email={sentTo} />}
       <p className="mt-5 text-center text-sm">
         <Link to="/login" className="font-semibold text-primary underline">

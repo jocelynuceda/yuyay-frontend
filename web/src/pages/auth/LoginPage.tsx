@@ -9,6 +9,7 @@ import { applyServerErrors } from '../../utils/apiErrors'
 import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
+import { AuthBrand } from './AuthBrand'
 import { PasswordInput } from './PasswordFields'
 
 export default function LoginPage() {
@@ -38,7 +39,7 @@ export default function LoginPage() {
       <div className="mb-2 flex justify-end">
         <ThemeToggle />
       </div>
-      <h1 className="mb-6 text-center text-4xl font-semibold text-primary">Yuyay</h1>
+      <AuthBrand />
       <FormShell title="Iniciar sesión" onSubmit={onSubmit}>
         <ServerError message={serverError} />
         <Field id="auth-email" label="Correo electrónico" error={errors.email}>
