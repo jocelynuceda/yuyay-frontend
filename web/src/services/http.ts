@@ -140,7 +140,9 @@ function isRefreshRequest(config: InternalAxiosRequestConfig) {
   return pathname.replace(/\/+$/, '').endsWith('/auth/refresh')
 }
 
-const RETRYABLE_CODES = ['ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT']
+// Los timeouts (ECONNABORTED/ETIMEDOUT) no se reintentan: la petición ya esperó
+// REQUEST_TIMEOUT_MS, así que el peor caso de espera es aproximadamente un timeout.
+const RETRYABLE_CODES = ['ERR_NETWORK']
 const RETRYABLE_STATUSES = [502, 503, 504]
 
 function isRetryable(error: AxiosError, config: AuthRequestConfig) {
@@ -174,7 +176,7 @@ function waitWithSignal(ms: number, config: AuthRequestConfig): Promise<void> {
 }
 
 /**
- * Reintenta lecturas idempotentes ante fallos de red, timeouts o 502/503/504.
+ * Reintenta lecturas idempotentes ante fallos de red o 502/503/504 (no timeouts).
  * Devuelve null si el error no es reintentable o se agotaron los intentos.
  * La petición reintentada vuelve a pasar por el interceptor de request (token actual).
  */
@@ -187,8 +189,13 @@ async function retryRequest(
   if (!config || !isRetryable(error, config)) return null
   const attempt = (config._retryCount ?? 0) + 1
   if (attempt > MAX_RETRIES) return null
+  // Un reintento nunca debe salir con el token de otro usuario.
+  const sessionChanged = () =>
+    config._sessionVersion !== undefined && config._sessionVersion !== sessionVersion
+  if (sessionChanged()) throw new CanceledError<unknown>('La sesión cambió.', config)
   config._retryCount = attempt
   await waitWithSignal(RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), config)
+  if (sessionChanged()) throw new CanceledError<unknown>('La sesión cambió.', config)
   return instance.request(config)
 }
 

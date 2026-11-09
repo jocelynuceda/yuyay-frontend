@@ -47,13 +47,32 @@ test('GET: 503 en los tres intentos -> se rinde con mensaje amigable', async () 
   assert.equal(attempts.length, 1 + http.MAX_RETRIES)
 })
 
-test('GET: timeout se reintenta y, si persiste, explica que el servidor tardó', async () => {
-  const attempts = scripted(['timeout'])
+test('GET: un timeout no se reintenta (ya esperó 15 s) y explica que el servidor tardó', async () => {
+  const attempts = scripted(['timeout', 'ok'])
   await assert.rejects(http.api.get('/users/me'), (error: Error) => {
     assert.equal(error.message, 'El servidor tardó demasiado en responder. Inténtalo de nuevo.')
     return true
   })
-  assert.equal(attempts.length, 3)
+  assert.equal(attempts.length, 1)
+})
+
+test('GET: si cambia la sesión durante la espera, no se reenvía con el token del otro usuario', async () => {
+  http.clearTokens()
+  http.setTokens({ accessToken: 'ANA', refreshToken: 'R-ANA' })
+  const attempts = scripted(['network', 'ok'])
+  const pending = http.api.get('/care-subjects')
+  // Ana cierra sesión y entra Bruno mientras el reintento espera sus 300 ms
+  setTimeout(() => {
+    http.clearTokens()
+    http.setTokens({ accessToken: 'BRUNO', refreshToken: 'R-BRUNO' })
+  }, 100)
+  await assert.rejects(pending, (error: unknown) => {
+    assert.equal((error as { name?: string }).name, 'CanceledError')
+    return true
+  })
+  await new Promise((r) => setTimeout(r, 400))
+  assert.deepEqual(attempts.map((a) => a.auth), ['Bearer ANA'], 'nunca sale con Bearer BRUNO')
+  http.clearTokens()
 })
 
 test('POST, PATCH y DELETE no se reintentan (podrían duplicar cambios)', async () => {
