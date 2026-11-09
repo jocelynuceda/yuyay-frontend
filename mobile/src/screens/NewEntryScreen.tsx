@@ -1,52 +1,86 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { ImagePickerAsset } from 'expo-image-picker';
+import { useRef, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button, Chip, SegmentedButtons } from 'react-native-paper';
+import { DateField, parseDateParts } from '../components/DateField';
+import { EntryAttachmentField } from '../components/EntryAttachmentField';
 import { FormField } from '../components/FormField';
+import { FormScroll } from '../components/FormScroll';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
-import { createHealthEntry, getHealthCategories } from '../services/api';
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+import { createHealthEntry, getHealthCategories, uploadAttachment } from '../services/api';
+import { audioFormData, imageFormData } from '../services/attachmentFiles';
 import { ApiError } from '../services/http';
 import { colors, fonts } from '../theme';
 import type { ConfidenceLevel, HomeStackParamList } from '../types';
+import { EXAM_CATEGORY } from '../utils/categories';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewEntry'>;
 
 export function NewEntryScreen({ route, navigation }: Props) {
-  const { subjectId, categoryCode: initialCategory } = route.params;
+  const { subjectId, categoryCode: initialCategory, details: initialDetails, sourceAttachmentId, returnToSource } = route.params;
   const categories = useFetch(getHealthCategories);
   const [categoryCode, setCategoryCode] = useState(initialCategory ?? 'MEDICATION');
   const [title, setTitle] = useState('');
   const [dose, setDose] = useState('');
   const [frequency, setFrequency] = useState('');
-  const [details, setDetails] = useState('');
+  const [details, setDetails] = useState(initialDetails ?? '');
   const [confidenceLevel, setConfidence] = useState<ConfidenceLevel>('CONFIRMED');
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [examDateParts, setExamDateParts] = useState({ day: '', month: '', year: '' });
+  const [submitted, setSubmitted] = useState(false);
+  const [photo, setPhoto] = useState<ImagePickerAsset | null>(null);
+  const voice = useVoiceRecorder();
+  // Si el registro falla después de subir el archivo, reintentar no debe subirlo de nuevo
+  const uploaded = useRef<{ uri: string; id: number } | null>(null);
 
   // El backend solo acepta dosis y frecuencia en medicación
   const isMedication = categoryCode === 'MEDICATION';
+  const isExam = categoryCode === EXAM_CATEGORY;
+  const examDate = parseDateParts(examDateParts);
+  const examDateError = isExam ? (examDate.error ?? (examDate.iso ? undefined : 'Ingresa la fecha del examen.')) : undefined;
+
+  async function uploadPicked() {
+    const uri = photo?.uri ?? voice.uri;
+    if (!uri) return undefined;
+    if (uploaded.current?.uri === uri) return uploaded.current.id;
+    const form = photo ? imageFormData(photo) : await audioFormData(uri);
+    const { id } = await uploadAttachment(subjectId, form);
+    uploaded.current = { uri, id };
+    return id;
+  }
 
   async function handleSave() {
-    if (!title.trim()) return;
+    setSubmitted(true);
+    if (!title.trim() || voice.isRecording || examDateError) return;
     setSaving(true);
     setError(null);
     try {
+      const attachmentId = sourceAttachmentId ?? (await uploadPicked());
       await createHealthEntry(subjectId, {
         categoryCode,
         title: title.trim(),
         details: details.trim(),
         dose: isMedication ? dose.trim() : '',
         frequency: isMedication ? frequency.trim() : '',
+        occurredOn: isExam ? examDate.iso : undefined,
         confidenceLevel,
+        sourceAttachmentId: attachmentId,
       });
-      navigation.goBack();
+      // Desde un documento se vuelve a la lista: el texto ya se usó
+      if (sourceAttachmentId && !returnToSource) navigation.pop(2);
+      else navigation.goBack();
     } catch (e) {
       if (e instanceof ApiError) {
         setError(e.message);
         setFieldErrors(e.fieldErrors);
+      } else {
+        setError('No pudimos guardar el registro.');
       }
     } finally {
       setSaving(false);
@@ -56,73 +90,82 @@ export function NewEntryScreen({ route, navigation }: Props) {
   if (categories.loading && !categories.data) return <LoadingView />;
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.intro}>Los demás cuidadores recibirán un aviso.</Text>
-        <StatusMessage message={error ?? categories.error} />
+    <FormScroll contentContainerStyle={styles.container}>
+      <Text style={styles.intro}>Los demás cuidadores recibirán un aviso.</Text>
+      <StatusMessage message={error ?? categories.error} />
 
-        <Text style={styles.label}>Categoría</Text>
-        <View style={styles.chips}>
-          {categories.data?.map((c) => {
-            const active = c.code === categoryCode;
-            return (
-              <Chip
-                key={c.code}
-                showSelectedCheck={false}
-                selected={active}
-                onPress={() => setCategoryCode(c.code)}
-                style={{ backgroundColor: active ? colors.ink : colors.white }}
-                textStyle={{ fontFamily: fonts.medium, color: active ? colors.white : colors.ink }}
-              >
-                {c.name}
-              </Chip>
-            );
-          })}
-        </View>
+      <Text style={styles.label}>Categoría</Text>
+      <View style={styles.chips}>
+        {categories.data?.map((c) => {
+          const active = c.code === categoryCode;
+          return (
+            <Chip
+              key={c.code}
+              showSelectedCheck={false}
+              selected={active}
+              onPress={() => setCategoryCode(c.code)}
+              style={{ backgroundColor: active ? colors.ink : colors.white }}
+              textStyle={{ fontFamily: fonts.medium, color: active ? colors.white : colors.ink }}
+            >
+              {c.name}
+            </Chip>
+          );
+        })}
+      </View>
 
-        <FormField
-          label="Título"
-          placeholder={isMedication ? 'Ej. Losartán 50 mg' : 'Ej. Alergia a la penicilina'}
-          value={title}
-          onChangeText={setTitle}
-          maxLength={150}
-          error={fieldErrors.title}
-        />
-        {isMedication ? (
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <FormField label="Dosis" placeholder="1 tableta" value={dose} onChangeText={setDose} maxLength={60} />
-            </View>
-            <View style={styles.flex}>
-              <FormField label="Frecuencia" placeholder="Cada 12 h" value={frequency} onChangeText={setFrequency} maxLength={60} />
-            </View>
+      <FormField
+        label={isExam ? 'Nombre del examen' : 'Título'}
+        placeholder={isExam ? 'Ej. Hemograma completo' : isMedication ? 'Ej. Losartán 50 mg' : 'Ej. Alergia a la penicilina'}
+        value={title}
+        onChangeText={setTitle}
+        maxLength={150}
+        error={fieldErrors.title}
+      />
+      {isMedication ? (
+        <View style={styles.row}>
+          <View style={styles.flex}>
+            <FormField label="Dosis" placeholder="1 tableta" value={dose} onChangeText={setDose} maxLength={60} />
           </View>
-        ) : null}
-        <FormField label="Detalles (opcional)" value={details} onChangeText={setDetails} multiline numberOfLines={3} />
-
-        <Text style={styles.label}>¿Qué tan seguro estás?</Text>
-        <SegmentedButtons
-          value={confidenceLevel}
-          onValueChange={(value) => setConfidence(value as ConfidenceLevel)}
-          buttons={[
-            { value: 'CONFIRMED', label: 'Confirmado', icon: 'check' },
-            { value: 'UNCERTAIN', label: 'Por confirmar', icon: 'help' },
-          ]}
+          <View style={styles.flex}>
+            <FormField label="Frecuencia" placeholder="Cada 12 h" value={frequency} onChangeText={setFrequency} maxLength={60} />
+          </View>
+        </View>
+      ) : null}
+      {isExam ? (
+        <DateField
+          label="Fecha del examen"
+          onChange={setExamDateParts}
+          error={submitted ? examDateError : undefined}
         />
+      ) : null}
+      <FormField label={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'} value={details} onChangeText={setDetails} multiline numberOfLines={3} />
 
-        <Button
-          mode="contained"
-          onPress={handleSave}
-          loading={saving}
-          disabled={saving || !title.trim()}
-          contentStyle={styles.buttonContent}
-          labelStyle={styles.buttonLabel}
-          style={styles.button}
-        >
-          Registrar
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {sourceAttachmentId ? null : (
+        <EntryAttachmentField photo={photo} onPhotoChange={setPhoto} voice={voice} disabled={saving} />
+      )}
+
+      <Text style={styles.label}>¿Qué tan seguro estás?</Text>
+      <SegmentedButtons
+        value={confidenceLevel}
+        onValueChange={(value) => setConfidence(value as ConfidenceLevel)}
+        buttons={[
+          { value: 'CONFIRMED', label: 'Confirmado', icon: 'check' },
+          { value: 'UNCERTAIN', label: 'Por confirmar', icon: 'help' },
+        ]}
+      />
+
+      <Button
+        mode="contained"
+        onPress={handleSave}
+        loading={saving}
+        disabled={saving || voice.isRecording || !title.trim()}
+        contentStyle={styles.buttonContent}
+        labelStyle={styles.buttonLabel}
+        style={styles.button}
+      >
+        Registrar
+      </Button>
+    </FormScroll>
   );
 }
 

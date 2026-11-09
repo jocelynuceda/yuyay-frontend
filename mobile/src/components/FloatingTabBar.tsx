@@ -106,7 +106,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                 <Ionicons
                   name={focused ? tab.icon : (`${tab.icon}-outline` as keyof typeof Ionicons.glyphMap)}
                   size={22}
-                  color={focused ? colors.accentText : colors.muted}
+                  color={focused ? colors.onTabPill : colors.muted}
                 />
                 {focused ? <Text style={styles.label}>{tab.label}</Text> : null}
               </Pressable>
@@ -159,9 +159,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     borderRadius: radius.pill,
-    backgroundColor: colors.soft,
+    backgroundColor: colors.tabPill,
   },
-  label: { fontFamily: fonts.semibold, fontSize: 13, color: colors.accentText },
+  label: { fontFamily: fonts.semibold, fontSize: 13, color: colors.onTabPill },
   add: {
     width: 52,
     height: 52,

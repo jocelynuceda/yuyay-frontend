@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { colors, fonts } from '../theme';
 
 const tones = {
-  primary: { bg: colors.soft, fg: colors.primary },
+  primary: { bg: colors.soft, fg: colors.softText },
   accent: { bg: colors.accentTint, fg: colors.accentText },
   soft: { bg: colors.soft, fg: colors.softText },
   ink: { bg: colors.ink, fg: colors.white },

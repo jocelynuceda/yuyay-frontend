@@ -19,7 +19,7 @@ export { ApiError, NoSessionError };
 
 const LEGACY_REFRESH_KEY = 'yuyay.refreshToken';
 const REFRESH_KEY = `${LEGACY_REFRESH_KEY}.${Array.from(API_URL, (char) => char.charCodeAt(0).toString(16)).join('-')}`;
-const secureStorage = {
+export const secureStorage = {
   get: (key: string) => Platform.OS === 'web'
     ? Promise.resolve(globalThis.localStorage?.getItem(key) ?? null) : SecureStore.getItemAsync(key),
   set: (key: string, value: string) => Platform.OS === 'web'

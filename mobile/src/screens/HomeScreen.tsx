@@ -10,10 +10,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CareSubjectCard } from '../components/CareSubjectCard';
 import { EmptyState } from '../components/EmptyState';
 import { LoadingView } from '../components/LoadingView';
+import { Isotipo } from '../components/Isotipo';
 import { Logo } from '../components/Logo';
 import { FadeIn, Floating, PressableScale } from '../components/Motion';
 import { Sparkle } from '../components/Sparkle';
-import { SparkleBuddy } from '../components/SparkleBuddy';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { useFetch } from '../hooks/useFetch';
@@ -28,7 +28,7 @@ import {
 import { ApiError } from '../services/http';
 import { colors, fonts, gradients, heroIsDark, radius, shadow } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
-import { careRoleLabel, initialsOf } from '../utils/format';
+import { appointmentOrder, careRoleLabel, formatTime, initialsOf, todayIso } from '../utils/format';
 
 const monthShort = new Intl.DateTimeFormat('es-PE', { month: 'short' });
 const weekdayLong = new Intl.DateTimeFormat('es-PE', { weekday: 'long' });
@@ -40,13 +40,14 @@ type Props = CompositeScreenProps<
 
 /** Próxima consulta (hoy o después) o, si no hay, la más reciente; con el nombre de la persona. */
 function pickAppointment(consultations: Consultation[], subjects: CareSubject[]) {
-  const today = new Date().toISOString().slice(0, 10);
-  const sorted = [...consultations].sort((a, b) => a.date.localeCompare(b.date));
+  const today = todayIso();
+  const sorted = [...consultations].sort((a, b) => appointmentOrder(a).localeCompare(appointmentOrder(b)));
   const upcoming = sorted.find((c) => c.date >= today);
   const chosen = upcoming ?? sorted[sorted.length - 1];
   if (!chosen) return null;
   const subject = subjects.find((s) => s.id === chosen.careSubjectId);
-  return { consultation: chosen, subjectName: subject?.name ?? '', isUpcoming: !!upcoming };
+  const upcomingCount = sorted.filter((c) => c.date >= today).length;
+  return { consultation: chosen, subjectName: subject?.name ?? '', isUpcoming: !!upcoming, upcomingCount };
 }
 
 function greeting() {
@@ -93,7 +94,7 @@ export function HomeScreen({ navigation }: Props) {
       >
         <View style={styles.topBar}>
           <View style={styles.flex}>
-            <Logo light={heroIsDark} />
+            <Logo light={heroIsDark} onHero />
           </View>
           <Pressable
             onPress={() => navigation.navigate('Notifications')}
@@ -121,7 +122,9 @@ export function HomeScreen({ navigation }: Props) {
             <Text style={styles.tagline}>Tu red de cuidado, siempre al día.</Text>
           </View>
           <Floating>
-            <SparkleBuddy size={96} />
+            <View style={styles.heroMark}>
+              <Isotipo size={96} color={colors.white} />
+            </View>
           </Floating>
         </View>
       </LinearGradient>
@@ -138,7 +141,7 @@ export function HomeScreen({ navigation }: Props) {
             accessibilityLabel={`${people.length} personas a tu cuidado`}
           >
             <View style={styles.tileStar} pointerEvents="none">
-              <Sparkle size={110} color={colors.soft} />
+              <Sparkle size={110} color={colors.peopleStar} />
             </View>
             <Text style={[styles.tileLabel, { color: colors.softText }]}>Personas</Text>
             <View>
@@ -163,13 +166,13 @@ export function HomeScreen({ navigation }: Props) {
           <FadeIn delay={160}>
             <PressableScale
               onPress={() => navigation.navigate('Notifications')}
-              style={[styles.tile, styles.tileShort, { backgroundColor: colors.primary }]}
+              style={[styles.tile, styles.tileShort, { backgroundColor: colors.noticeTile }]}
               accessibilityRole="button"
               accessibilityLabel={`${unread} avisos sin leer`}
             >
               <View style={styles.tileRow}>
-                <Text style={[styles.tileLabel, { color: colors.soft }]}>Avisos</Text>
-                <Ionicons name="notifications" size={18} color={colors.soft} />
+                <Text style={[styles.tileLabel, { color: colors.white }]}>Avisos</Text>
+                <Ionicons name="notifications" size={18} color={colors.white} />
               </View>
               <Text style={[styles.tileValueSmall, { color: colors.white }]}>{notifications.data ? unread : '–'}</Text>
             </PressableScale>
@@ -190,16 +193,10 @@ export function HomeScreen({ navigation }: Props) {
 
       <FadeIn delay={320}>
         <PressableScale
-          onPress={() =>
-            appointment &&
-            navigation.navigate('SubjectDetail', {
-              subjectId: appointment.consultation.careSubjectId,
-              name: appointment.subjectName,
-            })
-          }
-          disabled={!appointment}
+          onPress={() => navigation.navigate('UpcomingConsultations')}
           style={[styles.tile, styles.appointment]}
           accessibilityRole="button"
+          accessibilityLabel="Ver próximas citas"
         >
           <View style={styles.dateBlock}>
             {appointment ? (
@@ -215,18 +212,26 @@ export function HomeScreen({ navigation }: Props) {
           </View>
           <View style={styles.flex}>
             <Text style={[styles.tileLabel, { color: colors.muted }]}>
-              {appointment ? (appointment.isUpcoming ? 'Próxima cita' : 'Última consulta') : 'Próxima cita'}
+              {appointment
+                ? appointment.isUpcoming
+                  ? appointment.upcomingCount > 1
+                    ? `Próxima cita · ${appointment.upcomingCount} en total`
+                    : 'Próxima cita'
+                  : 'Última consulta'
+                : 'Próxima cita'}
             </Text>
             <Text style={styles.appointmentTitle} numberOfLines={1}>
               {appointment ? appointment.consultation.reason : 'Sin citas registradas'}
             </Text>
             <Text style={styles.appointmentMeta} numberOfLines={1}>
               {appointment
-                ? `${appointment.subjectName} · ${weekdayLong.format(new Date(`${appointment.consultation.date}T12:00:00`))}`
+                ? `${appointment.subjectName} · ${weekdayLong.format(new Date(`${appointment.consultation.date}T12:00:00`))}${
+                    appointment.consultation.time ? `, ${formatTime(appointment.consultation.time)}` : ''
+                  }`
                 : 'Anótalas en el perfil de cada uno'}
             </Text>
           </View>
-          {appointment ? <Ionicons name="chevron-forward" size={20} color={colors.ink} /> : null}
+          <Ionicons name="chevron-forward" size={20} color={colors.ink} />
         </PressableScale>
       </FadeIn>
 
@@ -293,6 +298,7 @@ export function HomeScreen({ navigation }: Props) {
             subjects.refresh();
             invitations.reload();
             notifications.reload();
+            consultations.reload();
           }}
           tintColor={colors.primary}
         />
@@ -414,6 +420,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 36,
   },
   greetRow: { flexDirection: 'row', alignItems: 'center' },
+  heroMark: { opacity: 0.5 },
   bento: { flexDirection: 'row', gap: 12, marginTop: 18 },
   bentoColumn: { gap: 12 },
   tile: { borderRadius: radius.lg, padding: 16, overflow: 'hidden', ...shadow, shadowOpacity: 0.06, elevation: 2 },
@@ -447,7 +454,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dateDay: { fontFamily: fonts.display, fontSize: 24, lineHeight: 28, color: colors.ink },
-  dateMonth: { fontFamily: fonts.semibold, fontSize: 12, color: colors.accentText, textTransform: 'capitalize' },
+  dateMonth: { fontFamily: fonts.semibold, fontSize: 12, color: colors.softText, textTransform: 'capitalize' },
   appointmentTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.ink, marginTop: 2 },
   appointmentMeta: {
     fontFamily: fonts.regular,

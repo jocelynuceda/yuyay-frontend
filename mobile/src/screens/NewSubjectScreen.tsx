@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { DateField, parseDateParts } from '../components/DateField';
 import { FormField } from '../components/FormField';
+import { FormScroll } from '../components/FormScroll';
 import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
 import { createCareSubject } from '../services/api';
@@ -50,77 +51,75 @@ export function NewSubjectScreen({ navigation }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        {/* Vista previa de la tarjeta que se va a crear */}
-        <View style={styles.preview}>
-          <View style={styles.previewTile}>
-            {name.trim() ? (
-              <Text style={styles.previewInitials}>{initialsOf(name)}</Text>
-            ) : (
-              <Sparkle size={34} color={colors.accent} />
-            )}
-          </View>
-          <View style={styles.flex}>
-            <Text style={styles.previewName} numberOfLines={1}>
-              {name.trim() || 'Nueva persona'}
-            </Text>
-            <Text style={styles.previewMeta}>{age !== null ? `${age} años` : 'Completa sus datos'}</Text>
-          </View>
+    <FormScroll contentContainerStyle={styles.container}>
+      {/* Vista previa de la tarjeta que se va a crear */}
+      <View style={styles.preview}>
+        <View style={styles.previewTile}>
+          {name.trim() ? (
+            <Text style={styles.previewInitials}>{initialsOf(name)}</Text>
+          ) : (
+            <Sparkle size={34} color={colors.accent} />
+          )}
         </View>
-
-        <StatusMessage message={error} />
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Datos básicos</Text>
-          <FormField
-            label="Nombre"
-            icon="account-outline"
-            value={name}
-            onChangeText={setName}
-            maxLength={120}
-            error={(submitted && !name.trim() ? 'Ingresa su nombre.' : undefined) ?? fieldErrors.name}
-          />
-          <DateField
-            label="Fecha de nacimiento (opcional)"
-            onChange={setDateParts}
-            error={(showDateError ? date.error : undefined) ?? fieldErrors.birthDate}
-          />
+        <View style={styles.flex}>
+          <Text style={styles.previewName} numberOfLines={1}>
+            {name.trim() || 'Nueva persona'}
+          </Text>
+          <Text style={styles.previewMeta}>{age !== null ? `${age} años` : 'Completa sus datos'}</Text>
         </View>
+      </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Notas (opcional)</Text>
-          <TextInput
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Algo que todos los cuidadores deban saber: cómo prefiere que le hablen, a quién llamar…"
-            placeholderTextColor={colors.placeholder}
-            multiline
-            maxLength={500}
-            style={styles.notes}
-          />
-          <Text style={styles.counter}>{notes.length}/500</Text>
-        </View>
+      <StatusMessage message={error} />
 
-        <View style={styles.info}>
-          <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
-          <Text style={styles.infoText}>Serás su cuidador principal y podrás invitar a otros cuidadores.</Text>
-        </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Datos básicos</Text>
+        <FormField
+          label="Nombre"
+          icon="account-outline"
+          value={name}
+          onChangeText={setName}
+          maxLength={120}
+          error={(submitted && !name.trim() ? 'Ingresa su nombre.' : undefined) ?? fieldErrors.name}
+        />
+        <DateField
+          label="Fecha de nacimiento (opcional)"
+          onChange={setDateParts}
+          error={(showDateError ? date.error : undefined) ?? fieldErrors.birthDate}
+        />
+      </View>
 
-        <Button
-          mode="contained"
-          icon="check"
-          onPress={handleSave}
-          loading={saving}
-          disabled={saving}
-          contentStyle={styles.buttonContent}
-          labelStyle={styles.buttonLabel}
-          style={styles.button}
-        >
-          Agregar persona
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Notas (opcional)</Text>
+        <TextInput
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Algo que todos los cuidadores deban saber: cómo prefiere que le hablen, a quién llamar…"
+          placeholderTextColor={colors.placeholder}
+          multiline
+          maxLength={500}
+          style={styles.notes}
+        />
+        <Text style={styles.counter}>{notes.length}/500</Text>
+      </View>
+
+      <View style={styles.info}>
+        <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
+        <Text style={styles.infoText}>Serás su cuidador principal y podrás invitar a otros cuidadores.</Text>
+      </View>
+
+      <Button
+        mode="contained"
+        icon="check"
+        onPress={handleSave}
+        loading={saving}
+        disabled={saving}
+        contentStyle={styles.buttonContent}
+        labelStyle={styles.buttonLabel}
+        style={styles.button}
+      >
+        Agregar persona
+      </Button>
+    </FormScroll>
   );
 }
 

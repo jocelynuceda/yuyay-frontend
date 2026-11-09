@@ -7,7 +7,7 @@ export function StatusMessage({ message, tone = 'error' }: { message?: string | 
   const isError = tone === 'error';
   return (
     <View style={[styles.box, isError ? styles.error : styles.info]} accessibilityRole="alert">
-      <Text style={[styles.text, { color: isError ? colors.danger : colors.primary }]}>{message}</Text>
+      <Text style={[styles.text, { color: isError ? colors.danger : colors.softText }]}>{message}</Text>
     </View>
   );
 }

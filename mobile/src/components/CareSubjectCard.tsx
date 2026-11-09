@@ -7,7 +7,7 @@ import { Sparkle } from './Sparkle';
 
 // Combinaciones de fondo y estrella tomadas de la paleta
 const cardTones = [
-  { bg: colors.soft, star: colors.primary },
+  { bg: colors.peopleStar, star: colors.primary },
   { bg: colors.accent, star: colors.white },
   { bg: colors.primary, star: colors.accent },
   { bg: colors.cream, star: colors.accent },

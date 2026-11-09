@@ -1,20 +1,22 @@
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { AuthLayout } from '../components/AuthLayout';
-import { FormField } from '../components/FormField';
+import { FormField, passwordInputProps } from '../components/FormField';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../services/http';
 import { colors, fonts, radius } from '../theme';
-import type { AuthStackParamList } from '../types';
+import type { AuthStackParamList, RootStackParamList } from '../types';
 import { isEmail } from '../utils/format';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export function LoginScreen({ navigation }: Props) {
   const { login } = useAuth();
+  const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -48,12 +50,20 @@ export function LoginScreen({ navigation }: Props) {
       title="Hola de nuevo"
       subtitle="Tu familia y tus cuidados, en un solo lugar."
       footer={
-        <Text style={styles.footer}>
-          ¿Primera vez aquí?{' '}
-          <Text style={styles.link} onPress={() => navigation.navigate('Welcome')}>
-            Conoce Yuyay
+        <>
+          <Text style={styles.footer}>
+            ¿Primera vez aquí?{' '}
+            <Text style={styles.link} onPress={() => navigation.navigate('Welcome')}>
+              Conoce Yuyay
+            </Text>
           </Text>
-        </Text>
+          <Text style={[styles.footer, styles.codeLink]}>
+            ¿Te compartieron información?{' '}
+            <Text style={styles.link} onPress={() => rootNavigation.navigate('Delegate')}>
+              Tengo un código
+            </Text>
+          </Text>
+        </>
       }
     >
       <StatusMessage message={error} />
@@ -64,7 +74,10 @@ export function LoginScreen({ navigation }: Props) {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
-        autoComplete="email"
+        autoComplete="off"
+        textContentType="none"
+        autoCorrect={false}
+        spellCheck={false}
         error={emailError}
       />
       <FormField
@@ -73,7 +86,7 @@ export function LoginScreen({ navigation }: Props) {
         value={password}
         onChangeText={setPassword}
         secureTextEntry={!showPassword}
-        autoComplete="current-password"
+        {...passwordInputProps}
         error={passwordError}
         right={
           <TextInput.Icon
@@ -84,6 +97,13 @@ export function LoginScreen({ navigation }: Props) {
         }
         onSubmitEditing={handleSubmit}
       />
+      <Text
+        style={[styles.link, styles.forgot]}
+        onPress={() => navigation.navigate('ForgotPassword')}
+        accessibilityRole="link"
+      >
+        ¿Olvidaste tu contraseña?
+      </Text>
       <Button
         mode="contained"
         onPress={handleSubmit}
@@ -103,6 +123,8 @@ export function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   footer: { fontFamily: fonts.regular, color: colors.muted, fontSize: 14 },
   link: { fontFamily: fonts.semibold, color: colors.primary },
+  codeLink: { marginTop: 10 },
+  forgot: { alignSelf: 'flex-end', fontSize: 14, paddingVertical: 4 },
   button: { marginTop: 12, borderRadius: radius.pill },
   buttonContent: { height: 52, flexDirection: 'row-reverse' },
   buttonLabel: { fontFamily: fonts.semibold, fontSize: 16 },

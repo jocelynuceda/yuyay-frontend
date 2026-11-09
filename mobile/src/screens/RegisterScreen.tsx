@@ -4,26 +4,16 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { AuthLayout } from '../components/AuthLayout';
-import { FormField } from '../components/FormField';
+import { FormField, passwordInputProps } from '../components/FormField';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../services/http';
 import { colors, fonts, radius } from '../theme';
 import type { AuthStackParamList } from '../types';
 import { isEmail } from '../utils/format';
-import { utf8Bytes } from '../utils/password';
+import { passwordChecks, utf8Bytes } from '../utils/password';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
-
-/** Mismas reglas que el backend: Al menos 8 caracteres, hasta 72 bytes UTF-8, una letra y un número. */
-function passwordChecks(password: string) {
-  return [
-    { ok: password.length >= 8, label: '8 caracteres' },
-    { ok: utf8Bytes(password) <= 72, label: 'Longitud admitida' },
-    { ok: /[A-Za-z]/.test(password), label: 'Una letra' },
-    { ok: /\d/.test(password), label: 'Un número' },
-  ];
-}
 
 export function RegisterScreen({ navigation }: Props) {
   const { register } = useAuth();
@@ -84,7 +74,8 @@ export function RegisterScreen({ navigation }: Props) {
         value={name}
         onChangeText={setName}
         maxLength={120}
-        autoComplete="name"
+        autoComplete="off"
+        textContentType="none"
         error={(submitted && !name.trim() ? 'Ingresa tu nombre.' : undefined) ?? fieldErrors.name}
       />
       <FormField
@@ -94,7 +85,10 @@ export function RegisterScreen({ navigation }: Props) {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
-        autoComplete="email"
+        autoComplete="off"
+        textContentType="none"
+        autoCorrect={false}
+        spellCheck={false}
         maxLength={150}
         error={(submitted && !isEmail(email) ? 'Ingresa un correo válido.' : undefined) ?? fieldErrors.email}
       />
@@ -104,7 +98,7 @@ export function RegisterScreen({ navigation }: Props) {
         value={password}
         onChangeText={setPassword}
         secureTextEntry={!showPassword}
-        autoComplete="new-password"
+        {...passwordInputProps}
         maxLength={72}
         error={utf8Bytes(password) > 72 ? 'La contraseña es demasiado larga. Usa menos caracteres o símbolos.' : fieldErrors.password}
         right={
@@ -133,7 +127,7 @@ export function RegisterScreen({ navigation }: Props) {
         value={confirm}
         onChangeText={setConfirm}
         secureTextEntry={!showPassword}
-        autoComplete="new-password"
+        {...passwordInputProps}
         error={mismatch ? 'Las contraseñas no coinciden.' : undefined}
         onSubmitEditing={handleSubmit}
       />

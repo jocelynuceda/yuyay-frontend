@@ -83,16 +83,20 @@ export function PillAction({
   label,
   icon = 'arrow-forward',
   onPress,
+  onDragChange,
 }: {
   label: string;
   icon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
+  /** Avisa mientras se arrastra, para que un contenedor deslizable no le quite el gesto. */
+  onDragChange?: (dragging: boolean) => void;
 }) {
   const [x] = useState(() => new Animated.Value(0));
   const max = useRef(0);
   const startX = useRef(0);
 
   function finish(dx: number) {
+    onDragChange?.(false);
     if (dx >= max.current * 0.8) {
       Animated.timing(x, { toValue: max.current, duration: 120, useNativeDriver: false }).start(() => {
         onPress();
@@ -138,12 +142,14 @@ export function PillAction({
           onResponderTerminationRequest={() => false}
           onResponderGrant={(e) => {
             startX.current = e.nativeEvent.pageX;
+            onDragChange?.(true);
           }}
           onResponderMove={(e) => {
             const dx = e.nativeEvent.pageX - startX.current;
             x.setValue(Math.min(Math.max(dx, 0), max.current));
           }}
           onResponderRelease={(e) => finish(e.nativeEvent.pageX - startX.current)}
+          onResponderTerminate={() => finish(0)}
         >
           <Ionicons name={icon} size={22} color={colors.ink} />
         </Animated.View>
@@ -177,7 +183,7 @@ const styles = StyleSheet.create({
     marginTop: -52,
     marginLeft: 12,
   },
-  initials: { fontFamily: fonts.display, fontSize: 32, color: colors.primary },
+  initials: { fontFamily: fonts.display, fontSize: 32, color: colors.softText },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingHorizontal: 6 },
   name: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, color: colors.ink },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, marginTop: 2 },

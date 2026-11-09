@@ -1,16 +1,19 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, SegmentedButtons } from 'react-native-paper';
-import { Badge } from '../components/Badge';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SegmentedButtons } from 'react-native-paper';
+import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
+import { FormScroll } from '../components/FormScroll';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
-import { getHealthEntry, updateHealthEntry } from '../services/api';
+import { deleteHealthEntry, getHealthEntry, updateHealthEntry } from '../services/api';
 import { ApiError } from '../services/http';
 import { colors, fonts } from '../theme';
 import type { ConfidenceLevel, HealthEntry, HomeStackParamList } from '../types';
+import { confirmAction } from '../utils/confirm';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'EditEntry'>;
 
@@ -20,35 +23,30 @@ export function EditEntryScreen({ route, navigation }: Props) {
 
   if (entry.loading && !entry.data) return <LoadingView />;
   if (!entry.data) return <StatusMessage message={entry.error ?? 'No encontramos este registro.'} />;
-  if (entry.data.deletedAt) return <StatusMessage message="Este registro fue eliminado y ya no se puede editar." />;
 
-  return <EditEntryForm entry={entry.data} subjectId={subjectId} onSaved={() => navigation.goBack()} />;
+  return <EntryForm entry={entry.data} subjectId={subjectId} onDone={() => navigation.goBack()} />;
 }
 
-/** Mismos campos que "Nuevo registro"; la categoría no se puede cambiar. */
-function EditEntryForm({ entry, subjectId, onSaved }: { entry: HealthEntry; subjectId: number; onSaved: () => void }) {
+/** El formulario arranca con la última versión del registro. */
+function EntryForm({ entry, subjectId, onDone }: { entry: HealthEntry; subjectId: number; onDone: () => void }) {
   const v = entry.latestVersion;
   const [title, setTitle] = useState(v.title);
   const [dose, setDose] = useState(v.dose ?? '');
   const [frequency, setFrequency] = useState(v.frequency ?? '');
   const [details, setDetails] = useState(v.details ?? '');
+  const [notes, setNotes] = useState(v.notes ?? '');
   const [confidenceLevel, setConfidence] = useState<ConfidenceLevel>(v.confidenceLevel);
+  const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
 
   // El backend solo acepta dosis y frecuencia en medicación
   const isMedication = entry.categoryCode === 'MEDICATION';
-  const unchanged =
-    title.trim() === v.title &&
-    details.trim() === (v.details ?? '') &&
-    (!isMedication || (dose.trim() === (v.dose ?? '') && frequency.trim() === (v.frequency ?? ''))) &&
-    confidenceLevel === v.confidenceLevel;
 
   async function handleSave() {
+    setSubmitted(true);
     if (!title.trim()) return;
-    // Cada PATCH crea una versión nueva: si nada cambió, no se envía
-    if (unchanged) return onSaved();
     setSaving(true);
     setError(null);
     try {
@@ -57,12 +55,11 @@ function EditEntryForm({ entry, subjectId, onSaved }: { entry: HealthEntry; subj
         details: details.trim(),
         dose: isMedication ? dose.trim() : '',
         frequency: isMedication ? frequency.trim() : '',
+        occurredOn: v.occurredOn,
+        notes: notes.trim(),
         confidenceLevel,
-        // El PATCH reemplaza la versión completa: se conservan los campos que esta pantalla no muestra
-        occurredOn: v.occurredOn ?? '',
-        notes: v.notes ?? '',
       });
-      onSaved();
+      onDone();
     } catch (e) {
       if (e instanceof ApiError) {
         setError(e.message);
@@ -75,32 +72,39 @@ function EditEntryForm({ entry, subjectId, onSaved }: { entry: HealthEntry; subj
     }
   }
 
+  async function handleDelete() {
+    const ok = await confirmAction('Borrar registro', `"${v.title}" dejará de aparecer en el perfil.`, 'Borrar');
+    if (!ok) return;
+    setError(null);
+    try {
+      await deleteHealthEntry(subjectId, entry.id);
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No pudimos borrar el registro.');
+    }
+  }
+
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.intro}>Se guardará como una versión nueva y los demás cuidadores recibirán un aviso.</Text>
-        <StatusMessage message={error} />
+    <FormScroll contentContainerStyle={formStyles.container}>
+      <Text style={styles.intro}>Se guarda como una versión nueva y los demás cuidadores reciben un aviso.</Text>
+      <StatusMessage message={error} />
 
-        <Text style={styles.label}>Categoría</Text>
-        <Badge label={entry.categoryName} tone="soft" />
-
+      <FormCard title={entry.categoryName}>
         <FormField
           label="Título"
           value={title}
           onChangeText={setTitle}
           maxLength={150}
-          error={(!title.trim() ? 'Ingresa un título.' : undefined) ?? fieldErrors.title}
-          style={styles.spaced}
+          error={(submitted && !title.trim() ? 'Ingresa un título.' : undefined) ?? fieldErrors.title}
         />
         {isMedication ? (
           <View style={styles.row}>
-            <View style={styles.flex}>
-              <FormField label="Dosis" placeholder="1 tableta" value={dose} onChangeText={setDose} maxLength={60} error={fieldErrors.dose} />
+            <View style={formStyles.flex}>
+              <FormField label="Dosis" value={dose} onChangeText={setDose} maxLength={60} error={fieldErrors.dose} />
             </View>
-            <View style={styles.flex}>
+            <View style={formStyles.flex}>
               <FormField
                 label="Frecuencia"
-                placeholder="Cada 12 h"
                 value={frequency}
                 onChangeText={setFrequency}
                 maxLength={60}
@@ -109,9 +113,17 @@ function EditEntryForm({ entry, subjectId, onSaved }: { entry: HealthEntry; subj
             </View>
           </View>
         ) : null}
-        <FormField label="Detalles (opcional)" value={details} onChangeText={setDetails} multiline numberOfLines={3} />
+      </FormCard>
 
-        <Text style={styles.label}>¿Qué tan seguro estás?</Text>
+      <FormCard title="Detalles (opcional)">
+        <TextArea value={details} onChangeText={setDetails} placeholder="Lo que conviene saber" maxLength={2000} />
+      </FormCard>
+
+      <FormCard title="Notas (opcional)">
+        <TextArea value={notes} onChangeText={setNotes} placeholder="Por qué cambió, quién lo indicó…" />
+      </FormCard>
+
+      <FormCard title="¿Qué tan seguro estás?">
         <SegmentedButtons
           value={confidenceLevel}
           onValueChange={(value) => setConfidence(value as ConfidenceLevel)}
@@ -120,31 +132,21 @@ function EditEntryForm({ entry, subjectId, onSaved }: { entry: HealthEntry; subj
             { value: 'UNCERTAIN', label: 'Por confirmar', icon: 'help' },
           ]}
         />
+      </FormCard>
 
-        <Button
-          mode="contained"
-          onPress={handleSave}
-          loading={saving}
-          disabled={saving || !title.trim()}
-          contentStyle={styles.buttonContent}
-          labelStyle={styles.buttonLabel}
-          style={styles.button}
-        >
-          Guardar cambios
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <SubmitButton label="Guardar cambios" onPress={handleSave} loading={saving} />
+
+      <Pressable onPress={handleDelete} style={styles.delete} accessibilityRole="button">
+        <Ionicons name="trash-outline" size={18} color={colors.danger} />
+        <Text style={styles.deleteText}>Borrar registro</Text>
+      </Pressable>
+    </FormScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { padding: 20, gap: 6, paddingBottom: 40 },
-  intro: { fontFamily: fonts.regular, color: colors.muted, fontSize: 14, marginBottom: 8 },
-  label: { fontFamily: fonts.semibold, color: colors.ink, fontSize: 14, marginTop: 10, marginBottom: 6 },
-  spaced: { marginTop: 12 },
+  intro: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.muted },
   row: { flexDirection: 'row', gap: 10 },
-  button: { marginTop: 20 },
-  buttonContent: { height: 50 },
-  buttonLabel: { fontFamily: fonts.semibold, fontSize: 16 },
+  delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
+  deleteText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },
 });

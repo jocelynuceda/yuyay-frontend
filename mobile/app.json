@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#EEF6F7",
+    "backgroundColor": "#F0FAFC",
     "ios": {
       "supportsTablet": true
     },
@@ -29,9 +29,20 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Permite a Yuyay seleccionar imágenes para los documentos de la persona que cuidas.",
-          "cameraPermission": "Permite a Yuyay fotografiar recetas y documentos de la persona que cuidas.",
-          "microphonePermission": false
+          "cameraPermission": "Yuyay usa la cámara para fotografiar recetas y documentos médicos.",
+          "photosPermission": "Yuyay usa tus fotos para subir recetas y documentos médicos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Yuyay usa tu ubicación para mostrarte clínicas y hospitales cercanos."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Yuyay usa el micrófono para grabar notas de voz sobre la persona a tu cuidado."
         }
       ]
     ]

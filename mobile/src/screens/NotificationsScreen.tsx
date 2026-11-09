@@ -12,7 +12,7 @@ import type { Notification, NotificationType } from '../types';
 import { timeAgo } from '../utils/format';
 
 const typeStyle: Record<NotificationType, { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string }> = {
-  ENTRY_CHANGED: { icon: 'create-outline', bg: colors.soft, fg: colors.primary },
+  ENTRY_CHANGED: { icon: 'create-outline', bg: colors.soft, fg: colors.softText },
   INVITATION: { icon: 'people-outline', bg: colors.soft, fg: colors.softText },
   DELEGATION: { icon: 'link-outline', bg: colors.accentTint, fg: colors.accentText },
 };

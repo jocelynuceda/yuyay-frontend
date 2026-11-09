@@ -1,6 +1,18 @@
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { HelperText, TextInput, type TextInputProps } from 'react-native-paper';
 import { colors, fonts, radius } from '../theme';
+
+/**
+ * En iOS, «none» no evita que el sistema proponga una contraseña segura y pinte el campo de amarillo.
+ * «oneTimeCode» es lo que desactiva esa sugerencia.
+ */
+export const passwordInputProps = {
+  autoCapitalize: 'none',
+  autoComplete: 'off',
+  textContentType: Platform.OS === 'ios' ? 'oneTimeCode' : 'none',
+  autoCorrect: false,
+  spellCheck: false,
+} as const;
 
 interface FormFieldProps extends Omit<TextInputProps, 'error'> {
   error?: string;
