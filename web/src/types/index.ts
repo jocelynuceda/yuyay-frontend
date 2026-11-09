@@ -7,7 +7,7 @@ export type ConfidenceLevel = 'CONFIRMED' | 'UNCERTAIN'
 export type ChangeType = 'CREATED' | 'UPDATED' | 'DELETED'
 export type AccessAction = 'VIEW' | 'CREATE' | 'UPDATE' | 'DELETE' | 'OPEN_HANDOFF_LINK' | 'EXCHANGE_DELEGATION'
 
-export const CATEGORY_CODES = ['ALLERGY', 'CONDITION', 'MEDICATION', 'IMMUNIZATION', 'EPISODE'] as const
+export const CATEGORY_CODES = ['ALLERGY', 'CONDITION', 'MEDICATION', 'IMMUNIZATION', 'EPISODE', 'EXAM_RESULT'] as const
 export type CategoryCode = (typeof CATEGORY_CODES)[number]
 export const MEDICATION: CategoryCode = 'MEDICATION'
 
@@ -126,6 +126,8 @@ export interface Consultation {
   careSubjectId: number
   createdByUserId: number
   date: string
+  /** Hora opcional, 'HH:mm:ss'. */
+  time: string | null
   reason: string
   notes: string | null
   createdAt: string
@@ -137,8 +139,18 @@ export interface ConsultationDetail extends Consultation {
 
 export interface ConsultationRequest {
   date: string
+  time: string | null
   reason: string
   notes: string | null
+}
+
+/** En PATCH lo ausente no cambia: para quitar la hora se envía clearTime y para vaciar las notas, ''. */
+export interface ConsultationUpdate {
+  date: string
+  time?: string
+  clearTime: boolean
+  reason: string
+  notes: string
 }
 
 // ---- Cuidadores ----
@@ -172,6 +184,7 @@ export interface Delegation {
   granteeName: string
   granteeEmail: string
   categoryCodes: CategoryCode[]
+  includeConsultations: boolean
   validUntil: string
   exchangedAt: string | null
   revokedAt: string | null
@@ -183,6 +196,7 @@ export interface DelegationRequest {
   granteeName: string
   granteeEmail: string
   categoryCodes: CategoryCode[]
+  includeConsultations: boolean
   validUntil: string // Instant futuro
 }
 
@@ -200,6 +214,8 @@ export interface DelegateSession {
   careSubjectName: string
   granteeName: string
   categoryCodes: CategoryCode[]
+  /** Falta en las sesiones guardadas antes de que existiera esta opción. */
+  includeConsultations?: boolean
 }
 
 export interface DelegateMe {
@@ -208,8 +224,12 @@ export interface DelegateMe {
   careSubjectName: string
   granteeName: string
   categoryCodes: CategoryCode[]
+  includeConsultations: boolean
   validUntil: string
 }
+
+/** Sin las notas: pueden mencionar información que no se compartió. */
+export type DelegateConsultation = Pick<Consultation, 'id' | 'date' | 'time' | 'reason'>
 
 // ---- Traspasos ----
 

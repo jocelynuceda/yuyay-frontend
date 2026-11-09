@@ -1,5 +1,11 @@
 import { api } from '../http'
-import type { Consultation, ConsultationDetail, ConsultationRequest, HealthEntryVersion } from '../../types'
+import type {
+  Consultation,
+  ConsultationDetail,
+  ConsultationRequest,
+  ConsultationUpdate,
+  HealthEntryVersion,
+} from '../../types'
 
 const base = (careSubjectId: number) => `/care-subjects/${careSubjectId}/consultations`
 
@@ -19,7 +25,7 @@ export async function createConsultation(careSubjectId: number, request: Consult
   return data
 }
 
-export async function updateConsultation(consultationId: number, request: Partial<ConsultationRequest>) {
+export async function updateConsultation(consultationId: number, request: ConsultationUpdate) {
   const { data } = await api.patch<ConsultationDetail>(`/consultations/${consultationId}`, request)
   return data
 }
