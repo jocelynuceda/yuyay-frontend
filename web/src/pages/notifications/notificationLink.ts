@@ -12,8 +12,8 @@ export interface NotificationLink {
 }
 
 /**
- * Decide el enlace de un aviso. Una invitación pendiente no da acceso a /personas/{id} (403),
- * así que se enlaza a la invitación; si aún no se sabe si está pendiente, no se enlaza a la persona.
+ * Los avisos de invitación solo enlazan a una relación pendiente. La ausencia de esa relación
+ * no confirma que el usuario tenga acceso a la persona.
  * Un aviso CAREGIVER_JOINED (un cuidador invitado aceptó) lleva a la pestaña de cuidadores de la persona.
  */
 export function getNotificationLink(
@@ -24,7 +24,7 @@ export function getNotificationLink(
   if (careSubjectId === null) return null
   const relationshipId = pending.bySubject.get(careSubjectId)
   if (relationshipId !== undefined) return { to: `/invitaciones/${relationshipId}`, label: 'Ver invitación' }
-  if (notification.type === 'INVITATION' && pending.status !== 'ready') return null
+  if (notification.type === 'INVITATION') return null
   if (notification.type === 'CAREGIVER_JOINED') {
     return { to: `/personas/${careSubjectId}?tab=cuidadores`, label: 'Ver cuidadores' }
   }
