@@ -1,6 +1,7 @@
 import { api, bearer, publicApi } from '../http'
 import type {
   CategoryCode,
+  DelegateConsultation,
   DelegateMe,
   DelegateSession,
   Delegation,
@@ -34,6 +35,12 @@ export async function exchangeDelegationToken(token: string) {
 
 export async function getDelegateMe(accessToken: string) {
   const { data } = await publicApi.get<DelegateMe>('/delegate/me', bearer(accessToken))
+  return data
+}
+
+/** Citas compartidas, sin notas. El backend responde 403 si la delegación no las incluye. */
+export async function listDelegateConsultations(accessToken: string) {
+  const { data } = await publicApi.get<DelegateConsultation[]>('/delegate/consultations', bearer(accessToken))
   return data
 }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { deleteConsultation, listChangesSinceConsultation, listConsultations } from '../../services/api/consultations'
 import type { Consultation, HealthEntryVersion } from '../../types'
-import { formatDate, formatDateTime } from '../../utils/format'
+import { consultationOrder, formatDate, formatDateTime, formatTime } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { changeTypeLabels } from '../../utils/versions'
 import { todayIso } from '../../schemas/common'
@@ -21,8 +21,8 @@ interface ConsultationsData {
 async function loadConsultations(subjectId: number): Promise<ConsultationsData> {
   const all = await listConsultations(subjectId)
   const today = todayIso()
-  const upcoming = all.filter((c) => c.date >= today).sort((a, b) => a.date.localeCompare(b.date))
-  const past = all.filter((c) => c.date < today).sort((a, b) => b.date.localeCompare(a.date))
+  const upcoming = all.filter((c) => c.date >= today).sort((a, b) => consultationOrder(a).localeCompare(consultationOrder(b)))
+  const past = all.filter((c) => c.date < today).sort((a, b) => consultationOrder(b).localeCompare(consultationOrder(a)))
   const lastPast = past[0] ?? null
   // Sin consultas pasadas no hay desde dónde comparar (el backend respondería 404)
   const changes = lastPast ? await listChangesSinceConsultation(subjectId, lastPast.id) : []
@@ -31,11 +31,12 @@ async function loadConsultations(subjectId: number): Promise<ConsultationsData> 
 
 /**
  * Pestaña "Consultas" del detalle de persona: próximas y pasadas, y lo que cambió desde la última.
- * Solo el principal puede registrar y borrar consultas.
+ * Solo el principal puede registrar, editar y borrar consultas.
  */
 export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: number; isPrincipal: boolean }) {
   const { state, reload } = useLoad(() => loadConsultations(subjectId), subjectId)
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<Consultation | null>(null)
   const [removing, setRemoving] = useState<Consultation | null>(null)
   const { notify, anchorProps } = useSuccessNotice()
 
@@ -49,25 +50,52 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
   }
 
   const { upcoming, past, lastPast, changes } = state.data
-  const item = (c: Consultation, isUpcoming: boolean) => (
+  const item = (c: Consultation, isUpcoming: boolean) => editing?.id === c.id ? (
+    <li key={c.id}>
+      <ConsultationForm
+        subjectId={subjectId}
+        consultation={c}
+        onCancel={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null)
+          notify('Consulta actualizada.')
+          reload()
+        }}
+      />
+    </li>
+  ) : (
     <li key={c.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-card p-4">
       <div className="min-w-0">
         <p className={`text-sm font-semibold ${isUpcoming ? 'text-primary' : 'text-muted'}`}>
           <time dateTime={c.date}>{formatDate(c.date)}</time>
+          {c.time ? ` · ${formatTime(c.time)}` : ''}
           {c.date === todayIso() ? ' · Hoy' : ''}
         </p>
         <p className="font-semibold">{c.reason}</p>
         {c.notes ? <p className="mt-1 whitespace-pre-line text-sm text-muted">{c.notes}</p> : null}
       </div>
       {isPrincipal ? (
-        <button
-          type="button"
-          onClick={() => setRemoving(c)}
-          aria-label={`Borrar la consulta "${c.reason}" del ${formatDate(c.date)}`}
-          className={`rounded-xl border border-line px-3 py-1.5 text-sm font-semibold text-danger hover:bg-danger-bg ${focusRing}`}
-        >
-          Borrar
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setAdding(false)
+              setEditing(c)
+            }}
+            aria-label={`Editar la consulta "${c.reason}" del ${formatDate(c.date)}`}
+            className={`rounded-xl border border-line px-3 py-1.5 text-sm font-semibold ${focusRing}`}
+          >
+            Editar
+          </button>
+          <button
+            type="button"
+            onClick={() => setRemoving(c)}
+            aria-label={`Borrar la consulta "${c.reason}" del ${formatDate(c.date)}`}
+            className={`rounded-xl border border-line px-3 py-1.5 text-sm font-semibold text-danger hover:bg-danger-bg ${focusRing}`}
+          >
+            Borrar
+          </button>
+        </div>
       ) : null}
     </li>
   )
@@ -82,6 +110,7 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
           <button
             type="button"
             onClick={() => {
+              setEditing(null)
               setAdding(true)
             }}
             className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
