@@ -23,6 +23,7 @@ import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { DelegateSession, RootStackParamList } from '../types';
 import { categoryMeta } from '../utils/categories';
 import { confirmAction } from '../utils/confirm';
+import type { DelegateOwner } from '../utils/delegateStore';
 import { formatDate, formatTime } from '../utils/format';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Delegate'>;
@@ -30,22 +31,37 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Delegate'>;
 /** Acceso sin cuenta: pide el código (o llega con él en el enlace) y muestra lo que se compartió. */
 export function DelegateScreen({ route }: Props) {
   const token = route.params?.token;
-  const [session, setSession] = useState<DelegateSession | null | undefined>(undefined);
+  const { status, user } = useAuth();
+  const owner: DelegateOwner = status === 'authenticated' && user ? user.id : null;
+  // El acceso cargado se asocia a su dueño y enlace: si cambian, se muestra la carga hasta leer el que corresponde
+  const [loaded, setLoaded] = useState<{ owner: DelegateOwner; token?: string; session: DelegateSession | null }>();
+  const session = loaded && loaded.owner === owner && loaded.token === token ? loaded.session : undefined;
+  const setSession = (next: DelegateSession | null) => setLoaded({ owner, token, session: next });
 
   useEffect(() => {
     // Un enlace distinto al ya abierto es otro acceso: se muestra el formulario para canjearlo
-    loadDelegateSession()
-      .then((saved) => setSession(saved && (!token || saved.sourceToken === token) ? saved : null))
-      .catch(() => setSession(null));
-  }, [token]);
+    loadDelegateSession(owner)
+      .then((saved) =>
+        setLoaded({ owner, token, session: saved && (!token || saved.sourceToken === token) ? saved : null }),
+      )
+      .catch(() => setLoaded({ owner, token, session: null }));
+  }, [token, owner]);
 
   if (session === undefined) return <LoadingView />;
-  if (!session) return <AccessForm initialCode={token ?? ''} onOpen={setSession} />;
-  return <SharedInfo session={session} onExit={() => setSession(null)} />;
+  if (!session) return <AccessForm initialCode={token ?? ''} owner={owner} onOpen={setSession} />;
+  return <SharedInfo session={session} owner={owner} onExit={() => setSession(null)} />;
 }
 
 /** Abrir el acceso es un botón y no algo automático: el enlace solo se puede usar una vez. */
-function AccessForm({ initialCode, onOpen }: { initialCode: string; onOpen: (session: DelegateSession) => void }) {
+function AccessForm({
+  initialCode,
+  owner,
+  onOpen,
+}: {
+  initialCode: string;
+  owner: DelegateOwner;
+  onOpen: (session: DelegateSession) => void;
+}) {
   const styles = useStyles();
   const [code, setCode] = useState(initialCode);
   const [submitted, setSubmitted] = useState(false);
@@ -61,7 +77,7 @@ function AccessForm({ initialCode, onOpen }: { initialCode: string; onOpen: (ses
     setOpening(true);
     setError(null);
     try {
-      onOpen(await openDelegation(parsed));
+      onOpen(await openDelegation(parsed, owner));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No pudimos abrir el acceso.');
       setOpening(false);
@@ -94,7 +110,15 @@ function AccessForm({ initialCode, onOpen }: { initialCode: string; onOpen: (ses
   );
 }
 
-function SharedInfo({ session, onExit }: { session: DelegateSession; onExit: () => void }) {
+function SharedInfo({
+  session,
+  owner,
+  onExit,
+}: {
+  session: DelegateSession;
+  owner: DelegateOwner;
+  onExit: () => void;
+}) {
   const styles = useStyles();
   const { colors } = useTheme();
   const entries = useFetch(() => getDelegateEntries(session), [session.accessToken]);
@@ -118,7 +142,7 @@ function SharedInfo({ session, onExit }: { session: DelegateSession; onExit: () 
       'Salir',
     );
     if (!ok) return;
-    await clearDelegateSession();
+    await clearDelegateSession(owner);
     onExit();
   }
 
