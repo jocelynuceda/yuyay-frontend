@@ -8,15 +8,17 @@ import type {
   HandoffSessionCreated,
   HandoffSessionRequest,
   OpenHandoffRequest,
+  Page,
+  PageParams,
 } from '../../types'
 
-export async function listHandoffs(careSubjectId: number) {
-  const { data } = await api.get<Handoff[]>(`/care-subjects/${careSubjectId}/handoffs`)
+export async function listHandoffs(careSubjectId: number, params: PageParams = {}, signal?: AbortSignal) {
+  const { data } = await api.get<Handoff[] | Page<Handoff>>(`/care-subjects/${careSubjectId}/handoffs`, { params, signal })
   return data
 }
 
-export async function getHandoff(handoffId: number) {
-  const { data } = await api.get<HandoffDetail>(`/handoffs/${handoffId}`)
+export async function getHandoff(handoffId: number, signal?: AbortSignal) {
+  const { data } = await api.get<HandoffDetail>(`/handoffs/${handoffId}`, { signal })
   return data
 }
 
