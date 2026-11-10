@@ -17,24 +17,26 @@ import { ApiError } from '../services/http';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { ConfidenceLevel, HomeStackParamList } from '../types';
 import { EXAM_CATEGORY } from '../utils/categories';
+import { initialEntryFields } from '../utils/ocrEntryDraft';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewEntry'>;
 
 export function NewEntryScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { subjectId, categoryCode: initialCategory, details: initialDetails, sourceAttachmentId, returnToSource } = route.params;
+  const { subjectId, sourceAttachmentId, returnToSource, ocrDraft } = route.params;
+  const initial = initialEntryFields(route.params);
   const categories = useFetch(getHealthCategories);
-  const [categoryCode, setCategoryCode] = useState(initialCategory ?? 'MEDICATION');
-  const [title, setTitle] = useState('');
+  const [categoryCode, setCategoryCode] = useState(initial.categoryCode);
+  const [title, setTitle] = useState(initial.title);
   const [dose, setDose] = useState('');
   const [frequency, setFrequency] = useState('');
-  const [details, setDetails] = useState(initialDetails ?? '');
-  const [confidenceLevel, setConfidence] = useState<ConfidenceLevel>('CONFIRMED');
+  const [details, setDetails] = useState(initial.details);
+  const [confidenceLevel, setConfidence] = useState<ConfidenceLevel>(initial.confidenceLevel);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [examDateParts, setExamDateParts] = useState({ day: '', month: '', year: '' });
+  const [dateParts, setDateParts] = useState(initial.dateParts);
   const [submitted, setSubmitted] = useState(false);
   const [photo, setPhoto] = useState<ImagePickerAsset | null>(null);
   const voice = useVoiceRecorder();
@@ -44,8 +46,11 @@ export function NewEntryScreen({ route, navigation }: Props) {
   // El backend solo acepta dosis y frecuencia en medicación
   const isMedication = categoryCode === 'MEDICATION';
   const isExam = categoryCode === EXAM_CATEGORY;
-  const examDate = parseDateParts(examDateParts);
-  const examDateError = isExam ? (examDate.error ?? (examDate.iso ? undefined : 'Ingresa la fecha del examen.')) : undefined;
+  const showDate = isExam || !!ocrDraft;
+  const date = parseDateParts(dateParts);
+  const dateError = showDate
+    ? (date.error ?? (isExam && !date.iso ? 'Ingresa la fecha del examen.' : undefined))
+    : undefined;
 
   async function uploadPicked() {
     const uri = photo?.uri ?? voice.uri;
@@ -59,7 +64,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
 
   async function handleSave() {
     setSubmitted(true);
-    if (!title.trim() || voice.isRecording || examDateError) return;
+    if (!categoryCode || !title.trim() || voice.isRecording || dateError) return;
     setSaving(true);
     setError(null);
     try {
@@ -70,7 +75,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
         details: details.trim(),
         dose: isMedication ? dose.trim() : '',
         frequency: isMedication ? frequency.trim() : '',
-        occurredOn: isExam ? examDate.iso : undefined,
+        occurredOn: showDate && date.iso ? date.iso : undefined,
         confidenceLevel,
         sourceAttachmentId: attachmentId,
       });
@@ -114,6 +119,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
           );
         })}
       </View>
+      {!categoryCode ? <Text style={styles.intro}>Elige la categoría del registro.</Text> : null}
 
       <FormField
         label={isExam ? 'Nombre del examen' : 'Título'}
@@ -133,11 +139,12 @@ export function NewEntryScreen({ route, navigation }: Props) {
           </View>
         </View>
       ) : null}
-      {isExam ? (
+      {showDate ? (
         <DateField
-          label="Fecha del examen"
-          onChange={setExamDateParts}
-          error={submitted ? examDateError : undefined}
+          label={isExam ? 'Fecha del examen' : 'Fecha del registro (opcional)'}
+          initial={dateParts}
+          onChange={setDateParts}
+          error={fieldErrors.occurredOn ?? (submitted ? dateError : undefined)}
         />
       ) : null}
       <FormField label={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'} value={details} onChangeText={setDetails} multiline numberOfLines={3} />
@@ -160,7 +167,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
         mode="contained"
         onPress={handleSave}
         loading={saving}
-        disabled={saving || voice.isRecording || !title.trim()}
+        disabled={saving || voice.isRecording || !categoryCode || !title.trim()}
         contentStyle={styles.buttonContent}
         labelStyle={styles.buttonLabel}
         style={styles.button}

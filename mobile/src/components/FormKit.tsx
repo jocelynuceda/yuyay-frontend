@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 
@@ -80,7 +80,9 @@ export function TextArea({
   onChangeText,
   placeholder,
   maxLength = 500,
-}: {
+  style,
+  ...inputProps
+}: Pick<TextInputProps, 'accessibilityLabel' | 'autoCorrect' | 'spellCheck' | 'style'> & {
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
@@ -97,7 +99,8 @@ export function TextArea({
         placeholderTextColor={colors.placeholder}
         multiline
         maxLength={maxLength}
-        style={styles.textArea}
+        style={[styles.textArea, style]}
+        {...inputProps}
       />
       <Text style={styles.counter}>
         {value.length}/{maxLength}
