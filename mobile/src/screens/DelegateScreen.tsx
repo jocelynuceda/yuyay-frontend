@@ -8,6 +8,7 @@ import { FormScroll } from '../components/FormScroll';
 import { HealthEntryCard } from '../components/HealthEntryCard';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
+import { useAuth } from '../hooks/useAuth';
 import { useFetch } from '../hooks/useFetch';
 import {
   clearDelegateSession,
@@ -50,6 +51,7 @@ function AccessForm({ initialCode, onOpen }: { initialCode: string; onOpen: (ses
   const [submitted, setSubmitted] = useState(false);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { status } = useAuth();
 
   const parsed = parseAccessCode(code);
 
@@ -69,7 +71,9 @@ function AccessForm({ initialCode, onOpen }: { initialCode: string; onOpen: (ses
   return (
     <FormScroll contentContainerStyle={formStyles.container}>
       <Text style={styles.intro}>
-        Alguien te compartió información de salud en Yuyay. No necesitas una cuenta para verla.
+        {status === 'authenticated'
+          ? 'Abre aquí un acceso que alguien te compartió para otra persona. No cambia tu sesión ni tus personas.'
+          : 'Alguien te compartió información de salud en Yuyay. No necesitas una cuenta para verla.'}
       </Text>
       <StatusMessage message={error} />
       <FormCard title="Código de acceso">

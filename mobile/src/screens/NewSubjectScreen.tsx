@@ -28,8 +28,6 @@ export function NewSubjectScreen({ navigation }: Props) {
   const [submitted, setSubmitted] = useState(false);
 
   const date = parseDateParts(dateParts);
-  // El error de fecha se muestra al guardar, o en cuanto el año está completo
-  const showDateError = submitted || dateParts.year.length === 4;
   const age = date.iso ? ageFrom(date.iso) : null;
 
   async function handleSave() {
@@ -86,7 +84,7 @@ export function NewSubjectScreen({ navigation }: Props) {
         <DateField
           label="Fecha de nacimiento (opcional)"
           onChange={setDateParts}
-          error={(showDateError ? date.error : undefined) ?? fieldErrors.birthDate}
+          error={(submitted ? date.error : undefined) ?? fieldErrors.birthDate}
         />
       </View>
 

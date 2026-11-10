@@ -34,8 +34,10 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<DelegationCreated | null>(null);
 
-  const date = parseDateParts(dateParts, { allowFuture: true });
   const today = todayIso();
+  // Desde hoy y hasta un año hacia adelante
+  const dateRules = { allowFuture: true, maxYearsAhead: 1, notBefore: today };
+  const date = parseDateParts(dateParts, dateRules);
   const dateError = !dateParts.day && !dateParts.month && !dateParts.year ? 'Elige hasta cuándo.' : date.error;
   const errors = {
     name: !name.trim() ? 'Ingresa su nombre.' : undefined,
@@ -149,6 +151,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
         <DateField
           label="Último día de acceso"
           onChange={setDateParts}
+          rules={dateRules}
           error={(submitted ? errors.date : undefined) ?? fieldErrors.validUntil}
         />
       </FormCard>
