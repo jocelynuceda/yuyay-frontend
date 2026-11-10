@@ -1,6 +1,17 @@
 import * as SecureStore from 'expo-secure-store';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Platform, StyleSheet, useColorScheme, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Platform,
+  StyleSheet,
+  useColorScheme,
+  View,
+  type ImageStyle,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
 import { darkTheme, lightTheme, type Theme } from './themes';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -52,8 +63,70 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const dark = preference === 'system' ? system === 'dark' : preference === 'dark';
-  const value = useMemo(() => ({ theme: dark ? darkTheme : lightTheme, preference, setPreference, ready }), [dark, preference, setPreference, ready]);
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  const { shownDark, veil, veilColor } = useThemeTransition(dark, ready);
+  const value = useMemo(
+    () => ({ theme: shownDark ? darkTheme : lightTheme, preference, setPreference, ready }),
+    [shownDark, preference, setPreference, ready],
+  );
+  return (
+    <ThemeContext.Provider value={value}>
+      <View style={styles.fill}>
+        {children}
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: veilColor, opacity: veil }]} />
+      </View>
+    </ThemeContext.Provider>
+  );
+}
+
+const FADE_IN_MS = 180;
+const FADE_OUT_MS = 320;
+
+/**
+ * Transición al cambiar de tema: un velo del color de fondo del tema nuevo cubre la pantalla, el tema cambia
+ * mientras está cubierta y el velo se desvanece. Con "Reducir movimiento" (o al abrir la app) cambia al instante.
+ */
+function useThemeTransition(dark: boolean, ready: boolean) {
+  const [shownDark, setShownDark] = useState(dark);
+  const [veil] = useState(() => new Animated.Value(0));
+  const reduceMotion = useRef(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => {
+        reduceMotion.current = enabled;
+      })
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      reduceMotion.current = enabled;
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (dark === shownDark) return;
+    // Antes de leer la preferencia guardada no hay nada que animar: es el tema inicial
+    if (!ready || reduceMotion.current) {
+      setShownDark(dark);
+      return;
+    }
+    const native = Platform.OS !== 'web';
+    veil.stopAnimation();
+    Animated.timing(veil, { toValue: 1, duration: FADE_IN_MS, easing: Easing.out(Easing.quad), useNativeDriver: native }).start(
+      ({ finished }) => {
+        if (!finished) return;
+        setShownDark(dark);
+        Animated.timing(veil, {
+          toValue: 0,
+          duration: FADE_OUT_MS,
+          delay: 40,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: native,
+        }).start();
+      },
+    );
+  }, [dark, ready, shownDark, veil]);
+
+  return { shownDark, veil, veilColor: (dark ? darkTheme : lightTheme).colors.surface };
 }
 
 /** Tema en uso: colores, degradados, sombra y temas de Paper y navegación. */
@@ -82,3 +155,5 @@ export function makeStyles<T extends NamedStyles<T> | NamedStyles<any>>(factory:
     return styles;
   };
 }
+
+const styles = StyleSheet.create({ fill: { flex: 1 } });
