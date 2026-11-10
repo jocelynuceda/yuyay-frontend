@@ -305,6 +305,8 @@ export type HomeStackParamList = {
     categoryCode?: string;
     details?: string;
     sourceAttachmentId?: number;
+    /** Borrador de la revisión de texto, editable y por confirmar al abrir el formulario. */
+    ocrDraft?: { title?: string; occurredOn?: string; confidenceLevel: 'UNCERTAIN' };
     /** Vuelve a la pantalla anterior en lugar de saltarse la revisión del documento */
     returnToSource?: boolean;
   };
