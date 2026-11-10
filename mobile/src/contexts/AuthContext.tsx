@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
 import * as api from '../services/api';
+import { clearDelegateSession } from '../services/delegate';
 import { NoSessionError, refreshSession, session, setSessionHandlers } from '../services/http';
 import type { AuthResponse, User } from '../types';
 
@@ -79,6 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login: (email, password) => startSession(() => api.login(email, password)),
     register: (name, email, password) => startSession(() => api.register(name, email, password)),
     logout: async () => {
+      // Un acceso delegado guardado no debe quedar a la vista de la siguiente persona que use el teléfono
+      void Promise.resolve().then(clearDelegateSession).catch(() => {});
       const removal = session.logout();
       const expected = session.generation;
       setUser(null);

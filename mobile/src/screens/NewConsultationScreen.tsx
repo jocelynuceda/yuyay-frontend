@@ -69,7 +69,10 @@ export function NewConsultationScreen({ route, navigation }: Props) {
         <DateField
           label="Fecha"
           initial={initialDate}
-          onChange={setDateParts}
+          onChange={(p) => {
+            setDateParts(p);
+            setFieldErrors(({ date: _date, ...rest }) => rest);
+          }}
           rules={DATE_RULES}
           error={(submitted ? dateError : undefined) ?? fieldErrors.date}
         />

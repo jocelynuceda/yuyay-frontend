@@ -11,6 +11,9 @@ import type { HomeStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'EditSubject'>;
 
+// La fecha de nacimiento debe ser anterior a hoy (el backend valida @Past)
+const DATE_RULES = { strictPast: true };
+
 export function EditSubjectScreen({ route, navigation }: Props) {
   const { subject } = route.params;
   const initialDate = subject.birthDate ? datePartsOf(subject.birthDate) : undefined;
@@ -22,7 +25,7 @@ export function EditSubjectScreen({ route, navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const date = parseDateParts(dateParts);
+  const date = parseDateParts(dateParts, DATE_RULES);
 
   async function handleSave() {
     setSubmitted(true);
@@ -63,7 +66,11 @@ export function EditSubjectScreen({ route, navigation }: Props) {
         <DateField
           label="Fecha de nacimiento (opcional)"
           initial={initialDate}
-          onChange={setDateParts}
+          rules={DATE_RULES}
+          onChange={(p) => {
+            setDateParts(p);
+            setFieldErrors(({ birthDate: _birthDate, ...rest }) => rest);
+          }}
           error={(submitted ? date.error : undefined) ?? fieldErrors.birthDate}
         />
       </FormCard>

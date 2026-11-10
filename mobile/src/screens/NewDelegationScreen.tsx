@@ -38,12 +38,13 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   // Desde hoy y hasta un año hacia adelante
   const dateRules = { allowFuture: true, maxYearsAhead: 1, notBefore: today };
   const date = parseDateParts(dateParts, dateRules);
+  const { year, month, day } = dateParts;
   const dateError = !dateParts.day && !dateParts.month && !dateParts.year ? 'Elige hasta cuándo.' : date.error;
   const errors = {
     name: !name.trim() ? 'Ingresa su nombre.' : undefined,
     email: !isEmail(email) ? 'Ingresa un correo válido.' : undefined,
     codes: codes.length === 0 ? 'Elige al menos una opción.' : undefined,
-    date: dateError ?? (date.iso < today ? 'Debe ser hoy o una fecha futura.' : undefined),
+    date: dateError,
   };
 
   function toggleCode(code: string) {
@@ -62,7 +63,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
         categoryCodes: codes.filter((code) => code !== CONSULTATIONS),
         includeConsultations: codes.includes(CONSULTATIONS),
         // Vale hasta el final del día elegido, en hora local
-        validUntil: new Date(`${date.iso}T23:59:59`).toISOString(),
+        validUntil: new Date(Number(year), Number(month) - 1, Number(day), 23, 59, 59).toISOString(),
       });
       setCreated(res);
     } catch (e) {
@@ -80,7 +81,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   if (created) {
     // En desarrollo el backend no conoce la IP de la computadora: el enlace pasa por Metro, igual que la API
     const link = __DEV__ ? `${API_URL}/acceso/${created.token}` : created.shareLink;
-    const shareMessage = `${created.delegation.granteeName}, te compartieron información de salud en Yuyay hasta el ${formatDate(created.delegation.validUntil)}. Ábrela aquí, sin crear cuenta: ${link}\n\nSi usas la app: en el inicio de sesión toca "Tengo un código" y pega este código: ${created.token}`;
+    const shareMessage = `${created.delegation.granteeName}, te compartieron información de salud en Yuyay hasta el ${formatDate(created.delegation.validUntil)}. Ábrela aquí, sin crear cuenta: ${link}\n\nSi usas la app: en el inicio de sesión toca "Tengo un código" (si ya tienes sesión: Perfil, "Tengo un código de acceso") y pega este código: ${created.token}`;
     return (
       <ScrollView contentContainerStyle={formStyles.container}>
         <StatusMessage tone="info" message={`Listo. Ahora compártele el enlace a ${created.delegation.granteeName}.`} />
@@ -91,7 +92,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
           </Text>
         </FormCard>
         <FormCard title="Si usa la app">
-          <Text style={styles.help}>En el inicio de sesión toca “Tengo un código” y pega este código:</Text>
+          <Text style={styles.help}>En el inicio de sesión toca “Tengo un código” (con sesión iniciada: Perfil, “Tengo un código de acceso”) y pega este código:</Text>
           <Text selectable style={styles.value}>
             {created.token}
           </Text>
@@ -150,7 +151,10 @@ export function NewDelegationScreen({ route, navigation }: Props) {
       <FormCard title="¿Hasta cuándo?">
         <DateField
           label="Último día de acceso"
-          onChange={setDateParts}
+          onChange={(p) => {
+            setDateParts(p);
+            setFieldErrors(({ validUntil: _validUntil, ...rest }) => rest);
+          }}
           rules={dateRules}
           error={(submitted ? errors.date : undefined) ?? fieldErrors.validUntil}
         />

@@ -29,6 +29,7 @@ test('una cita no puede estar a miles de años: el límite es el año actual + 2
   assert.equal(parseDateParts(parts('31', '12', '5556'), cita).error, 'El año debe ser 2028 o anterior.');
   assert.equal(parseDateParts(parts('31', '12', '2028'), cita).iso, '2028-12-31');
   assert.equal(parseDateParts(parts('01', '01', '1899'), cita).error, 'El año debe ser 1900 o posterior.');
+  assert.equal(parseDateParts(parts('01', '01', '0050'), cita).error, 'El año debe ser 1900 o posterior.');
 });
 
 test('nacimiento y examen no pueden ser futuros', () => {
@@ -45,12 +46,15 @@ test('el acceso temporal va de hoy a un año adelante', () => {
 test('mientras se escribe avisa del mes o el día imposible sin esperar a guardar', () => {
   assert.equal(liveDateError(parts('', '56', ''), cita), 'El mes va del 1 al 12.');
   assert.equal(liveDateError(parts('45', '', ''), cita), 'El día va del 1 al 31.');
-  assert.equal(liveDateError(parts('', '0', ''), cita), 'El mes va del 1 al 12.');
+  assert.equal(liveDateError(parts('', '00', ''), cita), 'El mes va del 1 al 12.');
   assert.equal(liveDateError(parts('31', '12', '5556'), cita), 'El año debe ser 2028 o anterior.');
 });
 
 test('mientras se escribe no molesta con lo que aún está incompleto', () => {
   assert.equal(liveDateError(parts('3', '', ''), cita), undefined);
+  // al escribir 05, el 0 solo todavía no es un error
+  assert.equal(liveDateError(parts('0', '', ''), cita), undefined);
+  assert.equal(liveDateError(parts('05', '0', ''), cita), undefined);
   assert.equal(liveDateError(parts('31', '1', ''), cita), undefined);
   assert.equal(liveDateError(parts('31', '12', '20'), cita), undefined);
   assert.equal(liveDateError(parts('', '', ''), cita), undefined);
@@ -58,4 +62,10 @@ test('mientras se escribe no molesta con lo que aún está incompleto', () => {
 
 test('datePartsOf separa una fecha guardada en sus casillas', () => {
   assert.deepEqual(datePartsOf('2026-12-31'), parts('31', '12', '2026'));
+});
+
+test('el nacimiento debe ser anterior a hoy, como exige el backend', () => {
+  const nacimiento = { strictPast: true, today };
+  assert.equal(parseDateParts(parts('09', '11', '2026'), nacimiento).error, 'La fecha debe ser anterior a hoy.');
+  assert.equal(parseDateParts(parts('08', '11', '2026'), nacimiento).iso, '2026-11-08');
 });
