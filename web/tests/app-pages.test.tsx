@@ -125,6 +125,10 @@ function backend() {
     const subject = url.match(/^\/care-subjects\/(\d+)$/)
     if (subject) return ok(config, db.subjects.find((s) => s.id === Number(subject[1])))
     if (/^\/care-subjects\/\d+\/relationships$/.test(url)) return ok(config, [])
+    if (/^\/care-subjects\/\d+\/handoffs$/.test(url) && method === 'GET') {
+      return ok(config, [{ id: 81, careSubjectId: 1, createdByUserId: 1, reason: 'Resumen de control anual',
+        questions: 'Preguntas de prueba', createdAt: '2026-11-07T00:00:00Z' }])
+    }
     if (/^\/care-subjects\/\d+\/health-entries$/.test(url) && method === 'POST') {
       db.createdEntries.push(body)
       return ok(config, { id: 99 }, 201)
@@ -608,4 +612,28 @@ test('Avisos: enlaza la invitación pendiente y el nuevo cuidador, y omite enlac
 
   await click(invitation, 'Ver invitación')
   await waitFor(() => pathname() === '/invitaciones/7' && /Lucía/.test(text()), 'abrir la invitación')
+})
+
+test('Perfil: Notas de voz muestra audios sin mezclar documentos y conserva los filtros al navegar', async (t) => {
+  const { b, unmount } = await mountApp('/personas/1?tab=audios&categoria=MEDICATION&page=2', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /nota\.m4a/.test(text()), 'listar la nota de voz de la persona')
+  assert.doesNotMatch(text(), /examen\.png/)
+  assert.ok(b.calls.includes('GET /care-subjects/1/attachments'))
+  assert.equal(document.querySelector('a[aria-current="page"][href*="tab=audios"]')?.textContent, 'Notas de voz')
+  await click(byText('a', 'Documentos'), 'pestaña Documentos')
+  await waitFor(() => /examen\.png/.test(text()), 'listar documentos al cambiar de sección')
+  assert.doesNotMatch(text(), /nota\.m4a/)
+  assert.match(search(), /categoria=MEDICATION/)
+  assert.match(search(), /page=2/)
+})
+
+test('Perfil: Resúmenes carga el historial privado y mantiene acceso a crear un resumen', async (t) => {
+  const { b, unmount } = await mountApp('/personas/1?tab=resumenes', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Resumen de control anual/.test(text()), 'mostrar el resumen de la persona')
+  assert.ok(b.calls.includes('GET /care-subjects/1/handoffs'))
+  assert.ok(document.querySelector('a[href="/personas/1/traspaso/nuevo"]'))
+  assert.equal(document.querySelector('a[aria-current="page"][href*="tab=resumenes"]')?.textContent, 'Resúmenes')
+  assert.equal(document.querySelector('a[href^="/traspaso/"]'), null, 'no fabricar un enlace público desde el ID')
 })
