@@ -8,7 +8,8 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F0FAFC",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yuyay.mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,16 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
+      "package": "com.yuyay.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -45,6 +55,12 @@
           "microphonePermission": "Yuyay usa el micrófono para grabar notas de voz sobre la persona a tu cuidado."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5bbe1966-f04a-4da4-b8ef-dc6ab440698d"
+      }
+    },
+    "owner": "aprilwu-mobile"
   }
 }
