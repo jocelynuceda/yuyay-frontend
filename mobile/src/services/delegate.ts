@@ -1,9 +1,11 @@
 import { AxiosError, create } from 'axios';
 import type { DelegateConsultation, DelegateSession, HealthEntry } from '../types';
 import { ApiError, toApiError } from './client';
+import { createDelegateStore, type DelegateOwner } from '../utils/delegateStore';
 import { API_URL, secureStorage } from './http';
 
-const SESSION_KEY = 'yuyay.delegateSession';
+// El acceso queda en el dispositivo, pero atado a quien lo abrió (o a nadie, si no había sesión)
+const store = createDelegateStore(secureStorage);
 
 // Cliente aparte: quien abre un acceso delegado no tiene cuenta, así que no debe usar el refresh ni cerrar sesiones.
 const delegateHttp = create({ baseURL: `${API_URL}/api/v1`, timeout: 15000 });
@@ -22,7 +24,7 @@ export function parseAccessCode(input: string) {
 }
 
 /** El enlace se canjea una sola vez: la sesión se guarda para poder volver a entrar hasta que venza. */
-export async function openDelegation(code: string): Promise<DelegateSession> {
+export async function openDelegation(code: string, owner: DelegateOwner): Promise<DelegateSession> {
   const { data } = await delegateHttp.post<Omit<DelegateSession, 'sourceToken'>>(
     `/public/delegations/${encodeURIComponent(code)}/exchange`,
   );
@@ -35,20 +37,13 @@ export async function openDelegation(code: string): Promise<DelegateSession> {
     includeConsultations: data.includeConsultations,
     sourceToken: code,
   };
-  await secureStorage.set(SESSION_KEY, JSON.stringify(session));
+  await store.save(owner, session);
   return session;
 }
 
-export async function loadDelegateSession(): Promise<DelegateSession | null> {
-  const saved = await secureStorage.get(SESSION_KEY);
-  if (!saved) return null;
-  const session: DelegateSession = JSON.parse(saved);
-  if (Date.parse(session.expiresAt) > Date.now()) return session;
-  await clearDelegateSession();
-  return null;
-}
+export const loadDelegateSession = (owner: DelegateOwner) => store.load(owner);
 
-export const clearDelegateSession = () => secureStorage.remove(SESSION_KEY);
+export const clearDelegateSession = (owner: DelegateOwner) => store.clear(owner);
 
 export const getDelegateEntries = (session: DelegateSession) =>
   delegateHttp

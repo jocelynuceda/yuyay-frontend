@@ -1,32 +1,12 @@
 import { useRef, useState } from 'react';
 import { Text, TextInput, type TextInputInstance, View } from 'react-native';
+import { type DateParts, type DateRules, datePartsOf, liveDateError, parseDateParts } from '../utils/dates';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 
-type Parts = { day: string; month: string; year: string };
+export { datePartsOf, liveDateError, parseDateParts };
+export type { DateParts, DateRules };
 
-/** Valida las tres partes y devuelve la fecha ISO (AAAA-MM-DD) o el motivo del error. */
-export function parseDateParts(
-  { day, month, year }: Parts,
-  { allowFuture = false }: { allowFuture?: boolean } = {},
-): { iso: string; error?: string } {
-  if (!day && !month && !year) return { iso: '' };
-  if (!day || !month || year.length !== 4) return { iso: '', error: 'Completa día, mes y año.' };
-  const d = Number(day);
-  const m = Number(month);
-  const y = Number(year);
-  const date = new Date(y, m - 1, d);
-  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
-    return { iso: '', error: 'Esa fecha no existe.' };
-  }
-  if (y < 1900 || (!allowFuture && date > new Date())) return { iso: '', error: 'Revisa el año.' };
-  return { iso: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` };
-}
-
-/** Separa una fecha AAAA-MM-DD en las tres casillas de DateField. */
-export function datePartsOf(iso: string): Parts {
-  const [year, month, day] = iso.split('-');
-  return { day, month, year };
-}
+type Parts = DateParts;
 
 /** Fecha en tres casillas numéricas (día, mes, año) que avanzan solas al completarse. */
 export function DateField({
@@ -34,15 +14,18 @@ export function DateField({
   onChange,
   error,
   initial,
+  rules,
 }: {
   label: string;
   onChange: (parts: Parts) => void;
   error?: string;
   initial?: Parts;
+  rules?: DateRules;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [parts, setParts] = useState<Parts>(initial ?? { day: '', month: '', year: '' });
+  const shownError = error ?? liveDateError(parts, rules);
   const monthRef = useRef<TextInputInstance>(null);
   const yearRef = useRef<TextInputInstance>(null);
 
@@ -72,7 +55,7 @@ export function DateField({
       <Text style={styles.label}>{label}</Text>
       <View style={styles.row}>
         {fields.map((f) => (
-          <View key={f.key} style={[styles.box, { flex: f.flex }, !!error && styles.boxError]}>
+          <View key={f.key} style={[styles.box, { flex: f.flex }, !!shownError && styles.boxError]}>
             <Text style={styles.caption}>{{ day: 'Día', month: 'Mes', year: 'Año' }[f.key]}</Text>
             <TextInput
               ref={f.ref}
@@ -91,7 +74,7 @@ export function DateField({
           </View>
         ))}
       </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {shownError ? <Text style={styles.error}>{shownError}</Text> : null}
     </View>
   );
 }

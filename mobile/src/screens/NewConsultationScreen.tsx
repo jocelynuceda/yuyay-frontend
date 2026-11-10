@@ -13,6 +13,9 @@ import { parseTime, TIME_ERROR, type TimeParts, timePartsOf, toApiTime } from '.
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewConsultation'>;
 
+// Puede ser futura (una cita agendada), pero no de aquí a muchos años
+const DATE_RULES = { allowFuture: true, maxYearsAhead: 2 };
+
 export function NewConsultationScreen({ route, navigation }: Props) {
   // Con `consultation` el formulario edita esa cita en lugar de crear una nueva
   const { subjectId, consultation } = route.params;
@@ -28,8 +31,7 @@ export function NewConsultationScreen({ route, navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Puede ser futura: una cita agendada
-  const date = parseDateParts(dateParts, { allowFuture: true });
+  const date = parseDateParts(dateParts, DATE_RULES);
   const dateError = date.iso ? undefined : (date.error ?? 'Ingresa la fecha de la cita.');
 
   // La hora es opcional: solo se valida si se empezó a escribir
@@ -67,8 +69,12 @@ export function NewConsultationScreen({ route, navigation }: Props) {
         <DateField
           label="Fecha"
           initial={initialDate}
-          onChange={setDateParts}
-          error={(submitted || dateParts.year.length === 4 ? dateError : undefined) ?? fieldErrors.date}
+          onChange={(p) => {
+            setDateParts(p);
+            setFieldErrors(({ date: _date, ...rest }) => rest);
+          }}
+          rules={DATE_RULES}
+          error={(submitted ? dateError : undefined) ?? fieldErrors.date}
         />
         <TimeField
           label="Hora (opcional)"
