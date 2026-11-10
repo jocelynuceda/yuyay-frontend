@@ -12,7 +12,9 @@ import { AccessLogPanel } from '../care/AccessLogPanel'
 import { CaregiversPanel } from '../care/CaregiversPanel'
 import { ConsultationsPanel } from '../care/ConsultationsPanel'
 import { DelegationsPanel } from '../care/DelegationsPanel'
+import { HandoffsPanel } from '../care/HandoffsPanel'
 import { DocumentsPanel } from '../documents/DocumentsPanel'
+import { VoiceNotesPanel } from '../documents/VoiceNotesPanel'
 import { EntriesPanel } from '../entries/EntriesPanel'
 import { useLoad } from '../care/useLoad'
 import { CareSubjectForm } from '../forms/CareSubjectForm'
@@ -24,9 +26,11 @@ import { useSuccessNotice } from '../shared/useSuccessNotice'
 const tabs = [
   { id: 'registros', label: 'Registros' },
   { id: 'documentos', label: 'Documentos' },
+  { id: 'audios', label: 'Notas de voz' },
   { id: 'cuidadores', label: 'Cuidadores' },
   { id: 'accesos', label: 'Accesos' },
   { id: 'consultas', label: 'Consultas' },
+  { id: 'resumenes', label: 'Resúmenes' },
   { id: 'bitacora', label: 'Bitácora' },
 ] as const
 
@@ -175,11 +179,13 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
         </>
       )}
       {activeTab === 'documentos' && <DocumentsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
+      {activeTab === 'audios' && <VoiceNotesPanel key={subjectId} subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'cuidadores' && (
         <CaregiversPanel subjectId={subjectId} isPrincipal={isPrincipal} onChanged={caregivers.reload} />
       )}
       {activeTab === 'accesos' && <DelegationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
-      {activeTab === 'consultas' && <ConsultationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
+      {activeTab === 'consultas' && <ConsultationsPanel subjectId={subjectId} subjectName={subject.name} isPrincipal={isPrincipal} />}
+      {activeTab === 'resumenes' && <HandoffsPanel key={subjectId} subjectId={subjectId} />}
       {isPrincipal && activeTab === 'bitacora' && <AccessLogPanel subjectId={subjectId} />}
     </>
   )

@@ -7,6 +7,7 @@ import { changeTypeLabels } from '../../utils/versions'
 import { todayIso } from '../../schemas/common'
 import { ConsultationForm } from '../forms/ConsultationForm'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { AddToCalendar } from './AddToCalendar'
 import { useLoad } from './useLoad'
 import { useSuccessNotice } from '../shared/useSuccessNotice'
 
@@ -33,7 +34,7 @@ async function loadConsultations(subjectId: number): Promise<ConsultationsData> 
  * Pestaña "Consultas" del detalle de persona: próximas y pasadas, y lo que cambió desde la última.
  * Solo el principal puede registrar, editar y borrar consultas.
  */
-export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: number; isPrincipal: boolean }) {
+export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { subjectId: number; subjectName: string; isPrincipal: boolean }) {
   const { state, reload } = useLoad(() => loadConsultations(subjectId), subjectId)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Consultation | null>(null)
@@ -73,6 +74,11 @@ export function ConsultationsPanel({ subjectId, isPrincipal }: { subjectId: numb
         </p>
         <p className="font-semibold">{c.reason}</p>
         {c.notes ? <p className="mt-1 whitespace-pre-line text-sm text-muted">{c.notes}</p> : null}
+        {isUpcoming ? (
+          <div className="mt-3">
+            <AddToCalendar consultation={c} subjectName={subjectName} />
+          </div>
+        ) : null}
       </div>
       {isPrincipal ? (
         <div className="flex gap-2">
