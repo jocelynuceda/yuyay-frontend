@@ -41,7 +41,8 @@ descargarlo y permitir la instalación de apps de fuentes desconocidas si el sis
 **Web y móvil**
 
 - Registro e inicio de sesión con JWT, renovación automática de sesión y recuperación de contraseña por código.
-- Personas a cargo con su perfil clínico: medicación, alergias, condiciones, vacunas, episodios y exámenes.
+- Personas a cargo con su perfil clínico: medicación, alergias, condiciones, vacunas, episodios y exámenes. El cuidador
+  principal puede eliminar a una persona mientras no tenga registros de salud.
 - Historial de versiones de cada registro: quién lo creó o cambió y cuándo.
 - Citas médicas con fecha y hora, y próxima cita en el inicio.
 - Cuidadores: invitar por correo, aceptar invitaciones y quitar acceso.
@@ -87,11 +88,11 @@ web/
 mobile/
   src/
     components/   Componentes reutilizables (tarjetas, formularios, decoración)
-    contexts/     Sesión
+    contexts/     Sesión y avisos de éxito
     hooks/        useFetch, useVoiceRecorder, useRefreshOnFocus…
     navigation/   Stacks y tabs
     screens/      Una pantalla por archivo
-    services/     Cliente HTTP, API y adjuntos
+    services/     Cliente HTTP, API, adjuntos y lugares cercanos (OpenStreetMap)
     theme/        Paletas, tema claro/oscuro y makeStyles
     types/ utils/
   tests/          Pruebas con node:test
