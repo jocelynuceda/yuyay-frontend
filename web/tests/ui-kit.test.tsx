@@ -2,6 +2,11 @@
 import { JSDOM } from 'jsdom'
 const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/' })
 Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement })
+// jsdom no implementa los diálogos modales
+Object.assign(dom.window.HTMLDialogElement.prototype, {
+  showModal(this: HTMLDialogElement) { this.open = true },
+  close(this: HTMLDialogElement) { this.open = false },
+})
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
 
 import assert from 'node:assert/strict'
@@ -9,7 +14,12 @@ import test from 'node:test'
 import { act, useState, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import { ConfirmDialog, ErrorBoundary, Input, Pagination, getPageItems, getRange } from '../src/components/ui'
+import { LoadError } from '../src/components/layout/LoadError'
+import { ConfirmDialog } from '../src/components/ui/ConfirmDialog'
+import { ErrorBoundary } from '../src/components/ui/ErrorBoundary'
+import { Input } from '../src/components/ui/Input'
+import { Pagination, getPageItems, getRange } from '../src/components/ui/Pagination'
+import { SearchInput } from '../src/components/ui/SearchInput'
 import { ToastProvider } from '../src/contexts/ToastContext'
 import { useDebounce } from '../src/hooks/useDebounce'
 import { useFetch } from '../src/hooks/useFetch'
@@ -320,31 +330,79 @@ test('Input: label asociado y error anunciado con aria-describedby', async () =>
   await view.unmount()
 })
 
-test('ConfirmDialog: confirma, cancela y bloquea los botones mientras carga', async () => {
+test('ConfirmDialog: bloquea los botones mientras confirma, muestra el error y cancela', async () => {
   const calls: string[] = []
-  function Harness({ loading }: { loading: boolean }) {
-    const [open] = useState(true)
-    return (
-      <ConfirmDialog
-        open={open}
-        title="Eliminar registro"
-        message="Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
-        loading={loading}
-        onConfirm={() => calls.push('confirm')}
-        onCancel={() => calls.push('cancel')}
-      />
-    )
-  }
-  const view = await render(<Harness loading={false} />)
+  let finish!: (ok: boolean) => void
+  const view = await render(
+    <ConfirmDialog
+      open
+      title="Eliminar registro"
+      message="Esta acción no se puede deshacer."
+      confirmLabel="Eliminar"
+      onConfirm={() =>
+        new Promise<void>((resolve, reject) => {
+          calls.push('confirm')
+          finish = (ok) => (ok ? resolve() : reject(new Error('fallo')))
+        })
+      }
+      onCancel={() => calls.push('cancel')}
+    />,
+  )
   const dialog = view.container.querySelector('dialog')!
-  assert.ok(dialog.hasAttribute('open'))
+  assert.ok(dialog.open)
   assert.match(dialog.textContent ?? '', /Eliminar registro/)
+
   await click(buttonByText(dialog, 'Eliminar'))
+  assert.equal(buttonByText(dialog, 'Cancelar')?.disabled, true)
+  assert.equal(buttonByText(dialog, 'Borrando…')?.disabled, true)
+  await act(async () => finish(false))
+  assert.ok(dialog.querySelector('[role="alert"]'), 'muestra el error de la acción')
+
   await click(buttonByText(dialog, 'Cancelar'))
   assert.deepEqual(calls, ['confirm', 'cancel'])
+  await view.unmount()
+})
 
-  await view.rerender(<Harness loading />)
-  assert.equal(buttonByText(dialog, 'Cancelar')?.disabled, true)
+// ---------- LoadError ----------
+
+test('LoadError: reintentar ante fallos de red o del servidor, volver al inicio ante 403 y 404', async () => {
+  let retries = 0
+  const view = await render(
+    <MemoryRouter>
+      <LoadError message="El servidor tuvo un problema." status={500} onRetry={() => retries++} />
+    </MemoryRouter>,
+  )
+  await click(buttonByText(view.container, 'Reintentar'))
+  assert.equal(retries, 1)
+
+  for (const status of [403, 404]) {
+    await view.rerender(
+      <MemoryRouter>
+        <LoadError message="Persona no encontrada." status={status} onRetry={() => retries++} />
+      </MemoryRouter>,
+    )
+    assert.equal(buttonByText(view.container, 'Reintentar'), null, `sin reintentar en ${status}`)
+    assert.equal(view.container.querySelector('a')?.getAttribute('href'), '/')
+  }
+  await view.unmount()
+})
+
+// ---------- SearchInput ----------
+
+test('SearchInput: al limpiar emite "" una sola vez y no vuelve a emitir el texto anterior', async () => {
+  const calls: string[] = []
+  function Harness() {
+    const [value, setValue] = useState('zz')
+    // onSearch nuevo en cada render, como en las páginas
+    return <SearchInput label="Buscar" value={value} delay={20} onSearch={(q) => { calls.push(q); setValue(q) }} />
+  }
+  const view = await render(<Harness />)
+  const input = view.container.querySelector('input')!
+  assert.equal(input.value, 'zz')
+
+  await click(view.container.querySelector('[aria-label="Limpiar búsqueda"]'))
+  await act(() => sleep(40))
+  assert.deepEqual(calls, [''])
+  assert.equal(input.value, '')
   await view.unmount()
 })

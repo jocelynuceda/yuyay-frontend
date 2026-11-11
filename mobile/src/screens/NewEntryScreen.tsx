@@ -10,6 +10,7 @@ import { FormScroll } from '../components/FormScroll';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
+import { useToast } from '../hooks/useToast';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { createHealthEntry, getHealthCategories, uploadAttachment } from '../services/api';
 import { audioFormData, imageFormData } from '../services/attachmentFiles';
@@ -40,6 +41,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
   const [submitted, setSubmitted] = useState(false);
   const [photo, setPhoto] = useState<ImagePickerAsset | null>(null);
   const voice = useVoiceRecorder();
+  const toast = useToast();
   // Si el registro falla después de subir el archivo, reintentar no debe subirlo de nuevo
   const uploaded = useRef<{ uri: string; id: number } | null>(null);
 
@@ -80,6 +82,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
         sourceAttachmentId: attachmentId,
       });
       // Desde un documento se vuelve a la lista: el texto ya se usó
+      toast('Registro guardado. Los demás cuidadores recibirán un aviso.');
       if (sourceAttachmentId && !returnToSource) navigation.pop(2);
       else navigation.goBack();
     } catch (e) {

@@ -8,13 +8,12 @@ import { IconButton, ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
+import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getCareRelationships, removeCaregiver } from '../services/api';
-import { ApiError } from '../services/http';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { CareRelationship, HomeStackParamList } from '../types';
-import { confirmAction } from '../utils/confirm';
 import { careRoleLabel, initialsOf } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Caregivers'>;
@@ -31,6 +30,7 @@ export function CaregiversScreen({ route, navigation }: Props) {
   const { subjectId, isPrincipal } = route.params;
   const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const runAction = useConfirmedAction(setError);
   const relationships = useFetch(() => getCareRelationships(subjectId), [subjectId]);
   useRefreshOnFocus(relationships.reload);
 
@@ -41,21 +41,14 @@ export function CaregiversScreen({ route, navigation }: Props) {
     (a, b) => Number(a.status === 'REVOKED') - Number(b.status === 'REVOKED'),
   );
 
-  async function handleRemove(rel: CareRelationship) {
-    const ok = await confirmAction(
-      'Quitar cuidador',
-      `${rel.user.name} ya no podrá ver ni editar la información de ${rel.careSubjectName}.`,
-      'Quitar',
-    );
-    if (!ok) return;
-    setError(null);
-    try {
-      await removeCaregiver(subjectId, rel.id);
-      relationships.reload();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No pudimos quitar al cuidador.');
-    }
-  }
+  const handleRemove = (rel: CareRelationship) =>
+    runAction({
+      confirm: ['Quitar cuidador', `${rel.user.name} ya no podrá ver ni editar la información de ${rel.careSubjectName}.`, 'Quitar'],
+      action: () => removeCaregiver(subjectId, rel.id),
+      success: `${rel.user.name} ya no es cuidador.`,
+      fallback: 'No pudimos quitar al cuidador.',
+      onDone: relationships.reload,
+    });
 
   return (
     <ScrollView

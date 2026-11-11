@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { LoadError } from '../../components/layout/LoadError'
+import { getInitials } from '../../components/ui/initials'
 import { Modal } from '../../components/ui/Modal'
+import { SearchInput } from '../../components/ui/SearchInput'
+import { useFetch } from '../../hooks/useFetch'
 import { useToast } from '../../hooks/useToast'
 import { listCareSubjects } from '../../services/api/careSubjects'
 import type { CareSubject } from '../../types'
 import { ageFrom } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import type { PeopleParams, PeopleSort } from '../../utils/urlParams'
-import { useLoad } from '../care/useLoad'
 import { CareSubjectForm } from '../forms/CareSubjectForm'
-
-const SEARCH_DELAY_MS = 300
 
 /** Sin tildes ni mayúsculas, para que "jose" encuentre a "José". */
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
@@ -41,26 +42,12 @@ export function PeopleGrid({
   onParamsChange: (params: PeopleParams) => void
   onOpen: (subject: CareSubject) => void
 }) {
-  const { state, reload } = useLoad(listCareSubjects, 'people')
+  const { data, error, errorStatus, loading, reload } = useFetch((signal) => listCareSubjects(signal), [])
   const [adding, setAdding] = useState(false)
   const toast = useToast()
 
-  // El campo responde al instante; la URL (y el filtro) se actualiza al dejar de escribir
-  const [text, setText] = useState(params.q)
-  const [syncedQ, setSyncedQ] = useState(params.q)
-  if (params.q !== syncedQ) {
-    // La URL cambió desde fuera (atrás/adelante del navegador)
-    setSyncedQ(params.q)
-    setText(params.q)
-  }
-  useEffect(() => {
-    if (text === params.q) return
-    const timer = setTimeout(() => onParamsChange({ ...params, q: text }), SEARCH_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [text, params, onParamsChange])
-
   const query = normalize(params.q.trim())
-  const subjects = state.status === 'ready' ? state.data : []
+  const subjects = data ?? []
   const visible = sortSubjects(
     query ? subjects.filter((s) => normalize(s.name).includes(query)) : subjects,
     params.orden,
@@ -94,16 +81,14 @@ export function PeopleGrid({
       </Modal>
 
       <div role="search" className="flex flex-wrap items-end gap-3">
-        <label className="grid min-w-56 flex-1 gap-1.5">
-          <span className="text-sm font-semibold">Buscar por nombre</span>
-          <input
-            type="search"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Ej. Carmen"
-            className={`rounded-xl border border-line bg-card px-4 py-2.5 ${focusRing}`}
-          />
-        </label>
+        <SearchInput
+          label="Buscar por nombre"
+          hideLabel={false}
+          value={params.q}
+          onSearch={(q) => onParamsChange({ ...params, q })}
+          placeholder="Ej. Carmen"
+          className="min-w-56 flex-1"
+        />
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold">Ordenar por</span>
           <select
@@ -117,14 +102,10 @@ export function PeopleGrid({
         </label>
       </div>
 
-      {state.status === 'loading' ? <p className="text-muted">Cargando personas…</p> : null}
-      {state.status === 'error' ? (
-        <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">
-          {state.message}
-        </p>
-      ) : null}
+      {loading && !data ? <p className="text-muted">Cargando personas…</p> : null}
+      {error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : null}
 
-      {state.status === 'ready' ? (
+      {data ? (
         <>
           <p aria-live="polite" className="text-sm text-muted">
             {query
@@ -152,12 +133,6 @@ export function PeopleGrid({
 
 function PersonCard({ subject, onOpen }: { subject: CareSubject; onOpen: () => void }) {
   const age = ageFrom(subject.birthDate)
-  const initials = subject.name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('')
   return (
     <button
       type="button"
@@ -165,7 +140,7 @@ function PersonCard({ subject, onOpen }: { subject: CareSubject; onOpen: () => v
       className={`flex h-full w-full items-start gap-4 rounded-3xl bg-card p-5 text-left transition hover:shadow-md ${focusRing}`}
     >
       <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-soft font-semibold text-soft-text">
-        {initials}
+        {getInitials(subject.name)}
       </span>
       <span className="min-w-0">
         <span className="block truncate text-lg font-semibold">{subject.name}</span>

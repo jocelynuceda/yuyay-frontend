@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { LoadError } from '../../components/layout/LoadError'
+import { useFetch } from '../../hooks/useFetch'
 import { getCareSubject } from '../../services/api/careSubjects'
 import type { CareSubject } from '../../types'
 import { focusRing } from '../../utils/styles'
-import { useLoad } from '../care/useLoad'
 
 export function PersonRouteFrame({
   subjectId,
@@ -14,8 +15,10 @@ export function PersonRouteFrame({
   section?: string
   children: (subject: CareSubject, reload: () => void) => ReactNode
 }) {
-  const { state, reload } = useLoad(() => getCareSubject(subjectId), subjectId)
-  const subject = state.status === 'ready' ? state.data : null
+  const { data: subject, error, errorStatus, loading, reload } = useFetch(
+    (signal) => getCareSubject(subjectId, signal),
+    [subjectId],
+  )
   const linkClass = `rounded-sm text-primary underline ${focusRing}`
 
   return (
@@ -41,10 +44,8 @@ export function PersonRouteFrame({
           )}
         </ol>
       </nav>
-      {state.status === 'loading' && <p role="status" className="text-muted">Cargando persona…</p>}
-      {state.status === 'error' && (
-        <p role="alert" className="rounded-2xl bg-danger-bg p-4 text-danger">{state.message}</p>
-      )}
+      {loading && !subject && <p role="status" className="text-muted">Cargando persona…</p>}
+      {error && !subject && <LoadError message={error} status={errorStatus} onRetry={reload} />}
       {subject && children(subject, reload)}
     </main>
   )

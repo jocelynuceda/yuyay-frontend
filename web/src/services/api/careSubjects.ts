@@ -6,8 +6,8 @@ export async function listCareSubjects(signal?: AbortSignal) {
   return data
 }
 
-export async function getCareSubject(id: number) {
-  const { data } = await api.get<CareSubject>(`/care-subjects/${id}`)
+export async function getCareSubject(id: number, signal?: AbortSignal) {
+  const { data } = await api.get<CareSubject>(`/care-subjects/${id}`, { signal })
   return data
 }
 
@@ -26,7 +26,7 @@ export async function deleteCareSubject(id: number) {
 }
 
 /** Bitácora paginada (solo PRINCIPAL). Orden por defecto occurredAt,desc; size 20. */
-export async function listAccessLogs(careSubjectId: number, params: PageParams = {}) {
-  const { data } = await api.get<Page<AccessLog>>(`/care-subjects/${careSubjectId}/access-logs`, { params })
+export async function listAccessLogs(careSubjectId: number, params: PageParams = {}, signal?: AbortSignal) {
+  const { data } = await api.get<Page<AccessLog>>(`/care-subjects/${careSubjectId}/access-logs`, { params, signal })
   return data
 }

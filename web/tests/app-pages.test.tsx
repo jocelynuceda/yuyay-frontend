@@ -7,6 +7,11 @@ Object.assign(globalThis, {
   HTMLElement: dom.window.HTMLElement,
 })
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
+// jsdom no implementa los diálogos modales
+Object.assign(dom.window.HTMLDialogElement.prototype, {
+  showModal(this: HTMLDialogElement) { this.open = true },
+  close(this: HTMLDialogElement) { this.open = false },
+})
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -123,7 +128,15 @@ function backend() {
     }
     if (url === '/care-subjects') return ok(config, db.subjects)
     const subject = url.match(/^\/care-subjects\/(\d+)$/)
-    if (subject) return ok(config, db.subjects.find((s) => s.id === Number(subject[1])))
+    if (subject) {
+      const found = db.subjects.find((s) => s.id === Number(subject[1]))
+      if (!found) throw fail(config, 404)
+      if (method === 'DELETE') {
+        db.subjects = db.subjects.filter((s) => s !== found)
+        return ok(config, '', 204)
+      }
+      return ok(config, found)
+    }
     if (/^\/care-subjects\/\d+\/relationships$/.test(url)) return ok(config, [])
     if (/^\/care-subjects\/\d+\/handoffs$/.test(url) && method === 'GET') {
       return ok(config, [{ id: 81, careSubjectId: 1, createdByUserId: 1, reason: 'Resumen de control anual',
@@ -636,4 +649,25 @@ test('Perfil: Resúmenes carga el historial privado y mantiene acceso a crear un
   assert.ok(document.querySelector('a[href="/personas/1/traspaso/nuevo"]'))
   assert.equal(document.querySelector('a[aria-current="page"][href*="tab=resumenes"]')?.textContent, 'Resúmenes')
   assert.equal(document.querySelector('a[href^="/traspaso/"]'), null, 'no fabricar un enlace público desde el ID')
+})
+
+test('Perfil: el principal elimina a una persona tras confirmar y vuelve a la lista', async (t) => {
+  const { b, unmount } = await mountApp('/personas/2', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Pedro/.test(text()) && Boolean(byText('button', 'Eliminar persona')), 'mostrar el detalle de Pedro')
+  await click(byText('button', 'Eliminar persona'), 'abrir la confirmación')
+  const dialog = document.querySelector('dialog[open]')
+  assert.ok(dialog, 'pide confirmar antes de eliminar')
+  await click([...dialog.querySelectorAll('button')].find((el) => el.textContent === 'Eliminar persona') ?? null, 'confirmar')
+  await waitFor(() => pathname() === '/personas', 'volver a la lista de personas')
+  assert.ok(b.calls.includes('DELETE /care-subjects/2'))
+  await waitFor(() => /Se eliminó a Pedro/.test(text()), 'confirmar el borrado con un aviso')
+})
+
+test('Perfil: una persona inexistente muestra "no encontrada" sin botón de reintentar', async (t) => {
+  const { unmount } = await mountApp('/personas/999', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /No encontramos lo que buscas/.test(text()), 'mostrar el 404')
+  assert.equal(byText('button', 'Reintentar'), null)
+  assert.ok(byText('a', 'Volver al inicio'))
 })

@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { LoadError } from '../../components/layout/LoadError'
+import { Pagination } from '../../components/ui/Pagination'
+import { useFetch } from '../../hooks/useFetch'
 import { listAccessLogs } from '../../services/api/careSubjects'
 import { listCaregivers } from '../../services/api/caregivers'
 import { listDelegations } from '../../services/api/delegations'
 import type { AccessAction, AccessLog } from '../../types'
 import { formatDateTime } from '../../utils/format'
-import { focusRing } from '../../utils/styles'
-import { useLoad } from './useLoad'
 
 const PAGE_SIZE = 20
 
@@ -25,8 +26,8 @@ const targetLabels: Record<string, string> = {
 }
 
 /** Nombres de cuidadores y delegados, porque la bitácora solo trae sus ids. */
-async function loadNames(subjectId: number) {
-  const [caregivers, delegations] = await Promise.all([listCaregivers(subjectId), listDelegations(subjectId)])
+async function loadNames(subjectId: number, signal: AbortSignal) {
+  const [caregivers, delegations] = await Promise.all([listCaregivers(subjectId, signal), listDelegations(subjectId, signal)])
   return {
     users: new Map(caregivers.map((r) => [r.user.id, r.user.name])),
     delegations: new Map(delegations.map((d) => [d.id, d.granteeName])),
@@ -50,12 +51,9 @@ function whoDidIt(log: AccessLog, names: Names | null) {
  */
 export function AccessLogPanel({ subjectId }: { subjectId: number }) {
   const [page, setPage] = useState(1)
-  const log = useLoad(() => listAccessLogs(subjectId, { page: page - 1, size: PAGE_SIZE }), `${subjectId}|${page}`)
-  const names = useLoad(() => loadNames(subjectId), subjectId)
-  const nameMap = names.state.status === 'ready' ? names.state.data : null
-
-  const result = log.state.status === 'ready' ? log.state.data : null
-  const button = `rounded-xl border border-line bg-card px-4 py-2 font-semibold disabled:opacity-40 ${focusRing}`
+  const log = useFetch((signal) => listAccessLogs(subjectId, { page: page - 1, size: PAGE_SIZE }, signal), [subjectId, page])
+  const names = useFetch((signal) => loadNames(subjectId, signal), [subjectId])
+  const result = log.data
 
   return (
     <section aria-labelledby="log-title" className="grid gap-4">
@@ -66,12 +64,8 @@ export function AccessLogPanel({ subjectId }: { subjectId: number }) {
         <p className="text-sm text-muted">Quién vio o abrió la información de esta persona. Solo la ve el cuidador principal.</p>
       </div>
 
-      {log.state.status === 'loading' ? <p className="text-muted">Cargando bitácora…</p> : null}
-      {log.state.status === 'error' ? (
-        <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">
-          {log.state.message}
-        </p>
-      ) : null}
+      {log.loading && !result ? <p className="text-muted">Cargando bitácora…</p> : null}
+      {log.error ? <LoadError message={log.error} status={log.errorStatus} onRetry={log.reload} /> : null}
 
       {result ? (
         result.content.length === 0 ? (
@@ -79,7 +73,7 @@ export function AccessLogPanel({ subjectId }: { subjectId: number }) {
         ) : (
           <ol className="grid gap-2">
             {result.content.map((entry) => {
-              const { who, detail } = whoDidIt(entry, nameMap)
+              const { who, detail } = whoDidIt(entry, names.data)
               return (
                 <li key={entry.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-2xl bg-card px-4 py-3">
                   <p>
@@ -99,19 +93,13 @@ export function AccessLogPanel({ subjectId }: { subjectId: number }) {
       ) : null}
 
       {result && result.totalPages > 1 ? (
-        <nav aria-label="Paginación de la bitácora" className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted" aria-live="polite">
-            Página {page} de {result.totalPages} · {result.totalElements} accesos
-          </p>
-          <div className="flex gap-2">
-            <button type="button" className={button} disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-              ← Más recientes
-            </button>
-            <button type="button" className={button} disabled={page >= result.totalPages} onClick={() => setPage((p) => p + 1)}>
-              Anteriores →
-            </button>
-          </div>
-        </nav>
+        <Pagination
+          page={page}
+          totalPages={result.totalPages}
+          totalElements={result.totalElements}
+          size={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       ) : null}
     </section>
   )

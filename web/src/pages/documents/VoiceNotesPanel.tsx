@@ -10,8 +10,8 @@ import type { Attachment } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDate } from '../../utils/format'
 import { focusRing, linkClass } from '../../utils/styles'
-import { ConfirmDialog } from '../shared/ConfirmDialog'
-import { useSuccessNotice } from '../shared/useSuccessNotice'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 import {
   MAX_RECORDING_MINUTES,
   VOICE_FILE_ACCEPT,

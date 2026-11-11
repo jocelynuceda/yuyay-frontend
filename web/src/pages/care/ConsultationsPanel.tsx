@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { LoadError } from '../../components/layout/LoadError'
+import { useFetch } from '../../hooks/useFetch'
 import { deleteConsultation, listChangesSinceConsultation, listConsultations } from '../../services/api/consultations'
 import type { Consultation, HealthEntryVersion } from '../../types'
 import { consultationOrder, formatDate, formatDateTime, formatTime } from '../../utils/format'
@@ -6,10 +8,9 @@ import { focusRing } from '../../utils/styles'
 import { changeTypeLabels } from '../../utils/versions'
 import { todayIso } from '../../schemas/common'
 import { ConsultationForm } from '../forms/ConsultationForm'
-import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AddToCalendar } from './AddToCalendar'
-import { useLoad } from './useLoad'
-import { useSuccessNotice } from '../shared/useSuccessNotice'
+import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
 interface ConsultationsData {
   upcoming: Consultation[]
@@ -19,14 +20,14 @@ interface ConsultationsData {
 }
 
 /** Las de hoy cuentan como próximas. Los cambios se miden desde la consulta pasada más reciente. */
-async function loadConsultations(subjectId: number): Promise<ConsultationsData> {
-  const all = await listConsultations(subjectId)
+async function loadConsultations(subjectId: number, signal: AbortSignal): Promise<ConsultationsData> {
+  const all = await listConsultations(subjectId, signal)
   const today = todayIso()
   const upcoming = all.filter((c) => c.date >= today).sort((a, b) => consultationOrder(a).localeCompare(consultationOrder(b)))
   const past = all.filter((c) => c.date < today).sort((a, b) => consultationOrder(b).localeCompare(consultationOrder(a)))
   const lastPast = past[0] ?? null
   // Sin consultas pasadas no hay desde dónde comparar (el backend respondería 404)
-  const changes = lastPast ? await listChangesSinceConsultation(subjectId, lastPast.id) : []
+  const changes = lastPast ? await listChangesSinceConsultation(subjectId, lastPast.id, signal) : []
   return { upcoming, past, lastPast, changes }
 }
 
@@ -35,22 +36,17 @@ async function loadConsultations(subjectId: number): Promise<ConsultationsData> 
  * Solo el principal puede registrar, editar y borrar consultas.
  */
 export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { subjectId: number; subjectName: string; isPrincipal: boolean }) {
-  const { state, reload } = useLoad(() => loadConsultations(subjectId), subjectId)
+  const { data, error, errorStatus, reload } = useFetch((signal) => loadConsultations(subjectId, signal), [subjectId])
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Consultation | null>(null)
   const [removing, setRemoving] = useState<Consultation | null>(null)
   const { notify, anchorProps } = useSuccessNotice()
 
-  if (state.status === 'loading') return <p className="p-6 text-muted">Cargando consultas…</p>
-  if (state.status === 'error') {
-    return (
-      <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">
-        {state.message}
-      </p>
-    )
+  if (!data) {
+    return error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : <p className="p-6 text-muted">Cargando consultas…</p>
   }
 
-  const { upcoming, past, lastPast, changes } = state.data
+  const { upcoming, past, lastPast, changes } = data
   const item = (c: Consultation, isUpcoming: boolean) => editing?.id === c.id ? (
     <li key={c.id}>
       <ConsultationForm
