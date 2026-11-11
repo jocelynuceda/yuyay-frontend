@@ -10,13 +10,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.34-193-16-240.sslip.io"
+        "EXPO_PUBLIC_API_URL": "https://yuyay-frontend.vercel.app"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.34-193-16-240.sslip.io"
+        "EXPO_PUBLIC_API_URL": "https://yuyay-frontend.vercel.app"
       }
     }
   }

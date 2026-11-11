@@ -1,6 +1,6 @@
 # Yuyay — Web
 
-Aplicación web de Yuyay en React 19, Vite, TypeScript y Tailwind CSS. Publicada en https://yuyay-web.vercel.app.
+Aplicación web de Yuyay en React 19, Vite, TypeScript y Tailwind CSS. Publicada en https://yuyay-frontend.vercel.app.
 
 ```bash
 npm install
