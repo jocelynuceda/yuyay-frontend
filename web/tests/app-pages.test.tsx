@@ -63,6 +63,8 @@ function backend() {
     uploads: [] as { form: unknown; timeout: unknown }[],
     createdEntries: [] as Record<string, unknown>[],
     me: { id: 1, email: 'ana@demo.yuyay', name: 'Ana Torres', role: 'USER', createdAt: '2026-10-01T00:00:00Z' },
+    // null: el backend no tiene el clasificador de documentos (responde 404)
+    scope: null as null | { enabled: boolean; appropriate: number; unsure: number; strikes: number },
     subjects: [
       { id: 1, name: 'Rosa', birthDate: '1954-01-01', notes: null, createdAt: '2026-10-01T00:00:00Z', myRole: 'PRINCIPAL' },
       { id: 2, name: 'Pedro', birthDate: '1951-01-01', notes: null, createdAt: '2026-10-01T00:00:00Z', myRole: 'PRINCIPAL' },
@@ -120,6 +122,10 @@ function backend() {
     if (url === '/auth/reset-password') {
       db.resets.push(body)
       return ok(config, '', 204)
+    }
+    if (url === '/users/me/document-scope') {
+      if (!db.scope) throw fail(config, 404)
+      return ok(config, db.scope)
     }
     if (url === '/users/me' && method === 'GET') return ok(config, db.me)
     if (url === '/users/me' && method === 'PATCH') {
@@ -246,11 +252,14 @@ function Where() {
   return <><output id="pathname">{location.pathname}</output><output id="search">{location.search}</output></>
 }
 
-async function mountApp(path: string, { loggedIn }: { loggedIn: boolean }) {
+type Db = ReturnType<typeof backend>['db']
+
+async function mountApp(path: string, { loggedIn, seed }: { loggedIn: boolean; seed?: (db: Db) => void }) {
   const storage = new MemoryStorage()
   ;(globalThis as any).sessionStorage = storage
   http.clearTokens()
   const b = backend()
+  seed?.(b.db)
   http.api.defaults.adapter = b.adapter
   http.publicApi.defaults.adapter = b.adapter
   if (loggedIn) {
@@ -670,4 +679,72 @@ test('Perfil: una persona inexistente muestra "no encontrada" sin botón de rein
   await waitFor(() => /No encontramos lo que buscas/.test(text()), 'mostrar el 404')
   assert.equal(byText('button', 'Reintentar'), null)
   assert.ok(byText('a', 'Volver al inicio'))
+})
+
+const scopedDocuments = (db: Db) => {
+  db.attachments.push(
+    { ...attachmentBase, id: 33, originalFilename: 'receta.png', contentType: 'image/png', ocrStatus: 'DONE', ocrText: 'Rp. Amoxicilina 500 mg', scopeLabel: 'MEDICAL', scopeScore: 0.61 } as never,
+    { ...attachmentBase, id: 34, originalFilename: 'apuntes.png', contentType: 'image/png', ocrStatus: 'DONE', ocrText: 'Tarea de programación', scopeLabel: 'NONMEDICAL', scopeScore: 0.41 } as never,
+    { ...attachmentBase, id: 35, originalFilename: 'borroso.png', contentType: 'image/png', ocrStatus: 'DONE', ocrText: 'xx yy zz', scopeLabel: 'REVIEW', scopeScore: null } as never,
+  )
+}
+const SCOPE_TEXTS = /Uso adecuado|No seguro|Posible uso ajeno/
+
+test('Documentos: sin clasificación del backend no aparece ninguna etiqueta de uso', async (t) => {
+  const { unmount } = await mountApp('/personas/1?tab=documentos', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /examen\.png/.test(text()), 'lista de documentos')
+  assert.doesNotMatch(text(), SCOPE_TEXTS)
+})
+
+test('Documentos: muestra la etiqueta de uso de cada documento clasificado', async (t) => {
+  const { unmount } = await mountApp('/personas/1?tab=documentos', { loggedIn: true, seed: scopedDocuments })
+  t.after(unmount)
+  await waitFor(() => /borroso\.png/.test(text()), 'lista de documentos')
+  const row = (name: string) => [...document.querySelectorAll('li, article, tr')].find((el) => el.textContent?.includes(name))?.textContent ?? ''
+  assert.match(row('receta.png'), /Uso adecuado/)
+  assert.match(row('apuntes.png'), /Posible uso ajeno/)
+  assert.match(row('borroso.png'), /No seguro/)
+  assert.doesNotMatch(row('examen.png'), SCOPE_TEXTS, 'un documento sin clasificar no lleva etiqueta')
+})
+
+test('Documentos: la revisión muestra la etiqueta con su explicación', async (t) => {
+  const { unmount } = await mountApp('/personas/1/documentos/34', { loggedIn: true, seed: scopedDocuments })
+  t.after(unmount)
+  await waitFor(() => /Posible uso ajeno/.test(text()), 'etiqueta en la revisión')
+  assert.match(text(), /El texto no parece de un documento de salud\. Si es un error, avisa al equipo\./)
+})
+
+test('Perfil: el resumen de uso de documentos aparece solo con el clasificador encendido', async (t) => {
+  const on = await mountApp('/perfil', {
+    loggedIn: true,
+    seed: (db) => {
+      db.scope = { enabled: true, appropriate: 3, unsure: 1, strikes: 2 }
+    },
+  })
+  await waitFor(() => /Uso de documentos/.test(text()), 'tarjeta de uso de documentos')
+  const card = document.querySelector('[aria-labelledby="document-scope"]')!
+  assert.match(card.textContent ?? '', /Adecuados\s*3/)
+  assert.match(card.textContent ?? '', /No seguros\s*1/)
+  assert.match(card.textContent ?? '', /Posibles usos ajenos\s*2/)
+  assert.match(card.textContent ?? '', /No afecta tu cuenta/)
+  await on.unmount()
+
+  const off = await mountApp('/perfil', {
+    loggedIn: true,
+    seed: (db) => {
+      db.scope = { enabled: false, appropriate: 0, unsure: 0, strikes: 0 }
+    },
+  })
+  await waitFor(() => /ana@demo\.yuyay/.test(text()), 'datos del perfil')
+  await waitFor(() => off.b.calls.some((c) => c.includes('/users/me/document-scope')), 'consulta del resumen')
+  assert.doesNotMatch(text(), /Uso de documentos/)
+  await off.unmount()
+
+  const old = await mountApp('/perfil', { loggedIn: true })
+  t.after(old.unmount)
+  await waitFor(() => /ana@demo\.yuyay/.test(text()), 'datos del perfil')
+  await waitFor(() => old.b.calls.some((c) => c.includes('/users/me/document-scope')), 'consulta del resumen')
+  assert.doesNotMatch(text(), /Uso de documentos/, 'un backend sin el clasificador (404) no muestra nada ni rompe la página')
+  assert.doesNotMatch(text(), /No se encontró lo que buscas/)
 })

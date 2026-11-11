@@ -15,7 +15,7 @@ import { useLogout } from '../../hooks/useLogout'
 import { useTheme } from '../../hooks/useTheme'
 import { useToast } from '../../hooks/useToast'
 import { profileSchema } from '../../schemas/profile'
-import { getMe, updateMe } from '../../services/api/users'
+import { getDocumentScopeSummary, getMe, updateMe } from '../../services/api/users'
 import type { UserProfile } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
 import { formatDate, userRoleLabels } from '../../utils/format'
@@ -46,6 +46,33 @@ function ThemeSetting() {
           </Button>
         ))}
       </div>
+    </Card>
+  )
+}
+
+function DocumentScopeCard() {
+  // Si falla (404 en servidores antiguos, red) no se muestra nada: la función es opcional.
+  const { data } = useFetch((signal) => getDocumentScopeSummary(signal), [])
+  if (!data?.enabled) return null
+  const items = [
+    { label: 'Adecuados', value: data.appropriate },
+    { label: 'No seguros', value: data.unsure },
+    { label: 'Posibles usos ajenos', value: data.strikes },
+  ]
+  return (
+    <Card as="section" aria-labelledby="document-scope" className="grid gap-4">
+      <h2 id="document-scope" className="text-xl font-bold">
+        Uso de documentos
+      </h2>
+      <dl className="grid gap-3 sm:grid-cols-3">
+        {items.map(({ label, value }) => (
+          <div key={label}>
+            <dt className="text-sm text-muted">{label}</dt>
+            <dd className="text-2xl font-bold">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="text-sm text-muted">Clasificación automática en prueba. No afecta tu cuenta.</p>
     </Card>
   )
 }
@@ -152,6 +179,7 @@ export default function ProfilePage() {
             </h2>
             <ProfileForm profile={profile} onSaved={handleSaved} />
           </Card>
+          <DocumentScopeCard />
           <ThemeSetting />
           <div>
             <Button variant="secondary" onClick={() => void logout()}>
