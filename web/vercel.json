@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    { "source": "/api/:path*", "destination": "https://api.34-193-16-240.sslip.io/api/:path*" },
+    { "source": "/actuator/health", "destination": "https://api.34-193-16-240.sslip.io/actuator/health" },
+    { "source": "/swagger-ui.html", "destination": "https://api.34-193-16-240.sslip.io/swagger-ui/index.html" },
+    { "source": "/swagger-ui/:path*", "destination": "https://api.34-193-16-240.sslip.io/swagger-ui/:path*" },
+    { "source": "/v3/api-docs/:path*", "destination": "https://api.34-193-16-240.sslip.io/v3/api-docs/:path*" },
+    { "source": "/v3/api-docs", "destination": "https://api.34-193-16-240.sslip.io/v3/api-docs" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

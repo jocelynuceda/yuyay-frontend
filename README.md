@@ -22,9 +22,9 @@ Este repositorio contiene la **aplicación web (React)** y la **aplicación móv
 | --- | --- |
 | Aplicación web (Vercel) | https://yuyay-web.vercel.app |
 | Aplicación móvil Android (APK en Expo) | https://expo.dev/accounts/aprilwu-mobile/projects/yuyay-mobile/builds/7a700b4a-244c-4dfc-8243-5d059e5cd585 |
-| API (AWS EC2 + RDS, HTTPS) | https://api.34-193-16-240.sslip.io |
-| Documentación Swagger | https://api.34-193-16-240.sslip.io/swagger-ui.html |
-| Estado de salud de la API | https://api.34-193-16-240.sslip.io/actuator/health |
+| API (AWS EC2 + RDS, HTTPS) | https://api.34-193-16-240.sslip.io (también por https://yuyay-web.vercel.app/api) |
+| Documentación Swagger | https://yuyay-web.vercel.app/swagger-ui.html |
+| Estado de salud de la API | https://yuyay-web.vercel.app/actuator/health |
 | Repositorio del backend | https://github.com/jocelynuceda/dbp-yuyay |
 
 **Cuentas de demo:** `ana@demo.yuyay` (cuidadora principal) y `bruno@demo.yuyay` (cuidador). La contraseña se entrega
@@ -129,7 +129,7 @@ npx expo start
 Escanea el QR con Expo Go. Para usar la API desplegada, crea `mobile/.env` con:
 
 ```
-EXPO_PUBLIC_API_URL=https://api.34-193-16-240.sslip.io
+EXPO_PUBLIC_API_URL=https://yuyay-web.vercel.app
 ```
 
 Si se deja vacía, en desarrollo la API pasa por el proxy de Metro hacia `localhost:8080`. Con `npx expo start --tunnel`
@@ -146,10 +146,11 @@ GitHub Actions corre estas mismas verificaciones en cada pull request (`.github/
 
 ## Despliegue
 
-- **Web:** Vercel publica la carpeta `web/` de este repositorio. La variable `VITE_API_URL` está definida en el
-  proyecto de Vercel y `web/vercel.json` redirige todas las rutas a `index.html`. El dominio de Vercel está en
-  `CORS_ALLOWED_ORIGINS` del backend.
-- **Móvil:** el APK se genera en EAS con el perfil `preview` de `mobile/eas.json`, que ya trae `EXPO_PUBLIC_API_URL`:
+- **Web:** Vercel publica la carpeta `web/` de este repositorio. `web/vercel.json` reenvía `/api`, `/actuator/health`
+  y Swagger al backend en EC2, y el resto de rutas a `index.html`. Así el navegador solo habla con
+  `yuyay-web.vercel.app` (sin CORS) y la app funciona aunque una red bloquee `sslip.io`. Por eso `VITE_API_URL`
+  **no** debe estar definida en el proyecto de Vercel: vacía, el cliente usa `/api/v1` del mismo dominio.
+- **Móvil:** el APK se genera en EAS con el perfil `preview` de `mobile/eas.json`, que ya trae `EXPO_PUBLIC_API_URL` apuntando al proxy de Vercel:
 
   ```bash
   cd mobile
