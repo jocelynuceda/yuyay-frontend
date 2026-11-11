@@ -7,6 +7,7 @@ import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
 import { inviteCaregiver } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRole, HomeStackParamList } from '../types';
@@ -30,6 +31,7 @@ export function InviteCaregiverScreen({ route, navigation }: Props) {
   const [label, setLabel] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -42,6 +44,7 @@ export function InviteCaregiverScreen({ route, navigation }: Props) {
     setError(null);
     try {
       await inviteCaregiver(subjectId, { email: email.trim(), role, relationshipLabel: label.trim() });
+      toast(`Invitación enviada a ${email.trim()}.`);
       navigation.goBack();
     } catch (e) {
       if (e instanceof ApiError) {

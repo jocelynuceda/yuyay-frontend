@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 
@@ -109,6 +110,24 @@ export function TextArea({
   );
 }
 
+/** Acción destructiva al pie de un formulario (borrar, eliminar). Se desactiva mientras trabaja. */
+export function DeleteButton({ label, onPress, busy }: { label: string; onPress: () => void; busy?: boolean }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      style={({ pressed }) => [styles.delete, (pressed || busy) && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: busy, busy }}
+    >
+      {busy ? <ActivityIndicator size="small" color={colors.danger} /> : <Ionicons name="trash-outline" size={18} color={colors.danger} />}
+      <Text style={styles.deleteText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export const formStyles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: 20, gap: 14, paddingBottom: 40 },
@@ -117,6 +136,9 @@ export const formStyles = StyleSheet.create({
 });
 
 const useStyles = makeStyles(({ colors, shadow }) => ({
+  delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
+  deleteText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },
+  pressed: { opacity: 0.6 },
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,

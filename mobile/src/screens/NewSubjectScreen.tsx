@@ -9,6 +9,7 @@ import { FormScroll } from '../components/FormScroll';
 import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
 import { createCareSubject } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
@@ -28,6 +29,7 @@ export function NewSubjectScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
   const [submitted, setSubmitted] = useState(false);
 
   const date = parseDateParts(dateParts, DATE_RULES);
@@ -40,6 +42,7 @@ export function NewSubjectScreen({ navigation }: Props) {
     setError(null);
     try {
       const subject = await createCareSubject({ name: name.trim(), birthDate: date.iso, notes: notes.trim() });
+      toast(`Se agregó a ${subject.name}.`);
       navigation.replace('SubjectDetail', { subjectId: subject.id, name: subject.name });
     } catch (e) {
       if (e instanceof ApiError) {

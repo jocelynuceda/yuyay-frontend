@@ -8,6 +8,7 @@ import { ChoiceChips, FormCard, SubmitButton } from '../components/FormKit';
 import { IconButton, ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
+import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
 import {
   createHandoffSession,
@@ -20,7 +21,7 @@ import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HandoffItem, HandoffSession, HomeStackParamList } from '../types';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
-import { confirmAction, shareText } from '../utils/confirm';
+import { shareText } from '../utils/confirm';
 import { formatDate } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HandoffView'>;
@@ -51,6 +52,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
   const [expiresIn, setExpiresIn] = useState(24);
   const [sharing, setSharing] = useState(false);
   const [message, setMessage] = useState<{ text: string; tone: 'error' | 'info' } | null>(null);
+  const runAction = useConfirmedAction((text) => setMessage(text ? { text, tone: 'error' } : null));
   const handoff = useFetch(() => getHandoff(handoffId), [handoffId]);
   const sessions = useFetch(() => getHandoffSessions(handoffId), [handoffId]);
 
@@ -82,27 +84,23 @@ export function HandoffViewScreen({ route, navigation }: Props) {
     }
   }
 
-  async function handleRevoke(sessionId: number) {
-    if (!(await confirmAction('Revocar enlace', 'Quien tenga el código ya no podrá abrir el resumen.', 'Revocar'))) {
-      return;
-    }
-    try {
-      await revokeHandoffSession(sessionId);
-      sessions.reload();
-    } catch (e) {
-      setMessage({ text: e instanceof ApiError ? e.message : 'No pudimos revocar el enlace.', tone: 'error' });
-    }
-  }
+  const handleRevoke = (sessionId: number) =>
+    runAction({
+      confirm: ['Revocar enlace', 'Quien tenga el código ya no podrá abrir el resumen.', 'Revocar'],
+      action: () => revokeHandoffSession(sessionId),
+      success: 'Enlace revocado.',
+      fallback: 'No pudimos revocar el enlace.',
+      onDone: sessions.reload,
+    });
 
-  async function handleDelete() {
-    if (!(await confirmAction('Borrar resumen', 'Los enlaces que compartiste dejarán de funcionar.', 'Borrar'))) return;
-    try {
-      await deleteHandoff(handoffId);
-      navigation.goBack();
-    } catch (e) {
-      setMessage({ text: e instanceof ApiError ? e.message : 'No pudimos borrar el resumen.', tone: 'error' });
-    }
-  }
+  const handleDelete = () =>
+    runAction({
+      confirm: ['Borrar resumen', 'Los enlaces que compartiste dejarán de funcionar.', 'Borrar'],
+      action: () => deleteHandoff(handoffId),
+      success: 'Resumen borrado.',
+      fallback: 'No pudimos borrar el resumen.',
+      onDone: navigation.goBack,
+    });
 
   // Modo médico: letra grande, sin cabecera ni acciones
   if (doctorMode) {

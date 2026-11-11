@@ -7,14 +7,13 @@ import { SubmitButton } from '../components/FormKit';
 import { IconButton, ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
+import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getDelegations, revokeDelegation } from '../services/api';
-import { ApiError } from '../services/http';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { Delegation, HomeStackParamList } from '../types';
 import { categoryMeta } from '../utils/categories';
-import { confirmAction } from '../utils/confirm';
 import { formatDate, initialsOf } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Delegations'>;
@@ -31,6 +30,7 @@ export function DelegationsScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const { subjectId, isPrincipal } = route.params;
   const [error, setError] = useState<string | null>(null);
+  const runAction = useConfirmedAction(setError);
   const delegations = useFetch(() => getDelegations(subjectId), [subjectId]);
   useRefreshOnFocus(delegations.reload);
 
@@ -41,17 +41,14 @@ export function DelegationsScreen({ route, navigation }: Props) {
     (a, b) => Number(b.active) - Number(a.active) || b.createdAt.localeCompare(a.createdAt),
   );
 
-  async function handleRevoke(d: Delegation) {
-    const ok = await confirmAction('Revocar acceso', `${d.granteeName} ya no podrá ver la información.`, 'Revocar');
-    if (!ok) return;
-    setError(null);
-    try {
-      await revokeDelegation(d.id);
-      delegations.reload();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No pudimos revocar el acceso.');
-    }
-  }
+  const handleRevoke = (d: Delegation) =>
+    runAction({
+      confirm: ['Revocar acceso', `${d.granteeName} ya no podrá ver la información.`, 'Revocar'],
+      action: () => revokeDelegation(d.id),
+      success: 'Acceso revocado.',
+      fallback: 'No pudimos revocar el acceso.',
+      onDone: delegations.reload,
+    });
 
   return (
     <ScrollView

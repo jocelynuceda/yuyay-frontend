@@ -8,6 +8,7 @@ import { FormScroll } from '../components/FormScroll';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import medicalTerms from '../data/medicalTerms.json';
+import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
 import { deleteAttachment, getAttachment, retryOcr } from '../services/api';
 import { openAttachmentFile } from '../services/attachmentFiles';
@@ -16,7 +17,6 @@ import { fonts, makeStyles, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { deleteErrorMessage, isImage } from '../utils/attachments';
 import { categoryMeta } from '../utils/categories';
-import { confirmAction } from '../utils/confirm';
 import { formatDate } from '../utils/format';
 import { applyAcceptedMatches, createMedicalTermMatcher, type MedicalTermMatcher } from '../utils/medicalTermMatcher';
 import { ocrEntryParams } from '../utils/ocrEntryDraft';
@@ -34,6 +34,7 @@ export function ReviewOcrScreen({ route, navigation }: Props) {
   const [retrying, setRetrying] = useState(false);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const runAction = useConfirmedAction(setError);
   const attachment = useFetch(() => getAttachment(subjectId, attachmentId), [subjectId, attachmentId]);
   const { reload } = attachment;
 
@@ -76,17 +77,14 @@ export function ReviewOcrScreen({ route, navigation }: Props) {
     }
   }
 
-  async function handleDelete() {
-    const confirmed = await confirmAction('Borrar documento', 'Esta acción no se puede deshacer.', 'Borrar');
-    if (!confirmed) return;
-    setError(null);
-    try {
-      await deleteAttachment(subjectId, attachmentId);
-      navigation.goBack();
-    } catch (e) {
-      setError(deleteErrorMessage(e));
-    }
-  }
+  const handleDelete = () =>
+    runAction({
+      confirm: ['Borrar documento', 'Esta acción no se puede deshacer.', 'Borrar'],
+      action: () => deleteAttachment(subjectId, attachmentId),
+      success: 'Documento borrado.',
+      fallback: deleteErrorMessage,
+      onDone: navigation.goBack,
+    });
 
   return (
     <FormScroll contentContainerStyle={[formStyles.container, styles.container]}>

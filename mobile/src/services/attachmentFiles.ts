@@ -1,8 +1,7 @@
 import type { DocumentPickerAsset } from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Linking, Platform } from 'react-native';
-import { getAttachmentSource } from './api';
-import { getAttachmentAccess } from './attachments';
+import { getAttachmentAccess, getAttachmentSource } from './api';
 import { appendAttachment, attachmentMimeType } from './attachmentUpload';
 
 export const imagePickerOptions: ImagePicker.ImagePickerOptions = {
