@@ -1,9 +1,11 @@
 import { Platform } from 'react-native';
 import { API_URL, http, session } from './http';
+import { attachmentUploadOptions } from './attachmentUpload';
 import { collectPages, type Page } from './pagination';
 import type {
   AccessLog,
   Attachment,
+  AttachmentAccess,
   AuthResponse,
   CareRelationship,
   CareSubject,
@@ -25,7 +27,6 @@ import type {
   HealthEntryVersion,
   InviteCaregiverInput,
   Notification,
-  User,
 } from '../types';
 
 /** Quita los campos vacíos para que el backend reciba null. */
@@ -49,8 +50,6 @@ export const resetPassword = (email: string, code: string, newPassword: string) 
 
 export const logout = (refreshToken: string) => http.post('/auth/logout', { refreshToken });
 
-export const getMe = () => http.get<User>('/users/me').then((r) => r.data);
-
 export const getCareSubjects = () => http.get<CareSubject[]>('/care-subjects').then((r) => r.data);
 
 export const getCareSubject = (id: number) => http.get<CareSubject>(`/care-subjects/${id}`).then((r) => r.data);
@@ -61,6 +60,9 @@ export const createCareSubject = (data: { name: string; birthDate?: string; note
 /** PATCH reemplaza los tres datos: lo que llega en null queda vacío. */
 export const updateCareSubject = (id: number, data: { name: string; birthDate: string | null; notes: string | null }) =>
   http.patch<CareSubject>(`/care-subjects/${id}`, data).then((r) => r.data);
+
+/** El backend solo lo permite al principal y si la persona no tiene registros de salud (409). */
+export const deleteCareSubject = (id: number) => http.delete(`/care-subjects/${id}`);
 
 export const getCareRelationships = (subjectId: number) =>
   http.get<CareRelationship[]>(`/care-subjects/${subjectId}/relationships`).then((r) => r.data);
@@ -186,13 +188,13 @@ export const getAttachment = (subjectId: number, attachmentId: number) =>
 
 export const uploadAttachment = (subjectId: number, form: FormData) =>
   http
-    .post<Attachment>(`/care-subjects/${subjectId}/attachments`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      // Una foto tarda más que una petición normal
-      timeout: 60000,
-      transformRequest: (data) => data,
-    })
+    // Una foto tarda más que una petición normal; FormData se envía tal cual
+    .post<Attachment>(`/care-subjects/${subjectId}/attachments`, form, { ...attachmentUploadOptions, transformRequest: (data) => data })
     .then((r) => r.data);
+
+/** Enlace temporal (S3) para abrir el archivo original. */
+export const getAttachmentAccess = (subjectId: number, attachmentId: number) =>
+  http.get<AttachmentAccess>(`/care-subjects/${subjectId}/attachments/${attachmentId}/access`).then((r) => r.data);
 
 export const deleteAttachment = (subjectId: number, attachmentId: number) =>
   http.delete(`/care-subjects/${subjectId}/attachments/${attachmentId}`);

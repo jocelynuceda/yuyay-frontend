@@ -65,13 +65,6 @@ export interface CareSubjectRequest {
 
 // ---- Registros de salud ----
 
-export interface HealthCategory {
-  id: number
-  code: CategoryCode
-  name: string
-  description: string
-}
-
 export interface HealthEntryVersion {
   id: number
   versionNumber: number
@@ -218,16 +211,6 @@ export interface DelegateSession {
   includeConsultations?: boolean
 }
 
-export interface DelegateMe {
-  delegationId: number
-  careSubjectId: number
-  careSubjectName: string
-  granteeName: string
-  categoryCodes: CategoryCode[]
-  includeConsultations: boolean
-  validUntil: string
-}
-
 /** Sin las notas: pueden mencionar información que no se compartió. */
 export type DelegateConsultation = Pick<Consultation, 'id' | 'date' | 'time' | 'reason'>
 
@@ -266,16 +249,6 @@ export interface HandoffRequest {
   reason: string
   questions: string | null
   healthEntryIds: number[]
-}
-
-export interface HandoffSession {
-  id: number
-  handoffId: number
-  expiresAt: string
-  sessionWindowMinutes: number
-  firstOpenedAt: string | null
-  revokedAt: string | null
-  createdAt: string
 }
 
 export interface HandoffSessionRequest {

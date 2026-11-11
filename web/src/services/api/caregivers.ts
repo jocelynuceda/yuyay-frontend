@@ -1,8 +1,8 @@
 import { api } from '../http'
 import type { CareInviteRequest, CareRelationship } from '../../types'
 
-export async function listCaregivers(careSubjectId: number) {
-  const { data } = await api.get<CareRelationship[]>(`/care-subjects/${careSubjectId}/relationships`)
+export async function listCaregivers(careSubjectId: number, signal?: AbortSignal) {
+  const { data } = await api.get<CareRelationship[]>(`/care-subjects/${careSubjectId}/relationships`, { signal })
   return data
 }
 

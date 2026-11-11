@@ -172,8 +172,6 @@ export interface HealthEntry {
   categoryCode: string;
   categoryName: string;
   createdAt: string;
-  /** Solo viene en registros borrados (lo usa services/entryHistory.ts). */
-  deletedAt?: string | null;
   latestVersion: HealthEntryVersion;
 }
 

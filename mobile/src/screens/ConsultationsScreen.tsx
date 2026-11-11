@@ -7,13 +7,12 @@ import { SubmitButton } from '../components/FormKit';
 import { IconButton, ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
+import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { deleteConsultation, getConsultations } from '../services/api';
-import { ApiError } from '../services/http';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { Consultation, HomeStackParamList } from '../types';
-import { confirmAction } from '../utils/confirm';
 import { appointmentOrder, formatDate, formatTime, todayIso } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Consultations'>;
@@ -23,6 +22,7 @@ export function ConsultationsScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const { subjectId, subjectName, isPrincipal } = route.params;
   const [error, setError] = useState<string | null>(null);
+  const runAction = useConfirmedAction(setError);
   const consultations = useFetch(() => getConsultations(subjectId), [subjectId]);
   useRefreshOnFocus(consultations.reload);
 
@@ -38,16 +38,14 @@ export function ConsultationsScreen({ route, navigation }: Props) {
     .filter((c) => c.date < today)
     .sort((a, b) => appointmentOrder(b).localeCompare(appointmentOrder(a)));
 
-  async function handleDelete(c: Consultation) {
-    if (!(await confirmAction('Borrar cita', `"${c.reason}" del ${formatDate(c.date)}.`, 'Borrar'))) return;
-    setError(null);
-    try {
-      await deleteConsultation(c.id);
-      consultations.reload();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No pudimos borrar la cita.');
-    }
-  }
+  const handleDelete = (c: Consultation) =>
+    runAction({
+      confirm: ['Borrar cita', `"${c.reason}" del ${formatDate(c.date)}.`, 'Borrar'],
+      action: () => deleteConsultation(c.id),
+      success: 'Cita borrada.',
+      fallback: 'No pudimos borrar la cita.',
+      onDone: consultations.reload,
+    });
 
   const renderItem = (c: Consultation, upcomingItem: boolean) => (
     <ListItem

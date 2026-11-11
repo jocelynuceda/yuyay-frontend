@@ -7,6 +7,7 @@ import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
 import { TimeField } from '../components/TimeField';
 import { createConsultation, updateConsultation } from '../services/api';
+import { useToast } from '../hooks/useToast';
 import { ApiError } from '../services/http';
 import type { HomeStackParamList } from '../types';
 import { parseTime, TIME_ERROR, type TimeParts, timePartsOf, toApiTime } from '../utils/calendar';
@@ -28,6 +29,7 @@ export function NewConsultationScreen({ route, navigation }: Props) {
   const [notes, setNotes] = useState(consultation?.notes ?? '');
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -48,6 +50,7 @@ export function NewConsultationScreen({ route, navigation }: Props) {
       const data = { date: date.iso, time: time ? toApiTime(time) : undefined, reason: reason.trim(), notes: notes.trim() };
       if (consultation) await updateConsultation(consultation.id, { ...data, clearTime: !time });
       else await createConsultation(subjectId, data);
+      toast(consultation ? 'Cita actualizada.' : 'Cita guardada.');
       navigation.goBack();
     } catch (e) {
       if (e instanceof ApiError) {

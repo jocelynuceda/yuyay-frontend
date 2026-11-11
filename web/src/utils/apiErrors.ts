@@ -8,6 +8,11 @@ export function getErrorMessage(error: unknown): string {
   return getHttpErrorMessage(error)
 }
 
+/** Código HTTP de la respuesta de error, o undefined si no hubo respuesta (red, timeout). */
+export function getErrorStatus(error: unknown): number | undefined {
+  return axios.isAxiosError(error) ? error.response?.status : undefined
+}
+
 /**
  * Pasa los fieldErrors del backend a los campos del formulario (React Hook Form).
  * Los nombres de campo del backend coinciden con los de los esquemas.

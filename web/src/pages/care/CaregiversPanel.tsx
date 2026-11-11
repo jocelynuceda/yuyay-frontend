@@ -1,12 +1,13 @@
 import { useState } from 'react'
+import { LoadError } from '../../components/layout/LoadError'
+import { useFetch } from '../../hooks/useFetch'
 import { listCaregivers, removeCaregiver } from '../../services/api/caregivers'
 import type { CareRelationship, CareRole, CareStatus } from '../../types'
 import { formatDate } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { InviteCaregiverForm } from '../forms/InviteCaregiverForm'
-import { ConfirmDialog } from '../shared/ConfirmDialog'
-import { useLoad } from './useLoad'
-import { useSuccessNotice } from '../shared/useSuccessNotice'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
 const roleLabels: Record<CareRole, string> = { PRINCIPAL: 'Principal', CAREGIVER: 'Cuidador/a' }
 const statusLabels: Record<CareStatus, string> = { PENDING: 'Invitación pendiente', ACTIVE: 'Activo', REVOKED: 'Quitado' }
@@ -25,21 +26,16 @@ export function CaregiversPanel({
   /** Se llama al quitar un cuidador, para actualizar lo que dependa de la lista. */
   onChanged?: () => void
 }) {
-  const { state, reload } = useLoad(() => listCaregivers(subjectId), subjectId)
+  const { data, error, errorStatus, reload } = useFetch((signal) => listCaregivers(subjectId, signal), [subjectId])
   const [inviting, setInviting] = useState(false)
   const [removing, setRemoving] = useState<CareRelationship | null>(null)
   const { notify, anchorProps } = useSuccessNotice()
 
-  if (state.status === 'loading') return <p className="p-6 text-muted">Cargando cuidadores…</p>
-  if (state.status === 'error') {
-    return (
-      <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">
-        {state.message}
-      </p>
-    )
+  if (!data) {
+    return error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : <p className="p-6 text-muted">Cargando cuidadores…</p>
   }
 
-  const visible = state.data.filter((r) => r.status !== 'REVOKED')
+  const visible = data.filter((r) => r.status !== 'REVOKED')
   // El backend no deja quitar al único principal activo
   const activePrincipals = visible.filter((r) => r.role === 'PRINCIPAL' && r.status === 'ACTIVE').length
   const canRemove = (r: CareRelationship) => !(r.role === 'PRINCIPAL' && r.status === 'ACTIVE' && activePrincipals <= 1)

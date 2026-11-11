@@ -1,6 +1,5 @@
 import { api } from '../http'
 import type {
-  HealthCategory,
   HealthEntry,
   HealthEntryCreateRequest,
   HealthEntryListParams,
@@ -11,19 +10,14 @@ import type {
 
 const base = (careSubjectId: number) => `/care-subjects/${careSubjectId}/health-entries`
 
-export async function listHealthCategories() {
-  const { data } = await api.get<HealthCategory[]>('/health-categories')
-  return data
-}
-
 /** Registros paginados. Orden por defecto createdAt,desc; size 10. */
-export async function listHealthEntries(careSubjectId: number, params: HealthEntryListParams = {}) {
-  const { data } = await api.get<Page<HealthEntry>>(base(careSubjectId), { params })
+export async function listHealthEntries(careSubjectId: number, params: HealthEntryListParams = {}, signal?: AbortSignal) {
+  const { data } = await api.get<Page<HealthEntry>>(base(careSubjectId), { params, signal })
   return data
 }
 
-export async function getHealthEntry(careSubjectId: number, entryId: number) {
-  const { data } = await api.get<HealthEntry>(`${base(careSubjectId)}/${entryId}`)
+export async function getHealthEntry(careSubjectId: number, entryId: number, signal?: AbortSignal) {
+  const { data } = await api.get<HealthEntry>(`${base(careSubjectId)}/${entryId}`, { signal })
   return data
 }
 
@@ -42,7 +36,7 @@ export async function deleteHealthEntry(careSubjectId: number, entryId: number) 
 }
 
 /** De la versión más nueva a la más antigua. */
-export async function listHealthEntryVersions(careSubjectId: number, entryId: number) {
-  const { data } = await api.get<HealthEntryVersion[]>(`${base(careSubjectId)}/${entryId}/versions`)
+export async function listHealthEntryVersions(careSubjectId: number, entryId: number, signal?: AbortSignal) {
+  const { data } = await api.get<HealthEntryVersion[]>(`${base(careSubjectId)}/${entryId}/versions`, { signal })
   return data
 }

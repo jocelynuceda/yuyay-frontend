@@ -1,12 +1,13 @@
 import { useState } from 'react'
+import { LoadError } from '../../components/layout/LoadError'
+import { useFetch } from '../../hooks/useFetch'
 import { listDelegations, revokeDelegation } from '../../services/api/delegations'
 import type { Delegation, DelegationCreated } from '../../types'
 import { categoryLabels, formatDateTime } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { DelegationForm } from '../forms/DelegationForm'
-import { ConfirmDialog } from '../shared/ConfirmDialog'
-import { useLoad } from './useLoad'
-import { useSuccessNotice } from '../shared/useSuccessNotice'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
 function delegationStatus(d: Delegation) {
   if (d.revokedAt) return { label: `Revocado el ${formatDateTime(d.revokedAt)}`, tone: 'text-muted' }
@@ -19,19 +20,14 @@ function delegationStatus(d: Delegation) {
  * Accesos delegados de una persona: crear (solo principal), copiar el enlace y revocar con confirmación.
  */
 export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number; isPrincipal: boolean }) {
-  const { state, reload } = useLoad(() => listDelegations(subjectId), subjectId)
+  const { data, error, errorStatus, reload } = useFetch((signal) => listDelegations(subjectId, signal), [subjectId])
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<DelegationCreated | null>(null)
   const [revoking, setRevoking] = useState<Delegation | null>(null)
   const { notify, anchorProps } = useSuccessNotice()
 
-  if (state.status === 'loading') return <p className="p-6 text-muted">Cargando accesos…</p>
-  if (state.status === 'error') {
-    return (
-      <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">
-        {state.message}
-      </p>
-    )
+  if (!data) {
+    return error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : <p className="p-6 text-muted">Cargando accesos…</p>
   }
 
   return (
@@ -71,7 +67,7 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
       {created ? <ShareDelegation created={created} onClose={() => setCreated(null)} /> : null}
 
       <ul className="grid gap-3">
-        {state.data.map((d) => {
+        {data.map((d) => {
           const status = delegationStatus(d)
           return (
             <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4">
@@ -99,7 +95,7 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
           )
         })}
       </ul>
-      {state.data.length === 0 ? <p className="text-muted">No hay accesos delegados.</p> : null}
+      {data.length === 0 ? <p className="text-muted">No hay accesos delegados.</p> : null}
 
       <ConfirmDialog
         open={!!revoking}

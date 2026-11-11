@@ -6,7 +6,9 @@ import { FormCard, SubmitButton } from '../components/FormKit';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { VoiceNotePlayer } from '../components/VoiceNotePlayer';
+import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
+import { useToast } from '../hooks/useToast';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { deleteAttachment, getAttachments, uploadAttachment } from '../services/api';
@@ -15,7 +17,6 @@ import { ApiError } from '../services/http';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { deleteErrorMessage, formatDuration, isAudio } from '../utils/attachments';
-import { confirmAction } from '../utils/confirm';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'VoiceNotes'>;
 
@@ -26,6 +27,8 @@ export function VoiceNotesScreen({ route, navigation }: Props) {
   const voice = useVoiceRecorder();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const runAction = useConfirmedAction(setError);
+  const toast = useToast();
   const attachments = useFetch(() => getAttachments(subjectId), [subjectId]);
   useRefreshOnFocus(attachments.reload);
 
@@ -36,6 +39,7 @@ export function VoiceNotesScreen({ route, navigation }: Props) {
     try {
       await uploadAttachment(subjectId, await audioFormData(voice.uri));
       voice.discard();
+      toast('Nota de voz guardada.');
       attachments.reload();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No pudimos guardar la nota de voz.');
@@ -44,17 +48,14 @@ export function VoiceNotesScreen({ route, navigation }: Props) {
     }
   }
 
-  async function remove(id: number) {
-    const confirmed = await confirmAction('Borrar nota de voz', 'Esta acción no se puede deshacer.', 'Borrar');
-    if (!confirmed) return;
-    setError(null);
-    try {
-      await deleteAttachment(subjectId, id);
-      attachments.reload();
-    } catch (e) {
-      setError(deleteErrorMessage(e));
-    }
-  }
+  const remove = (id: number) =>
+    runAction({
+      confirm: ['Borrar nota de voz', 'Esta acción no se puede deshacer.', 'Borrar'],
+      action: () => deleteAttachment(subjectId, id),
+      success: 'Nota de voz borrada.',
+      fallback: deleteErrorMessage,
+      onDone: attachments.reload,
+    });
 
   if (attachments.loading && !attachments.data) return <LoadingView />;
 

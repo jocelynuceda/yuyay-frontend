@@ -14,8 +14,8 @@ import { getErrorMessage } from '../../utils/apiErrors'
 import { DOCUMENT_ACCEPT, documentsOnly, validateDocumentFile } from '../../utils/attachments'
 import { formatDate } from '../../utils/format'
 import { focusRing, linkClass } from '../../utils/styles'
-import { ConfirmDialog } from '../shared/ConfirmDialog'
-import { useSuccessNotice } from '../shared/useSuccessNotice'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 import { useOcrPolling } from './useOcrPolling'
 
 const ocrBadges: Record<OcrStatus, { label: string; tone: 'soft' | 'accent' | 'danger' }> = {

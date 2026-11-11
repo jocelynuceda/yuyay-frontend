@@ -1,13 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { DateField, datePartsOf, parseDateParts } from '../components/DateField';
-import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
+import { DeleteButton, FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
-import { updateCareSubject } from '../services/api';
+import { useToast } from '../hooks/useToast';
+import { deleteCareSubject, updateCareSubject } from '../services/api';
 import { ApiError } from '../services/http';
 import type { HomeStackParamList } from '../types';
+import { confirmAction } from '../utils/confirm';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'EditSubject'>;
 
@@ -22,6 +24,8 @@ export function EditSubjectScreen({ route, navigation }: Props) {
   const [notes, setNotes] = useState(subject.notes ?? '');
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -38,6 +42,7 @@ export function EditSubjectScreen({ route, navigation }: Props) {
         birthDate: date.iso || null,
         notes: notes.trim() || null,
       });
+      toast('Datos actualizados.');
       navigation.goBack();
     } catch (e) {
       if (e instanceof ApiError) {
@@ -47,6 +52,25 @@ export function EditSubjectScreen({ route, navigation }: Props) {
         setError('No pudimos guardar los cambios.');
       }
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    const ok = await confirmAction(
+      `Eliminar a ${subject.name}`,
+      'Solo se puede eliminar a una persona que aún no tiene registros de salud. No se puede deshacer.',
+      'Eliminar',
+    );
+    if (!ok) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteCareSubject(subject.id);
+      toast(`Se eliminó a ${subject.name}.`);
+      navigation.popToTop();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No pudimos eliminar a la persona.');
+      setDeleting(false);
     }
   }
 
@@ -84,6 +108,9 @@ export function EditSubjectScreen({ route, navigation }: Props) {
       </FormCard>
 
       <SubmitButton label="Guardar cambios" onPress={handleSave} loading={saving} />
+      {subject.myRole === 'PRINCIPAL' ? (
+        <DeleteButton label="Eliminar persona" onPress={handleDelete} busy={deleting} />
+      ) : null}
     </FormScroll>
   );
 }

@@ -206,6 +206,7 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
   const {
     data: document,
     error,
+    errorStatus,
     loading,
     reload,
   } = useFetch((signal) => getAttachment(subjectId, attachmentId, signal), [subjectId, attachmentId])
@@ -267,7 +268,7 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
 
   const backToDocuments = `/personas/${subjectId}?tab=documentos`
 
-  if (error && !document) return <LoadError message={error} onRetry={reload} />
+  if (error && !document) return <LoadError message={error} status={errorStatus} onRetry={reload} />
   if (loading && !document) return <Skeleton lines={4} />
   if (!document) return null
 

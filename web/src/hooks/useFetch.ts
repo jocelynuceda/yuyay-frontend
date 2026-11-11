@@ -1,10 +1,12 @@
 import axios from 'axios'
 import { useCallback, useEffect, useState } from 'react'
-import { getErrorMessage } from '../utils/apiErrors'
+import { getErrorMessage, getErrorStatus } from '../utils/apiErrors'
 
 interface FetchState<T> {
   data: T | null
   error: string | null
+  /** Código HTTP del error (404, 403…), o undefined si fue de red. */
+  errorStatus?: number
   loading: boolean
 }
 
@@ -24,14 +26,14 @@ export function useFetch<T>(fetcher: (signal: AbortSignal) => Promise<T>, deps: 
 
   useEffect(() => {
     const controller = new AbortController()
-    setState((prev) => ({ ...prev, error: null, loading: true }))
+    setState((prev) => ({ ...prev, error: null, errorStatus: undefined, loading: true }))
     fetcher(controller.signal)
       .then((data) => {
         if (!controller.signal.aborted) setState({ data, error: null, loading: false })
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || isCanceled(error)) return
-        setState((prev) => ({ ...prev, error: getErrorMessage(error), loading: false }))
+        setState((prev) => ({ ...prev, error: getErrorMessage(error), errorStatus: getErrorStatus(error), loading: false }))
       })
     return () => controller.abort()
     // `deps` resume los parámetros del fetcher; `version` fuerza la recarga
@@ -40,5 +42,5 @@ export function useFetch<T>(fetcher: (signal: AbortSignal) => Promise<T>, deps: 
 
   const reload = useCallback(() => setVersion((v) => v + 1), [])
 
-  return { data: state.data, error: state.error, loading: state.loading, reload }
+  return { ...state, reload }
 }

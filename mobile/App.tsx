@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoadingView } from './src/components/LoadingView';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { ToastProvider } from './src/contexts/ToastContext';
 import { linking, RootNavigator } from './src/navigation/RootNavigator';
 import { ThemeProvider, useTheme, useThemePreference } from './src/theme';
 
@@ -45,9 +46,11 @@ function ThemedApp() {
       <PaperProvider theme={theme.paperTheme}>
         {fontsLoaded && ready ? (
           <AuthProvider>
-            <NavigationContainer theme={theme.navigationTheme} linking={linking}>
-              <RootNavigator />
-            </NavigationContainer>
+            <ToastProvider>
+              <NavigationContainer theme={theme.navigationTheme} linking={linking}>
+                <RootNavigator />
+              </NavigationContainer>
+            </ToastProvider>
           </AuthProvider>
         ) : (
           <LoadingView label="" />
