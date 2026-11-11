@@ -4,7 +4,6 @@ import type {
   HandoffDetail,
   HandoffPublicView,
   HandoffRequest,
-  HandoffSession,
   HandoffSessionCreated,
   HandoffSessionRequest,
   OpenHandoffRequest,
@@ -27,23 +26,10 @@ export async function createHandoff(careSubjectId: number, request: HandoffReque
   return data
 }
 
-export async function deleteHandoff(handoffId: number) {
-  await api.delete(`/handoffs/${handoffId}`)
-}
-
 /** Genera el enlace temporal (token) para el médico. */
 export async function createHandoffSession(handoffId: number, request: HandoffSessionRequest) {
   const { data } = await api.post<HandoffSessionCreated>(`/handoffs/${handoffId}/sessions`, request)
   return data
-}
-
-export async function listHandoffSessions(handoffId: number) {
-  const { data } = await api.get<HandoffSession[]>(`/handoffs/${handoffId}/sessions`)
-  return data
-}
-
-export async function revokeHandoffSession(sessionId: number) {
-  await api.delete(`/handoff-sessions/${sessionId}`)
 }
 
 // ---- Vista pública del médico (/traspaso/:token) ----

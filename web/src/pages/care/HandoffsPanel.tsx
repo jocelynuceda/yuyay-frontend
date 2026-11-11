@@ -94,12 +94,12 @@ function HandoffHistory({ subjectId }: { subjectId: number }) {
 }
 
 function HandoffDetails({ handoffId }: { handoffId: number }) {
-  const { data, error, loading, reload } = useFetch((signal) => getHandoff(handoffId, signal), [handoffId])
+  const { data, error, errorStatus, loading, reload } = useFetch((signal) => getHandoff(handoffId, signal), [handoffId])
 
   return (
     <div className="mt-3 grid gap-3 border-t border-line pt-3">
       {loading ? <p role="status" className="text-muted">Cargando resumen…</p> : null}
-      {error ? <LoadError message={error} onRetry={reload} /> : null}
+      {error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : null}
       {data?.questions ? (
         <div>
           <h4 className="font-semibold">Preguntas para el médico</h4>

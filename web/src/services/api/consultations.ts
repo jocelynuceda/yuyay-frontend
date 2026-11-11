@@ -15,11 +15,6 @@ export async function listConsultations(careSubjectId: number, signal?: AbortSig
   return data
 }
 
-export async function getConsultation(consultationId: number) {
-  const { data } = await api.get<ConsultationDetail>(`/consultations/${consultationId}`)
-  return data
-}
-
 export async function createConsultation(careSubjectId: number, request: ConsultationRequest) {
   const { data } = await api.post<ConsultationDetail>(base(careSubjectId), request)
   return data
@@ -35,9 +30,10 @@ export async function deleteConsultation(consultationId: number) {
 }
 
 /** Versiones declaradas después de la fecha de esa consulta. 404 si la consulta no existe. */
-export async function listChangesSinceConsultation(careSubjectId: number, sinceConsultationId: number) {
+export async function listChangesSinceConsultation(careSubjectId: number, sinceConsultationId: number, signal?: AbortSignal) {
   const { data } = await api.get<HealthEntryVersion[]>(`${base(careSubjectId)}/changes`, {
     params: { sinceConsultationId },
+    signal,
   })
   return data
 }

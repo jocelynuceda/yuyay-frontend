@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Modal } from '../../components/ui/Modal'
+import { useFetch } from '../../hooks/useFetch'
 import { useToast } from '../../hooks/useToast'
+import { deleteCareSubject } from '../../services/api/careSubjects'
 import { listCaregivers } from '../../services/api/caregivers'
 import type { CareSubject, CategoryCode, HealthEntry } from '../../types'
 import { ageFrom } from '../../utils/format'
@@ -16,12 +19,11 @@ import { HandoffsPanel } from '../care/HandoffsPanel'
 import { DocumentsPanel } from '../documents/DocumentsPanel'
 import { VoiceNotesPanel } from '../documents/VoiceNotesPanel'
 import { EntriesPanel } from '../entries/EntriesPanel'
-import { useLoad } from '../care/useLoad'
 import { CareSubjectForm } from '../forms/CareSubjectForm'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
 import NotFoundPage from '../NotFoundPage'
 import { PersonRouteFrame } from './PersonRouteFrame'
-import { useSuccessNotice } from '../shared/useSuccessNotice'
+import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
 const tabs = [
   { id: 'registros', label: 'Registros' },
@@ -48,9 +50,9 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
   const toast = useToast()
   const { notify, anchorProps } = useSuccessNotice()
   const [editing, setEditing] = useState(false)
-  const caregivers = useLoad(() => listCaregivers(subjectId), subjectId)
-  const activeCaregivers =
-    caregivers.state.status === 'ready' ? caregivers.state.data.filter((r) => r.status === 'ACTIVE') : []
+  const [deleting, setDeleting] = useState(false)
+  const caregivers = useFetch((signal) => listCaregivers(subjectId, signal), [subjectId])
+  const activeCaregivers = caregivers.data?.filter((r) => r.status === 'ACTIVE') ?? []
 
   function tabLocation(tab: typeof activeTab) {
     const next = new URLSearchParams(searchParams)
@@ -122,6 +124,11 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
           <button type="button" onClick={() => setEditing(true)} className={linkSecondaryClass}>
             Editar datos
           </button>
+          {isPrincipal ? (
+            <button type="button" onClick={() => setDeleting(true)} className={linkSecondaryClass.replace('text-ink', 'text-danger')}>
+              Eliminar persona
+            </button>
+          ) : null}
         </nav>
       </header>
       <span {...anchorProps} />
@@ -140,6 +147,20 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
           />
         ) : null}
       </Modal>
+
+      <ConfirmDialog
+        open={deleting}
+        title={`¿Eliminar a ${subject.name}?`}
+        message="Solo se puede eliminar a una persona que aún no tiene registros de salud. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar persona"
+        workingLabel="Eliminando…"
+        onCancel={() => setDeleting(false)}
+        onConfirm={async () => {
+          await deleteCareSubject(subjectId)
+          toast.success(`Se eliminó a ${subject.name}.`)
+          void navigate('/personas', { replace: true })
+        }}
+      />
 
       <nav aria-label="Secciones de la persona" className="flex flex-wrap gap-2">
         {visibleTabs.map(({ id, label }) => (

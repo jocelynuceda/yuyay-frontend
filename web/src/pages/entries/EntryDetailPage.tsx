@@ -1,19 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { LoadError } from '../../components/layout/LoadError'
+import type { HealthEntryVersion } from '../../types'
+import { useFetch } from '../../hooks/useFetch'
 import { deleteHealthEntry, getHealthEntry, listHealthEntryVersions } from '../../services/api/healthEntries'
-import type { HealthEntry, HealthEntryVersion } from '../../types'
-import { getErrorMessage } from '../../utils/apiErrors'
 import { loadEntryHistory } from '../../utils/entryHistory'
 import { confidenceLabels, formatDate, formatDateTime } from '../../utils/format'
 import { changedFields, changeTypeLabels, displayField, versionFieldLabels } from '../../utils/versions'
 import { focusRing } from '../../utils/styles'
-import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
-import { useSuccessNotice } from '../shared/useSuccessNotice'
-
-type State =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; entry: HealthEntry | null; versions: HealthEntryVersion[] }
+import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
 /**
  * Detalle de registro (/personas/:id/registros/:entryId): versión actual, historial
@@ -30,35 +26,24 @@ export function EntryDetailPage({
   /** Al borrar: normalmente volver a la lista de registros de la persona. */
   onDeleted?: () => void
 }) {
-  const [state, setState] = useState<State>({ status: 'loading' })
-  const [version, setVersion] = useState(0)
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const { notify, anchorProps } = useSuccessNotice()
 
-  useEffect(() => {
-    let active = true
-    loadEntryHistory(
-      () => getHealthEntry(subjectId, entryId),
-      () => listHealthEntryVersions(subjectId, entryId),
-    )
-      .then(({ entry, versions }) => active && setState({ status: 'ready', entry, versions }))
-      .catch((error) => active && setState({ status: 'error', message: getErrorMessage(error) }))
-    return () => {
-      active = false
-    }
-  }, [subjectId, entryId, version])
+  const { data, error, errorStatus, reload } = useFetch(
+    (signal) =>
+      loadEntryHistory(
+        () => getHealthEntry(subjectId, entryId, signal),
+        () => listHealthEntryVersions(subjectId, entryId, signal),
+      ),
+    [subjectId, entryId],
+  )
 
-  if (state.status === 'loading') return <p className="p-6 text-muted">Cargando registro…</p>
-  if (state.status === 'error') {
-    return (
-      <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">
-        {state.message}
-      </p>
-    )
+  if (!data) {
+    return error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : <p className="p-6 text-muted">Cargando registro…</p>
   }
 
-  const { entry, versions } = state
+  const { entry, versions } = data
   const current = entry?.latestVersion ?? versions[0]
   const deleted = !entry
   const firstVersion = versions.at(-1)
@@ -117,7 +102,7 @@ export function EntryDetailPage({
           onSaved={(saved) => {
             setEditing(false)
             notify(saved ? 'Cambios guardados. Se creó una versión nueva.' : 'No había cambios que guardar.')
-            if (saved) setVersion((v) => v + 1)
+            if (saved) reload()
           }}
         />
       ) : (
@@ -161,7 +146,7 @@ export function EntryDetailPage({
           await deleteHealthEntry(subjectId, entryId)
           setConfirmingDelete(false)
           if (onDeleted) onDeleted()
-          else setVersion((v) => v + 1)
+          else reload()
         }}
       />
     </div>

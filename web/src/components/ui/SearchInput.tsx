@@ -36,6 +36,8 @@ export function SearchInput({
   const [lastValue, setLastValue] = useState(value)
   const emitted = useRef(text)
   const debounced = useDebounce(text, delay)
+  // Solo emite cuando cambia el valor con espera, no cuando cambia `onSearch` (suele ser una función nueva)
+  const lastDebounced = useRef(debounced)
 
   if (value !== lastValue) {
     setLastValue(value)
@@ -49,6 +51,8 @@ export function SearchInput({
   }
 
   useEffect(() => {
+    if (debounced === lastDebounced.current) return
+    lastDebounced.current = debounced
     if (debounced !== emitted.current) {
       emitted.current = debounced
       onSearch(debounced)

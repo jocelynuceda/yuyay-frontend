@@ -3,8 +3,9 @@ import { CATEGORY_CODES, type CategoryCode, type HealthEntry } from '../../types
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import type { EntriesParams } from '../../utils/urlParams'
+import { LoadError } from '../../components/layout/LoadError'
 import { Pagination } from '../../components/ui/Pagination'
-import { useLoad } from '../care/useLoad'
+import { useFetch } from '../../hooks/useFetch'
 
 /**
  * Pestaña "Registros" del detalle de persona: listado paginado del backend, con filtro por
@@ -25,14 +26,13 @@ export function EntriesPanel({
   onNewEntry?: (category: CategoryCode | null) => void
 }) {
   const { categoria, page, size } = params
-  const { state } = useLoad(
-    () => listHealthEntries(subjectId, { category: categoria ?? undefined, page: page - 1, size, sort: 'createdAt,desc' }),
-    `${subjectId}|${categoria}|${page}|${size}`,
+  const { data: result, error, errorStatus, loading, reload } = useFetch(
+    (signal) => listHealthEntries(subjectId, { category: categoria ?? undefined, page: page - 1, size, sort: 'createdAt,desc' }, signal),
+    [subjectId, categoria, page, size],
   )
   // Cambiar de filtro o de tamaño vuelve a la primera página
   const setFilter = (changes: Partial<EntriesParams>) => onParamsChange({ ...params, ...changes, page: 1 })
 
-  const result = state.status === 'ready' ? state.data : null
   const totalPages = result?.totalPages ?? 0
   const outOfRange = result !== null && totalPages > 0 && page > totalPages
 
@@ -74,12 +74,8 @@ export function EntriesPanel({
         </nav>
       </div>
 
-      {state.status === 'loading' ? <p className="text-muted">Cargando registros…</p> : null}
-      {state.status === 'error' ? (
-        <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">
-          {state.message}
-        </p>
-      ) : null}
+      {loading && !result ? <p className="text-muted">Cargando registros…</p> : null}
+      {error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : null}
 
       {result ? (
         result.content.length === 0 ? (

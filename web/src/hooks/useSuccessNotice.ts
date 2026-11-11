@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react'
-import { useToast } from '../../hooks/useToast'
+import { useToast } from './useToast'
 
 /**
  * Toast de éxito tras guardar o borrar. Además mueve el foco a un ancla invisible
