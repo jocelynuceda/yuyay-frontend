@@ -11,7 +11,7 @@ export function utf8Bytes(value: string): number {
 export function passwordChecks(password: string) {
   return [
     { ok: password.length >= 8, label: '8 caracteres' },
-    { ok: utf8Bytes(password) <= 72, label: 'Longitud admitida' },
+    { ok: password.length > 0 && utf8Bytes(password) <= 72, label: 'Longitud admitida' },
     { ok: /[A-Za-z]/.test(password), label: 'Una letra (A-Z)' },
     { ok: /\d/.test(password), label: 'Un número' },
   ];

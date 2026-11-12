@@ -18,10 +18,14 @@ export const linking: LinkingOptions<RootStackParamList> = {
   enabled: Platform.OS === 'web',
   prefixes: [],
   // Las demás pantallas reciben objetos como parámetros: al recargar la web se vuelve al inicio
-  getStateFromPath: (path, options) => (/^\/?acceso(\/|$)/.test(path) ? getStateFromPath(path, options) : undefined),
+  // /acceso es el enlace antiguo en español (el backend aún lo envía): se trata como /access
+  getStateFromPath: (path, options) => {
+    const normalized = path.replace(/^(\/?)acceso(?=\/|\?|#|$)/, '$1access');
+    return /^\/?access(\/|\?|#|$)/.test(normalized) ? getStateFromPath(normalized, options) : undefined;
+  },
   config: {
     initialRouteName: 'Main',
-    screens: { Main: '', Delegate: 'acceso/:token?' },
+    screens: { Main: '', Delegate: 'access/:token?' },
   },
 };
 

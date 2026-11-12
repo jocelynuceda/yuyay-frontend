@@ -80,7 +80,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
 
   if (created) {
     // En desarrollo el backend no conoce la IP de la computadora: el enlace pasa por Metro, igual que la API
-    const link = __DEV__ ? `${API_URL}/acceso/${created.token}` : created.shareLink;
+    const link = __DEV__ ? `${API_URL}/access/${created.token}` : created.shareLink;
     const shareMessage = `${created.delegation.granteeName}, te compartieron información de salud en Yuyay hasta el ${formatDate(created.delegation.validUntil)}. Ábrela aquí, sin crear cuenta: ${link}\n\nSi usas la app: en el inicio de sesión toca "Tengo un código" (si ya tienes sesión: Perfil, "Tengo un código de acceso") y pega este código: ${created.token}`;
     return (
       <ScrollView contentContainerStyle={formStyles.container}>

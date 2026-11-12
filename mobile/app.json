@@ -61,6 +61,12 @@
         "projectId": "5bbe1966-f04a-4da4-b8ef-dc6ab440698d"
       }
     },
-    "owner": "aprilwu-mobile"
+    "owner": "aprilwu-mobile",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5bbe1966-f04a-4da4-b8ef-dc6ab440698d"
+    }
   }
 }
