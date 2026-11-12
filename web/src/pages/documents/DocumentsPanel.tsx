@@ -1,6 +1,7 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LoadError } from '../../components/layout/LoadError'
+import { DocumentScopeBadge } from '../../components/DocumentScopeBadge'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -116,6 +117,7 @@ export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; 
                       {d.originalFilename}
                     </Link>
                     <Badge tone={badge.tone}>{badge.label}</Badge>
+                    <DocumentScopeBadge label={d.scopeLabel} />
                   </p>
                   <p className="mt-1 text-sm text-muted">
                     {d.uploadedByName} · {formatDate(d.uploadedAt)}

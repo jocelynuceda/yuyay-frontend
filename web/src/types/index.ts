@@ -336,6 +336,17 @@ export interface Attachment {
   ocrError: string | null
   uploadedAt: string
   ocrCompletedAt: string | null
+  scopeLabel?: DocumentScopeLabel | null
+  scopeScore?: number | null
+}
+
+export type DocumentScopeLabel = 'MEDICAL' | 'REVIEW' | 'NONMEDICAL'
+
+export interface DocumentScopeSummary {
+  enabled: boolean
+  appropriate: number
+  unsure: number
+  strikes: number
 }
 
 export interface AttachmentAccess {

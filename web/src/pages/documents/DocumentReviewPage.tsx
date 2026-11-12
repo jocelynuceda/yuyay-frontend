@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { DocumentScopeBadge } from '../../components/DocumentScopeBadge'
 import { LoadError } from '../../components/layout/LoadError'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -13,6 +14,7 @@ import type { HealthEntryFormValues } from '../../schemas/healthEntry'
 import type { HealthEntry } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { isImage } from '../../utils/attachments'
+import { scopeHelp } from '../../utils/documentScope'
 import { applyAcceptedMatches, type TermMatch } from '../../utils/medicalTermMatcher'
 import { suggestEntryFromOcr, type OcrSuggestion } from '../../utils/ocrSuggestions'
 import { linkClass } from '../../utils/styles'
@@ -325,6 +327,12 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
     <div className="grid gap-6">
       <header className="grid gap-3">
         <h1 className="text-3xl font-semibold break-words">{document.originalFilename}</h1>
+        {scopeHelp(document.scopeLabel) ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <DocumentScopeBadge label={document.scopeLabel} />
+            <p className="text-sm text-muted">{scopeHelp(document.scopeLabel)}</p>
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center gap-4">
           <Button variant="secondary" onClick={() => void open()} loading={opening}>
             Abrir archivo
