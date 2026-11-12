@@ -9,6 +9,7 @@ import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CareSubjectCard } from '../components/CareSubjectCard';
 import { EmptyState } from '../components/EmptyState';
+import { MyAvatar, SubjectAvatar } from '../components/PersonAvatar';
 import { LoadingView } from '../components/LoadingView';
 import { Isotipo } from '../components/Isotipo';
 import { Logo } from '../components/Logo';
@@ -28,7 +29,7 @@ import {
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
-import { appointmentOrder, careRoleLabel, formatTime, initialsOf, todayIso } from '../utils/format';
+import { appointmentOrder, careRoleLabel, formatTime, todayIso } from '../utils/format';
 
 const monthShort = new Intl.DateTimeFormat('es-PE', { month: 'short' });
 const weekdayLong = new Intl.DateTimeFormat('es-PE', { weekday: 'long' });
@@ -113,7 +114,7 @@ export function HomeScreen({ navigation }: Props) {
             accessibilityRole="button"
             accessibilityLabel="Mi perfil"
           >
-            <Text style={styles.avatarText}>{initialsOf(user?.name ?? '')}</Text>
+            <MyAvatar size={42} />
           </Pressable>
         </View>
 
@@ -151,7 +152,7 @@ export function HomeScreen({ navigation }: Props) {
               <View style={styles.faces}>
                 {people.slice(0, 3).map((p, i) => (
                   <View key={p.id} style={[styles.face, i > 0 && styles.faceOverlap]}>
-                    <Text style={styles.faceText}>{initialsOf(p.name)}</Text>
+                    <SubjectAvatar subject={p} size={28} />
                   </View>
                 ))}
                 {people.length > 3 ? (
@@ -397,7 +398,6 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontFamily: fonts.bold, fontSize: 16, color: colors.softText },
   greeting: {
     fontFamily: fonts.regular,
     fontSize: 30,

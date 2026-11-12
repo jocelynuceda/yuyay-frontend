@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useRef, useState } from 'react';
-import { Animated, Text, View } from 'react-native';
+import { Animated, Pressable, Text, View } from 'react-native';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
+import { LionAvatar, type AvatarChoice } from './LionAvatar';
 import { Sparkle } from './Sparkle';
 
 export type ProfileStat = { icon: keyof typeof Ionicons.glyphMap; value: string; label: string };
@@ -11,14 +12,17 @@ export type ProfileStat = { icon: keyof typeof Ionicons.glyphMap; value: string;
 export function ProfileCard({
   name,
   subtitle,
-  initials,
+  avatar,
+  onAvatarPress,
   chip,
   stats,
   children,
 }: {
   name: string;
   subtitle: string;
-  initials: string;
+  avatar: AvatarChoice;
+  /** Si se indica, el avatar es un botón (con un lápiz) para cambiarlo. */
+  onAvatarPress?: () => void;
   chip?: string;
   stats: ProfileStat[];
   children?: ReactNode;
@@ -41,9 +45,22 @@ export function ProfileCard({
         </View>
       </LinearGradient>
 
-      <View style={styles.avatar}>
-        <Text style={styles.initials}>{initials}</Text>
-      </View>
+      <Pressable
+        style={styles.avatarWrap}
+        onPress={onAvatarPress}
+        disabled={!onAvatarPress}
+        accessibilityRole={onAvatarPress ? 'button' : undefined}
+        accessibilityLabel={onAvatarPress ? 'Cambiar avatar' : undefined}
+      >
+        <View style={styles.avatar}>
+          <LionAvatar kind={avatar.kind} variant={avatar.variant} size={86} animated />
+        </View>
+        {onAvatarPress ? (
+          <View style={styles.avatarEdit}>
+            <Ionicons name="pencil" size={14} color={colors.onInk} />
+          </View>
+        ) : null}
+      </Pressable>
 
       <View style={styles.identity}>
         <View style={styles.flex}>
@@ -175,6 +192,20 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   banner: { height: 112, borderRadius: radius.lg, overflow: 'hidden' },
   bannerStar: { position: 'absolute', right: -20, top: -24 },
   bannerStarSmall: { position: 'absolute', right: 120, bottom: 22 },
+  avatarWrap: { alignSelf: 'flex-start', marginTop: -52, marginLeft: 12 },
+  avatarEdit: {
+    position: 'absolute',
+    right: 0,
+    bottom: 2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.ink,
+    borderWidth: 3,
+    borderColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatar: {
     width: 96,
     height: 96,
@@ -184,10 +215,8 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     borderColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -52,
-    marginLeft: 12,
+    overflow: 'hidden',
   },
-  initials: { fontFamily: fonts.display, fontSize: 32, color: colors.softText },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, paddingHorizontal: 6 },
   name: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, color: colors.ink },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, marginTop: 2 },

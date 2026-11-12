@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LoadError } from '../../components/layout/LoadError'
-import { getInitials } from '../../components/ui/initials'
+import { SubjectAvatar } from '../../components/ui/AvatarPicker'
 import { Modal } from '../../components/ui/Modal'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { useFetch } from '../../hooks/useFetch'
@@ -139,9 +139,7 @@ function PersonCard({ subject, onOpen }: { subject: CareSubject; onOpen: () => v
       onClick={onOpen}
       className={`flex h-full w-full items-start gap-4 rounded-3xl bg-card p-5 text-left transition hover:shadow-md ${focusRing}`}
     >
-      <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-soft font-semibold text-soft-text">
-        {getInitials(subject.name)}
-      </span>
+      <SubjectAvatar subject={subject} />
       <span className="min-w-0">
         <span className="block truncate text-lg font-semibold">{subject.name}</span>
         <span className="block text-sm text-muted">{age !== null ? `${age} años` : 'Edad no registrada'}</span>

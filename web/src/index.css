@@ -95,3 +95,16 @@
     transform: none;
   }
 }
+
+/* Avatares de león (components/ui/LionAvatar.tsx): respiración suave */
+@keyframes lion-breathe {
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lion-breathe {
+    animation: lion-breathe 3.2s ease-in-out infinite;
+  }
+}

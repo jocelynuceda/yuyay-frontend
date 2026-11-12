@@ -2,9 +2,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { LoadError } from '../../components/layout/LoadError'
-import { Avatar } from '../../components/ui/Avatar'
+import { AvatarPicker, MyAvatar } from '../../components/ui/AvatarPicker'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { AvatarButton } from '../../components/ui/AvatarButton'
 import { Icon } from '../../components/ui/Icon'
 import { Input } from '../../components/ui/Input'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -101,6 +102,7 @@ export default function ProfilePage() {
   const logout = useLogout()
   const { data, error, loading, reload } = useFetch((signal) => getMe(signal), [])
   const [saved, setSaved] = useState<UserProfile | null>(null)
+  const [pickingAvatar, setPickingAvatar] = useState(false)
   const profile = saved ?? data
 
   function handleSaved(updated: UserProfile) {
@@ -129,7 +131,10 @@ export default function ProfilePage() {
         <div className="grid max-w-2xl gap-6">
           <Card className="grid gap-6">
             <div className="flex items-center gap-4">
-              <Avatar name={profile.name} size="lg" />
+              <AvatarButton onClick={() => setPickingAvatar(true)}>
+                <MyAvatar size="xl" animated />
+              </AvatarButton>
+              <AvatarPicker open={pickingAvatar} onClose={() => setPickingAvatar(false)} title="Tu avatar" target={{ type: 'me' }} />
               <div className="min-w-0">
                 <h2 className="text-xl font-bold wrap-break-word">{profile.name}</h2>
                 <p className="text-muted wrap-break-word">{profile.email}</p>

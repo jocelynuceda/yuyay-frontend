@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { AvatarButton } from '../../components/ui/AvatarButton'
+import { AvatarPicker, SubjectAvatar } from '../../components/ui/AvatarPicker'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Modal } from '../../components/ui/Modal'
 import { useFetch } from '../../hooks/useFetch'
@@ -51,6 +53,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
   const { notify, anchorProps } = useSuccessNotice()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [pickingAvatar, setPickingAvatar] = useState(false)
   const caregivers = useFetch((signal) => listCaregivers(subjectId, signal), [subjectId])
   const activeCaregivers = caregivers.data?.filter((r) => r.status === 'ACTIVE') ?? []
 
@@ -94,11 +97,24 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     <>
       <header className="grid gap-4">
         <div>
-          <h1 className="text-3xl font-semibold">{subject.name}</h1>
-          <p className="mt-2 text-sm text-muted">
-            {age !== null && `${age} años · `}
-            {isPrincipal ? 'Cuidador principal' : 'Cuidador/a'}
-          </p>
+          <div className="flex items-center gap-4">
+            <AvatarButton onClick={() => setPickingAvatar(true)}>
+              <SubjectAvatar subject={subject} size="xl" animated />
+            </AvatarButton>
+            <div className="min-w-0">
+              <h1 className="text-3xl font-semibold wrap-break-word">{subject.name}</h1>
+              <p className="mt-2 text-sm text-muted">
+                {age !== null && `${age} años · `}
+                {isPrincipal ? 'Cuidador principal' : 'Cuidador/a'}
+              </p>
+            </div>
+          </div>
+          <AvatarPicker
+            open={pickingAvatar}
+            onClose={() => setPickingAvatar(false)}
+            title={`Avatar de ${subject.name}`}
+            target={{ type: 'subject', id: subject.id, birthDate: subject.birthDate }}
+          />
           {subject.notes ? <p className="mt-2 whitespace-pre-line">{subject.notes}</p> : null}
           {activeCaregivers.length > 0 ? (
             <p className="mt-2 text-sm">

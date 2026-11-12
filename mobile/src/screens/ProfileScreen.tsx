@@ -1,16 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { AppearancePicker } from '../components/AppearancePicker';
+import { AvatarPicker } from '../components/AvatarPicker';
 import { ProfileCard } from '../components/ProfileCard';
 import { useAuth } from '../hooks/useAuth';
+import { useAvatar } from '../hooks/useAvatar';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getCareSubjects, getNotifications } from '../services/api';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { RootStackParamList, TabNavigatorParamList } from '../types';
-import { formatDate, initialsOf } from '../utils/format';
+import { formatDate } from '../utils/format';
 
 type Props = BottomTabScreenProps<TabNavigatorParamList, 'Profile'>;
 
@@ -25,6 +28,8 @@ export function ProfileScreen({ navigation }: Props) {
     subjects.reload();
     notifications.reload();
   });
+  const avatar = useAvatar({ type: 'me' });
+  const [pickingAvatar, setPickingAvatar] = useState(false);
   if (!user) return null;
 
   const unread = notifications.data?.filter((n) => !n.read).length;
@@ -54,10 +59,20 @@ export function ProfileScreen({ navigation }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <AvatarPicker
+        visible={pickingAvatar}
+        title="Tu avatar"
+        current={avatar.avatar}
+        automatic={avatar.automatic}
+        isCustom={avatar.isCustom}
+        onSelect={(choice) => void avatar.setAvatar(choice)}
+        onClose={() => setPickingAvatar(false)}
+      />
       <ProfileCard
         name={user.name}
         subtitle={user.email}
-        initials={initialsOf(user.name)}
+        avatar={avatar.avatar}
+        onAvatarPress={() => setPickingAvatar(true)}
         chip={user.role === 'ADMIN' ? 'Admin' : 'Cuidador'}
         stats={[
           { icon: 'people-outline', value: subjects.data ? String(subjects.data.length) : '–', label: 'A tu cuidado' },

@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import type { CareSubject } from '../types';
 import { fonts, makeStyles, radius, useTheme, type Colors } from '../theme';
 import { ageFrom, careRoleLabel } from '../utils/format';
-import { Sparkle } from './Sparkle';
+import { SubjectAvatar } from './PersonAvatar';
 
 // Combinaciones de fondo y estrella tomadas de la paleta
 const cardTonesFor = (colors: Colors) => [
@@ -38,7 +38,7 @@ export function CareSubjectCard({
       accessibilityLabel={`Ver registro de ${subject.name}`}
     >
       <View style={[styles.tile, { backgroundColor: tone.bg }]}>
-        <Sparkle size={30} color={tone.star} />
+        <SubjectAvatar subject={subject} size={54} />
       </View>
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
