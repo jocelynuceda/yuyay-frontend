@@ -18,7 +18,7 @@ export default function PeopleRoute() {
       <PeopleGrid
         params={params}
         onParamsChange={updateParams}
-        onOpen={(subject) => void navigate(`/personas/${subject.id}`)}
+        onOpen={(subject) => void navigate(`/people/${subject.id}`)}
       />
     </main>
   )

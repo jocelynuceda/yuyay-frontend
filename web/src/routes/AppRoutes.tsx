@@ -41,29 +41,40 @@ function HandoffRoute() {
   return token ? <HandoffPublicPage token={token} /> : <NotFoundPage />
 }
 
+/** Enlaces antiguos en español (los correos del backend aún usan /acceso e /invitaciones): conservan token, query y hash. */
+function LegacyRedirect({ to }: { to: string }) {
+  const { token, id } = useParams()
+  const { search, hash } = useLocation()
+  const param = token ?? id
+  return param ? <Navigate to={`${to}/${encodeURIComponent(param)}${search}${hash}`} replace /> : <NotFoundPage />
+}
+
 export default function AppRoutes() {
   return (
     <Suspense fallback={<RouteLoading />}>
       <Routes>
-        <Route path="/acceso/:token" element={<DelegateRoute />} />
-        <Route path="/traspaso/:token" element={<HandoffRoute />} />
+        <Route path="/access/:token" element={<DelegateRoute />} />
+        <Route path="/handoff/:token" element={<HandoffRoute />} />
+        <Route path="/acceso/:token" element={<LegacyRedirect to="/access" />} />
+        <Route path="/traspaso/:token" element={<LegacyRedirect to="/handoff" />} />
+        <Route path="/invitaciones/:id" element={<LegacyRedirect to="/invitations" />} />
         <Route element={<SessionRoute />}>
           <Route element={<PublicAuthRoute />}>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/registro" element={<RegisterPage />} />
-            <Route path="/recuperar-contrasena" element={<ForgotPasswordPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           </Route>
           <Route element={<PrivateRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<DashboardPage />} />
-              <Route path="/personas" element={<PeopleRoute />} />
-              <Route path="/personas/:id" element={<PersonDetailRoute />} />
-              <Route path="/personas/:id/registros/:entryId" element={<EntryDetailRoute />} />
-              <Route path="/personas/:id/documentos/:attachmentId" element={<DocumentReviewRoute />} />
-              <Route path="/personas/:id/traspaso/nuevo" element={<NewHandoffRoute />} />
-              <Route path="/avisos" element={<NotificationsPage />} />
-              <Route path="/perfil" element={<ProfilePage />} />
-              <Route path="/invitaciones/:id" element={<InvitationPage />} />
+              <Route path="/people" element={<PeopleRoute />} />
+              <Route path="/people/:id" element={<PersonDetailRoute />} />
+              <Route path="/people/:id/entries/:entryId" element={<EntryDetailRoute />} />
+              <Route path="/people/:id/documents/:attachmentId" element={<DocumentReviewRoute />} />
+              <Route path="/people/:id/handoff/new" element={<NewHandoffRoute />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/invitations/:id" element={<InvitationPage />} />
             </Route>
           </Route>
         </Route>

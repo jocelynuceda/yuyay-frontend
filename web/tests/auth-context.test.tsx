@@ -194,9 +194,9 @@ function buttonWithText(label: string) {
 }
 
 // Después de recuperar la sesión: /login lleva al inicio (dashboard); las rutas privadas se quedan donde estaban.
-const afterRestore: Record<string, string> = { '/': '/', '/login': '/', '/personas': '/personas' }
+const afterRestore: Record<string, string> = { '/': '/', '/login': '/', '/people': '/people' }
 
-for (const path of ['/', '/login', '/personas']) {
+for (const path of ['/', '/login', '/people']) {
   test(`La ruta ${path} permite recuperar la sesión después de un fallo de red`, async (t) => {
     const { b, storage, root } = await mount(seedFailedRestore, routesAt(path))
     t.after(async () => { await act(async () => root.unmount()) })
@@ -218,7 +218,7 @@ for (const path of ['/', '/login', '/personas']) {
 }
 
 test('Elegir iniciar sesión de nuevo cierra la sesión guardada y lleva al login', async (t) => {
-  const { b, storage, root } = await mount(seedFailedRestore, routesAt('/registro'))
+  const { b, storage, root } = await mount(seedFailedRestore, routesAt('/register'))
   t.after(async () => { await act(async () => root.unmount()) })
 
   await act(async () => { buttonWithText('Iniciar sesión de nuevo').click() })

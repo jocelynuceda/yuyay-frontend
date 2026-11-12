@@ -12,7 +12,7 @@ import { focusRing } from '../../utils/styles'
 import { PublicShell } from './PublicShell'
 
 /**
- * Vista para el médico (/traspaso/:token). Pide nombre y rol del visitante,
+ * Vista para el médico (/handoff/:token). Pide nombre y rol del visitante,
  * abre la sesión y muestra el resumen en letra grande y solo lectura.
  */
 export function HandoffPublicPage({ token }: { token: string }) {

@@ -25,12 +25,12 @@ export function PersonRouteFrame({
     <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6">
       <nav aria-label="Ruta de navegación">
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <li><Link to="/personas" className={linkClass}>Personas</Link></li>
+          <li><Link to="/people" className={linkClass}>Personas</Link></li>
           {subject && (
             <li className="flex items-center gap-2">
               <span aria-hidden="true">›</span>
               {section ? (
-                <Link to={`/personas/${subjectId}?tab=registros`} className={linkClass}>{subject.name}</Link>
+                <Link to={`/people/${subjectId}?tab=entries`} className={linkClass}>{subject.name}</Link>
               ) : (
                 <span aria-current="page">{subject.name}</span>
               )}

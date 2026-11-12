@@ -9,7 +9,7 @@ const hasNumber = (value: string) => /[0-9]/.test(value)
 export function passwordChecks(password: string) {
   return [
     { ok: password.length >= MIN_CHARACTERS, label: '8 caracteres' },
-    { ok: utf8Bytes(password) <= MAX_BYTES, label: 'Longitud admitida' },
+    { ok: password.length > 0 && utf8Bytes(password) <= MAX_BYTES, label: 'Longitud admitida' },
     { ok: hasLetter(password), label: 'Una letra (A-Z)' },
     { ok: hasNumber(password), label: 'Un número' },
   ]

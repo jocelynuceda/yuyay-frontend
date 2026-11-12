@@ -49,7 +49,7 @@ export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; 
     setUploading(true)
     try {
       const uploaded = await uploadAttachment(subjectId, file)
-      void navigate(`/personas/${subjectId}/documentos/${uploaded.id}`)
+      void navigate(`/people/${subjectId}/documents/${uploaded.id}`)
     } catch (e) {
       setUploadError(getErrorMessage(e))
       setUploading(false)
@@ -109,7 +109,7 @@ export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; 
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2">
                     <Link
-                      to={`/personas/${subjectId}/documentos/${d.id}`}
+                      to={`/people/${subjectId}/documents/${d.id}`}
                       className={`${linkClass} break-all`}
                       aria-label={`Revisar ${d.originalFilename}`}
                     >

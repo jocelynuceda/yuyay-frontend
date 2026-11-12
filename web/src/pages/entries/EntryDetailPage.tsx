@@ -12,7 +12,7 @@ import { HealthEntryForm } from '../forms/HealthEntryForm'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
 /**
- * Detalle de registro (/personas/:id/registros/:entryId): versión actual, historial
+ * Detalle de registro (/people/:id/entries/:entryId): versión actual, historial
  * con quién y cuándo, edición y borrado con confirmación. Un registro eliminado muestra
  * solo su historial, sin permitir editar.
  */

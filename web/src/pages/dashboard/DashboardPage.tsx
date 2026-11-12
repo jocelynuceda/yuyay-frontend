@@ -48,9 +48,9 @@ async function loadPeopleSummary(signal: AbortSignal): Promise<PeopleSummary> {
 }
 
 const quickLinks: { to: string; label: string; icon: IconName }[] = [
-  { to: '/personas', label: 'Agregar persona', icon: 'plus' },
-  { to: '/avisos', label: 'Ver avisos', icon: 'bell' },
-  { to: '/perfil', label: 'Mi perfil', icon: 'user' },
+  { to: '/people', label: 'Agregar persona', icon: 'plus' },
+  { to: '/notifications', label: 'Ver avisos', icon: 'bell' },
+  { to: '/profile', label: 'Mi perfil', icon: 'user' },
 ]
 
 const cardAnimation = 'motion-safe:animate-[fade-in-up_0.4s_ease-out_both]'
@@ -155,7 +155,7 @@ export default function DashboardPage() {
               </p>
               <p>{next.consultation.reason}</p>
               <Link
-                to={`/personas/${next.subject.id}?tab=consultas`}
+                to={`/people/${next.subject.id}?tab=appointments`}
                 className={`${heroPill} mt-3 justify-self-start bg-on-accent text-accent hover:opacity-90`}
               >
                 Ver consultas de {next.subject.name}
@@ -168,7 +168,7 @@ export default function DashboardPage() {
                   ? 'Cuando agregues a una persona, aquí verás su próxima consulta.'
                   : 'No hay consultas programadas. Registra la próxima desde la ficha de una persona.'}
               </p>
-              <Link to="/personas" className={`${heroPill} bg-on-accent text-accent hover:opacity-90`}>
+              <Link to="/people" className={`${heroPill} bg-on-accent text-accent hover:opacity-90`}>
                 {people.data.subjects.length === 0 ? 'Agregar persona' : 'Ir a personas'}
               </Link>
             </div>
@@ -185,7 +185,7 @@ export default function DashboardPage() {
           ) : (
             <>
               <BigNumber value={people.data.subjects.length} />
-              <Link to="/personas" className={linkClass}>
+              <Link to="/people" className={linkClass}>
                 {people.data.subjects.length === 0 ? 'Agregar persona' : 'Ver personas'}
               </Link>
             </>
@@ -194,7 +194,7 @@ export default function DashboardPage() {
 
         <StatCard title="Avisos sin leer" icon="bell">
           <BigNumber value={unread.count} />
-          <Link to="/avisos" className={linkClass}>
+          <Link to="/notifications" className={linkClass}>
             {unread.count === 0 ? 'Ver avisos' : 'Leer avisos'}
           </Link>
         </StatCard>
@@ -215,7 +215,7 @@ export default function DashboardPage() {
               <ul className="grid gap-1">
                 {pending.slice(0, 3).map((invitation) => (
                   <li key={invitation.id}>
-                    <Link to={`/invitaciones/${invitation.id}`} className={linkClass}>
+                    <Link to={`/invitations/${invitation.id}`} className={linkClass}>
                       {invitation.careSubjectName}
                     </Link>
                     <span className="text-sm text-muted"> · {careRoleLabels[invitation.role] ?? invitation.role}</span>

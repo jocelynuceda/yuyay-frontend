@@ -10,47 +10,47 @@ const clean = (params: Record<string, string | number | undefined>) =>
 export const toSearch = (params: Record<string, string | number | undefined>) =>
   new URLSearchParams(clean(params)).toString()
 
-// ---- /personas?q=&orden= ----
+// ---- /people?q=&sort= ----
 
-export type PeopleSort = 'nombre' | 'edad'
+export type PeopleSort = 'name' | 'age'
 export interface PeopleParams {
   q: string
-  orden: PeopleSort
+  sort: PeopleSort
 }
 
 export function parsePeopleParams(search: URLSearchParams): PeopleParams {
-  return { q: search.get('q') ?? '', orden: search.get('orden') === 'edad' ? 'edad' : 'nombre' }
+  return { q: search.get('q') ?? '', sort: search.get('sort') === 'age' ? 'age' : 'name' }
 }
 
-export const peopleSearch = ({ q, orden }: PeopleParams) =>
-  toSearch({ q: q.trim() || undefined, orden: orden === 'nombre' ? undefined : orden })
+export const peopleSearch = ({ q, sort }: PeopleParams) =>
+  toSearch({ q: q.trim() || undefined, sort: sort === 'name' ? undefined : sort })
 
-// ---- /personas/:id?categoria=ALLERGY&page=2&size=25 ----
+// ---- /people/:id?category=ALLERGY&page=2&size=25 ----
 
 export const PAGE_SIZES = [10, 25, 50, 100] as const
 export const DEFAULT_PAGE_SIZE = 10
 
 export interface EntriesParams {
-  categoria: CategoryCode | null
+  category: CategoryCode | null
   /** Página en la URL, empezando en 1 (el backend empieza en 0). */
   page: number
   size: number
 }
 
 export function parseEntriesParams(search: URLSearchParams): EntriesParams {
-  const categoria = search.get('categoria')
+  const category = search.get('category')
   const page = Number(search.get('page'))
   const size = Number(search.get('size'))
   return {
-    categoria: CATEGORY_CODES.includes(categoria as CategoryCode) ? (categoria as CategoryCode) : null,
+    category: CATEGORY_CODES.includes(category as CategoryCode) ? (category as CategoryCode) : null,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
     size: (PAGE_SIZES as readonly number[]).includes(size) ? size : DEFAULT_PAGE_SIZE,
   }
 }
 
-export const entriesSearch = ({ categoria, page, size }: EntriesParams) =>
+export const entriesSearch = ({ category, page, size }: EntriesParams) =>
   toSearch({
-    categoria: categoria ?? undefined,
+    category: category ?? undefined,
     page: page > 1 ? page : undefined,
     size: size !== DEFAULT_PAGE_SIZE ? size : undefined,
   })

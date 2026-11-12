@@ -32,7 +32,7 @@ export async function createHandoffSession(handoffId: number, request: HandoffSe
   return data
 }
 
-// ---- Vista pública del médico (/traspaso/:token) ----
+// ---- Vista pública del médico (/handoff/:token) ----
 
 export async function openHandoffSession(token: string, request: OpenHandoffRequest) {
   const { data } = await publicApi.post<HandoffPublicView>(

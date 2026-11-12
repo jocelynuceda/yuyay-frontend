@@ -20,7 +20,7 @@ export function BottomNav() {
             <NavLink
               to={to}
               end={to === '/'}
-              aria-label={to === '/avisos' ? noticesLabel(count) : undefined}
+              aria-label={to === '/notifications' ? noticesLabel(count) : undefined}
               className={({ isActive }) =>
                 cx(
                   'flex flex-col items-center gap-0.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors',
@@ -31,7 +31,7 @@ export function BottomNav() {
             >
               <span className="relative flex h-6 items-center justify-center">
                 <Icon name={icon} />
-                {to === '/avisos' && count > 0 ? (
+                {to === '/notifications' && count > 0 ? (
                   <span
                     aria-hidden="true"
                     className="absolute -top-1 -right-3 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] leading-4 font-bold text-white"
@@ -40,7 +40,7 @@ export function BottomNav() {
                   </span>
                 ) : null}
               </span>
-              <span aria-hidden={to === '/avisos' && count > 0 ? true : undefined}>{label}</span>
+              <span aria-hidden={to === '/notifications' && count > 0 ? true : undefined}>{label}</span>
             </NavLink>
           </li>
         ))}

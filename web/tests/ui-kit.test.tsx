@@ -125,7 +125,7 @@ test('usePagination: lee y escribe page/size en la URL sin perder otros filtros'
   let api!: ReturnType<typeof usePagination>
   let search = ''
   const view = await render(
-    <MemoryRouter initialEntries={['/personas/1?categoria=ALLERGY&page=3&size=25']}>
+    <MemoryRouter initialEntries={['/people/1?category=ALLERGY&page=3&size=25']}>
       <PaginationProbe onReady={(a, s) => ((api = a), (search = s))} />
     </MemoryRouter>,
   )
@@ -135,13 +135,13 @@ test('usePagination: lee y escribe page/size en la URL sin perder otros filtros'
 
   await act(async () => api.setPage(4))
   assert.equal(new URLSearchParams(search).get('page'), '4')
-  assert.equal(new URLSearchParams(search).get('categoria'), 'ALLERGY')
+  assert.equal(new URLSearchParams(search).get('category'), 'ALLERGY')
 
   await act(async () => api.setSize(50))
   let params = new URLSearchParams(search)
   assert.equal(params.get('size'), '50')
   assert.equal(params.get('page'), null, 'cambiar el tamaño vuelve a la página 1')
-  assert.equal(params.get('categoria'), 'ALLERGY')
+  assert.equal(params.get('category'), 'ALLERGY')
 
   await act(async () => api.setSize(10))
   params = new URLSearchParams(search)
@@ -152,7 +152,7 @@ test('usePagination: lee y escribe page/size en la URL sin perder otros filtros'
 test('usePagination: valores inválidos en la URL caen a los por defecto', async () => {
   let api!: ReturnType<typeof usePagination>
   const view = await render(
-    <MemoryRouter initialEntries={['/avisos?page=-2&size=7']}>
+    <MemoryRouter initialEntries={['/notifications?page=-2&size=7']}>
       <PaginationProbe onReady={(a) => (api = a)} />
     </MemoryRouter>,
   )

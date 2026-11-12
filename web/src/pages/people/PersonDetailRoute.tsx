@@ -26,14 +26,14 @@ import { PersonRouteFrame } from './PersonRouteFrame'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
 const tabs = [
-  { id: 'registros', label: 'Registros' },
-  { id: 'documentos', label: 'Documentos' },
-  { id: 'audios', label: 'Notas de voz' },
-  { id: 'cuidadores', label: 'Cuidadores' },
-  { id: 'accesos', label: 'Accesos' },
-  { id: 'consultas', label: 'Consultas' },
-  { id: 'resumenes', label: 'Resúmenes' },
-  { id: 'bitacora', label: 'Bitácora' },
+  { id: 'entries', label: 'Registros' },
+  { id: 'documents', label: 'Documentos' },
+  { id: 'voice-notes', label: 'Notas de voz' },
+  { id: 'caregivers', label: 'Cuidadores' },
+  { id: 'access', label: 'Accesos' },
+  { id: 'appointments', label: 'Consultas' },
+  { id: 'handoffs', label: 'Resúmenes' },
+  { id: 'access-log', label: 'Bitácora' },
 ] as const
 
 function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onSubjectChanged: () => void }) {
@@ -42,9 +42,9 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
   const subjectId = subject.id
   const isPrincipal = subject.myRole === 'PRINCIPAL'
   const age = ageFrom(subject.birthDate)
-  const visibleTabs = isPrincipal ? tabs : tabs.filter(({ id }) => id !== 'bitacora')
+  const visibleTabs = isPrincipal ? tabs : tabs.filter(({ id }) => id !== 'access-log')
   const requestedTab = searchParams.get('tab')
-  const activeTab = visibleTabs.find(({ id }) => id === requestedTab)?.id ?? 'registros'
+  const activeTab = visibleTabs.find(({ id }) => id === requestedTab)?.id ?? 'entries'
   const [newEntry, setNewEntry] = useState<{ category: CategoryCode | null } | null>(null)
   const [entriesVersion, setEntriesVersion] = useState(0)
   const toast = useToast()
@@ -64,8 +64,8 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     const filters = new URLSearchParams(entriesSearch(params))
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
-      next.set('tab', 'registros')
-      for (const key of ['categoria', 'page', 'size']) {
+      next.set('tab', 'entries')
+      for (const key of ['category', 'page', 'size']) {
         const value = filters.get(key)
         if (value === null) next.delete(key)
         else next.set(key, value)
@@ -79,15 +79,15 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     if (entry === null) return
     const params = parseEntriesParams(searchParams)
     // Si el filtro ocultaría el registro nuevo, se pasa a "Todas"
-    const categoria = params.categoria === null || params.categoria === entry.categoryCode ? params.categoria : null
-    updateEntriesParams({ ...params, categoria, page: 1 })
+    const category = params.category === null || params.category === entry.categoryCode ? params.category : null
+    updateEntriesParams({ ...params, category, page: 1 })
     // Cambiar la key remonta el panel y recarga la lista aunque la URL no cambie
     setEntriesVersion((v) => v + 1)
     notify('Registro guardado.')
   }
 
-  if (!isPrincipal && requestedTab === 'bitacora') {
-    return <Navigate to={tabLocation('registros')} replace />
+  if (!isPrincipal && requestedTab === 'access-log') {
+    return <Navigate to={tabLocation('entries')} replace />
   }
 
   return (
@@ -110,14 +110,14 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
           ) : null}
         </div>
         <nav aria-label="Accesos rápidos" className="flex flex-wrap gap-2">
-          <Link to={`/personas/${subjectId}/traspaso/nuevo`} className={linkButtonClass}>
+          <Link to={`/people/${subjectId}/handoff/new`} className={linkButtonClass}>
             Preparar resumen para el médico
           </Link>
-          <Link to={tabLocation('consultas')} className={linkSecondaryClass}>
+          <Link to={tabLocation('appointments')} className={linkSecondaryClass}>
             Consultas
           </Link>
           {isPrincipal ? (
-            <Link to={tabLocation('accesos')} className={linkSecondaryClass}>
+            <Link to={tabLocation('access')} className={linkSecondaryClass}>
               Delegar acceso
             </Link>
           ) : null}
@@ -158,7 +158,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
         onConfirm={async () => {
           await deleteCareSubject(subjectId)
           toast.success(`Se eliminó a ${subject.name}.`)
-          void navigate('/personas', { replace: true })
+          void navigate('/people', { replace: true })
         }}
       />
 
@@ -177,7 +177,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
         ))}
       </nav>
 
-      {activeTab === 'registros' && (
+      {activeTab === 'entries' && (
         <>
           {newEntry && (
             <HealthEntryForm
@@ -192,22 +192,22 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
             subjectId={subjectId}
             params={parseEntriesParams(searchParams)}
             onParamsChange={updateEntriesParams}
-            onOpenEntry={(entry) => void navigate(`/personas/${subjectId}/registros/${entry.id}`)}
+            onOpenEntry={(entry) => void navigate(`/people/${subjectId}/entries/${entry.id}`)}
             onNewEntry={(category) => {
               setNewEntry({ category })
             }}
           />
         </>
       )}
-      {activeTab === 'documentos' && <DocumentsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
-      {activeTab === 'audios' && <VoiceNotesPanel key={subjectId} subjectId={subjectId} isPrincipal={isPrincipal} />}
-      {activeTab === 'cuidadores' && (
+      {activeTab === 'documents' && <DocumentsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
+      {activeTab === 'voice-notes' && <VoiceNotesPanel key={subjectId} subjectId={subjectId} isPrincipal={isPrincipal} />}
+      {activeTab === 'caregivers' && (
         <CaregiversPanel subjectId={subjectId} isPrincipal={isPrincipal} onChanged={caregivers.reload} />
       )}
-      {activeTab === 'accesos' && <DelegationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
-      {activeTab === 'consultas' && <ConsultationsPanel subjectId={subjectId} subjectName={subject.name} isPrincipal={isPrincipal} />}
-      {activeTab === 'resumenes' && <HandoffsPanel key={subjectId} subjectId={subjectId} />}
-      {isPrincipal && activeTab === 'bitacora' && <AccessLogPanel subjectId={subjectId} />}
+      {activeTab === 'access' && <DelegationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
+      {activeTab === 'appointments' && <ConsultationsPanel subjectId={subjectId} subjectName={subject.name} isPrincipal={isPrincipal} />}
+      {activeTab === 'handoffs' && <HandoffsPanel key={subjectId} subjectId={subjectId} />}
+      {isPrincipal && activeTab === 'access-log' && <AccessLogPanel subjectId={subjectId} />}
     </>
   )
 }

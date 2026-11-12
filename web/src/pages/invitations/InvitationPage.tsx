@@ -33,7 +33,7 @@ export default function InvitationPage() {
     try {
       await acceptInvitation(invitation.id)
       toast.success('Invitación aceptada.')
-      void navigate(`/personas/${invitation.careSubjectId}`)
+      void navigate(`/people/${invitation.careSubjectId}`)
     } catch (err) {
       toast.error(getErrorMessage(err))
       setAccepting(false)
@@ -83,7 +83,7 @@ export default function InvitationPage() {
           title="Esta invitación ya no está pendiente"
           description="Puede que ya la hayas aceptado o que haya sido enviada a otra cuenta. Si es así, inicia sesión con el correo al que llegó la invitación."
           action={
-            <Link to="/personas" className={linkButtonClass}>
+            <Link to="/people" className={linkButtonClass}>
               Ir a personas
             </Link>
           }

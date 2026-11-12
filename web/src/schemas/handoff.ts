@@ -33,7 +33,7 @@ export const handoffSessionSchema = z.object({
 export type HandoffSessionFormValues = z.input<typeof handoffSessionSchema>
 export const emptyHandoffSession: HandoffSessionFormValues = { expiresInHours: 24, sessionWindowMinutes: 30 }
 
-/** Vista pública /traspaso/:token: el visitante se identifica antes de ver los datos. */
+/** Vista pública /handoff/:token: el visitante se identifica antes de ver los datos. */
 export const openHandoffSchema = z.object({
   visitorName: requiredText('Ingrese su nombre.', 120),
   visitorRole: requiredText('Ingrese su rol.', 80),

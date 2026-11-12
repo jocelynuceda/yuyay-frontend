@@ -1,4 +1,4 @@
-const AUTH_PATHS = ['/login', '/registro']
+const AUTH_PATHS = ['/login', '/register']
 
 /** Destino tras iniciar sesión: la ruta guardada en `location.state.from` o "/" si no hay una válida. */
 export function getPostLoginTarget(state: unknown): string {
