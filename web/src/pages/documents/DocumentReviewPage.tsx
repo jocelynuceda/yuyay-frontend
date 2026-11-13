@@ -268,7 +268,7 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
       toast.info('Editaste el texto en Detalles, así que agregamos la versión corregida al final.')
   }
 
-  const backToDocuments = `/personas/${subjectId}?tab=documentos`
+  const backToDocuments = `/people/${subjectId}?tab=documents`
 
   if (error && !document) return <LoadError message={error} status={errorStatus} onRetry={reload} />
   if (loading && !document) return <Skeleton lines={4} />
@@ -305,7 +305,7 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
   function handleSaved(entry: HealthEntry | null) {
     if (!entry) return
     toast.success('Registro guardado.')
-    void navigate(`/personas/${subjectId}/registros/${entry.id}`)
+    void navigate(`/people/${subjectId}/entries/${entry.id}`)
   }
 
   const hasSuggestions = !!suggestion && !!(suggestion.title || suggestion.categoryCode || suggestion.occurredOn)

@@ -6,6 +6,7 @@ import { Button } from 'react-native-paper';
 import { DateField, parseDateParts } from '../components/DateField';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
+import { LionAvatar, lionForAge } from '../components/LionAvatar';
 import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
 import { createCareSubject } from '../services/api';
@@ -13,7 +14,7 @@ import { useToast } from '../hooks/useToast';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
-import { ageFrom, initialsOf } from '../utils/format';
+import { ageFrom } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewSubject'>;
 
@@ -62,7 +63,7 @@ export function NewSubjectScreen({ navigation }: Props) {
       <View style={styles.preview}>
         <View style={styles.previewTile}>
           {name.trim() ? (
-            <Text style={styles.previewInitials}>{initialsOf(name)}</Text>
+            <LionAvatar kind={lionForAge(age)} size={60} animated />
           ) : (
             <Sparkle size={34} color={colors.accent} />
           )}
@@ -152,7 +153,6 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  previewInitials: { fontFamily: fonts.display, fontSize: 24, color: colors.primary },
   previewName: { fontFamily: fonts.display, fontSize: 22, color: colors.ink },
   previewMeta: { fontFamily: fonts.regular, fontSize: 13, color: colors.softText, marginTop: 2 },
   card: {

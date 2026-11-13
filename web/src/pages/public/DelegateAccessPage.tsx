@@ -22,7 +22,7 @@ type State =
   | { status: 'ready'; session: DelegateSession; entries: HealthEntry[]; consultations: DelegateConsultation[] }
 
 /**
- * Vista del delegado (/acceso/:token). Canjea el enlace y muestra solo los registros
+ * Vista del delegado (/access/:token). Canjea el enlace y muestra solo los registros
  * de las categorías que la familia permitió y, si las compartió, las citas.
  */
 export function DelegateAccessPage({ token }: { token: string }) {

@@ -8,9 +8,9 @@ export interface NavItem {
 
 export const navItems: readonly NavItem[] = [
   { to: '/', label: 'Inicio', icon: 'home' },
-  { to: '/personas', label: 'Personas', icon: 'users' },
-  { to: '/avisos', label: 'Avisos', icon: 'bell' },
-  { to: '/perfil', label: 'Perfil', icon: 'user' },
+  { to: '/people', label: 'Personas', icon: 'users' },
+  { to: '/notifications', label: 'Avisos', icon: 'bell' },
+  { to: '/profile', label: 'Perfil', icon: 'user' },
 ]
 
 export const formatBadge = (count: number) => (count > 99 ? '99+' : String(count))

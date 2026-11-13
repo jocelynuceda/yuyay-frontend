@@ -18,7 +18,7 @@ export default function EntryDetailRoute() {
           key={entryId}
           subjectId={subjectId}
           entryId={entryId}
-          onDeleted={() => void navigate(`/personas/${subjectId}?tab=registros`, { replace: true })}
+          onDeleted={() => void navigate(`/people/${subjectId}?tab=entries`, { replace: true })}
         />
       )}
     </PersonRouteFrame>

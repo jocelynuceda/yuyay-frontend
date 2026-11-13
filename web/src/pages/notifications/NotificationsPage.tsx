@@ -20,8 +20,8 @@ import { formatDateTime, formatRelative, notificationTypeLabels } from '../../ut
 import { linkClass, linkButtonClass } from '../../utils/styles'
 import { getNotificationLink, type PendingInvitations } from './notificationLink'
 
-const FILTER_PARAM = 'filtro'
-const UNREAD_VALUE = 'sin-leer'
+const FILTER_PARAM = 'filter'
+const UNREAD_VALUE = 'unread'
 
 export default function NotificationsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -144,7 +144,7 @@ export default function NotificationsPage() {
                     Ver todos los avisos
                   </Button>
                 ) : (
-                  <Link to="/personas" className={linkButtonClass}>
+                  <Link to="/people" className={linkButtonClass}>
                     Ver personas
                   </Link>
                 )

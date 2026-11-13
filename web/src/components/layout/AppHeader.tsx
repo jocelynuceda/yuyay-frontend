@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useUnreadCount } from '../../hooks/useUnreadCount'
 import { focusRing } from '../../utils/styles'
-import { Avatar } from '../ui/Avatar'
+import { MyAvatar } from '../ui/AvatarPicker'
 import { Isotipo } from '../ui/Brand'
 import { cx } from '../ui/cx'
 import { Icon } from '../ui/Icon'
@@ -22,7 +22,7 @@ export function AppHeader() {
       <div className="flex items-center gap-2">
         <ThemeToggle />
         <Link
-          to="/avisos"
+          to="/notifications"
           aria-label={noticesLabel(count)}
           className={cx('relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-card shadow-[var(--shadow-soft)] hover:bg-primary-tint', focusRing)}
         >
@@ -37,11 +37,11 @@ export function AppHeader() {
           ) : null}
         </Link>
         <Link
-          to="/perfil"
+          to="/profile"
           aria-label={`Perfil de ${name}`}
           className={cx('flex items-center gap-2 rounded-full lg:bg-card lg:py-1 lg:pr-4 lg:pl-1 lg:shadow-[var(--shadow-soft)] lg:hover:bg-primary-tint', focusRing)}
         >
-          <Avatar name={name} size="sm" />
+          <MyAvatar size="sm" />
           <span className="hidden max-w-48 truncate text-sm font-semibold lg:inline">{name}</span>
         </Link>
       </div>

@@ -82,8 +82,8 @@ test('El historial de arreglos se ordena y abre el detalle privado bajo demanda'
 
   assert.deepEqual([...container.querySelectorAll('h3')].map((heading) => heading.textContent), ['Control anual', 'Control anterior'])
   assert.equal(requests.length, 1)
-  assert.equal(container.querySelector('a')?.getAttribute('href'), '/personas/4/traspaso/nuevo')
-  assert.equal(container.querySelector('a[href^="/traspaso/"]'), null)
+  assert.equal(container.querySelector('a')?.getAttribute('href'), '/people/4/handoff/new')
+  assert.equal(container.querySelector('a[href^="/handoff/"]'), null)
 
   await click(container, 'Ver resumen')
   assert.match(container.querySelector('[role="status"]')?.textContent ?? '', /Cargando resumen/)

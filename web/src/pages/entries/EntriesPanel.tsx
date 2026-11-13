@@ -9,7 +9,7 @@ import { useFetch } from '../../hooks/useFetch'
 
 /**
  * Pestaña "Registros" del detalle de persona: listado paginado del backend, con filtro por
- * categoría y tamaño de página en la URL (?categoria=ALLERGY&page=2&size=25).
+ * categoría y tamaño de página en la URL (?category=ALLERGY&page=2&size=25).
  * Tabla en escritorio y tarjetas en el celular.
  */
 export function EntriesPanel({
@@ -25,10 +25,10 @@ export function EntriesPanel({
   onOpenEntry: (entry: HealthEntry) => void
   onNewEntry?: (category: CategoryCode | null) => void
 }) {
-  const { categoria, page, size } = params
+  const { category, page, size } = params
   const { data: result, error, errorStatus, loading, reload } = useFetch(
-    (signal) => listHealthEntries(subjectId, { category: categoria ?? undefined, page: page - 1, size, sort: 'createdAt,desc' }, signal),
-    [subjectId, categoria, page, size],
+    (signal) => listHealthEntries(subjectId, { category: category ?? undefined, page: page - 1, size, sort: 'createdAt,desc' }, signal),
+    [subjectId, category, page, size],
   )
   // Cambiar de filtro o de tamaño vuelve a la primera página
   const setFilter = (changes: Partial<EntriesParams>) => onParamsChange({ ...params, ...changes, page: 1 })
@@ -45,7 +45,7 @@ export function EntriesPanel({
         {onNewEntry ? (
           <button
             type="button"
-            onClick={() => onNewEntry(categoria)}
+            onClick={() => onNewEntry(category)}
             className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
           >
             Nuevo registro
@@ -56,13 +56,13 @@ export function EntriesPanel({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <nav aria-label="Filtrar por categoría" className="flex flex-wrap gap-2">
           {([null, ...CATEGORY_CODES] as const).map((code) => {
-            const selected = categoria === code
+            const selected = category === code
             return (
               <button
                 key={code ?? 'ALL'}
                 type="button"
                 aria-pressed={selected}
-                onClick={() => setFilter({ categoria: code })}
+                onClick={() => setFilter({ category: code })}
                 className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${focusRing} ${
                   selected ? 'border-ink bg-ink text-white' : 'border-line bg-card hover:border-primary'
                 }`}
@@ -91,8 +91,8 @@ export function EntriesPanel({
                   Ir a la primera página
                 </button>
               </>
-            ) : categoria ? (
-              `No hay registros de ${categoryLabels[categoria].plural.toLowerCase()}.`
+            ) : category ? (
+              `No hay registros de ${categoryLabels[category].plural.toLowerCase()}.`
             ) : (
               'Aún no hay registros.'
             )}

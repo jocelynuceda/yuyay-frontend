@@ -10,7 +10,7 @@ export default function AppLayout() {
   return (
     <UnreadCountProvider>
       <SideNav />
-      <div className="min-h-svh lg:pl-28">
+      <div className="min-h-svh transition-[padding] duration-300 ease-out lg:pl-28 lg:peer-hover/nav:pl-68 lg:peer-has-[:focus-visible]/nav:pl-68">
         <AppHeader />
         <OfflineBanner />
         <div className="pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0">

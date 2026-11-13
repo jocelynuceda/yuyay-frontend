@@ -17,7 +17,7 @@ function nowLocal() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 }
 
-/** Delegar acceso de solo lectura a ciertas categorías, por tiempo limitado (vista /acceso/:token). */
+/** Delegar acceso de solo lectura a ciertas categorías, por tiempo limitado (vista /access/:token). */
 export function DelegationForm({
   subjectId,
   onSaved,

@@ -174,7 +174,7 @@ test('Registros: números de página, rango y tamaño con el filtro de categorí
   http.api.defaults.adapter = adapter as any
 
   const changes: unknown[] = []
-  const params = { categoria: 'MEDICATION' as const, page: 1, size: 10 }
+  const params = { category: 'MEDICATION' as const, page: 1, size: 10 }
   const view = await render(
     <EntriesPanel subjectId={1} params={params} onParamsChange={(p) => changes.push(p)} onOpenEntry={() => {}} />,
   )
@@ -187,14 +187,14 @@ test('Registros: números de página, rango y tamaño con el filtro de categorí
   assert.equal(view.container.querySelector('[aria-current="page"]')?.getAttribute('aria-label'), 'Página 1')
 
   await act(async () => (view.container.querySelector('[aria-label="Página 2"]') as HTMLButtonElement).click())
-  assert.deepEqual(changes.at(-1), { categoria: 'MEDICATION', page: 2, size: 10 })
+  assert.deepEqual(changes.at(-1), { category: 'MEDICATION', page: 2, size: 10 })
 
   const select = [...view.container.querySelectorAll('select')].at(-1)!
   await act(async () => {
     select.value = '25'
     select.dispatchEvent(new window.Event('change', { bubbles: true }))
   })
-  assert.deepEqual(changes.at(-1), { categoria: 'MEDICATION', page: 1, size: 25 }, 'cambiar el tamaño vuelve a la página 1')
+  assert.deepEqual(changes.at(-1), { category: 'MEDICATION', page: 1, size: 25 }, 'cambiar el tamaño vuelve a la página 1')
   await view.unmount()
 })
 
@@ -203,7 +203,7 @@ test('Registros: una página que no existe no muestra la paginación (solo el av
     data: { content: [], totalElements: 57, totalPages: 6, number: 8, size: 10 } })
   http.api.defaults.adapter = adapter as any
   const view = await render(
-    <EntriesPanel subjectId={1} params={{ categoria: null, page: 9, size: 10 }} onParamsChange={() => {}} onOpenEntry={() => {}} />,
+    <EntriesPanel subjectId={1} params={{ category: null, page: 9, size: 10 }} onParamsChange={() => {}} onOpenEntry={() => {}} />,
   )
   await act(async () => wait(20))
   const text = view.container.textContent ?? ''

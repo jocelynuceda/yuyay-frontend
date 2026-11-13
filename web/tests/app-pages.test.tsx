@@ -304,7 +304,7 @@ async function chooseFile(input: HTMLInputElement, file: File) {
 }
 
 test('Documentos: sube el archivo, espera la lectura y crea el registro con el texto', async (t) => {
-  const { b, unmount } = await mountApp('/personas/1?tab=documentos', { loggedIn: true })
+  const { b, unmount } = await mountApp('/people/1?tab=documents', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /examen\.png/.test(text()), 'lista de documentos')
   assert.doesNotMatch(text(), /nota\.m4a/, 'las notas de voz no se listan')
@@ -316,7 +316,7 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   assert.equal(b.db.uploads.length, 0, 'no sube un formato no permitido')
 
   await chooseFile(input, new File(['%PDF'], 'receta.pdf', { type: 'application/pdf' }))
-  await waitFor(() => pathname() === '/personas/1/documentos/30', 'ir a la revisión')
+  await waitFor(() => pathname() === '/people/1/documents/30', 'ir a la revisión')
   const [upload] = b.db.uploads
   assert.ok(upload.form instanceof FormData, 'se envía como FormData, no como JSON')
   assert.equal((upload.form.get('file') as File).name, 'receta.pdf')
@@ -385,7 +385,7 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   // El usuario corrige el título antes de guardar
   await type(document.querySelector<HTMLInputElement>('#entry-title')!, 'Receta de emergencia')
   await click(byText('button', 'Registrar'), 'Registrar')
-  await waitFor(() => pathname() === '/personas/1/registros/99', 'ir al registro creado')
+  await waitFor(() => pathname() === '/people/1/entries/99', 'ir al registro creado')
   const created = b.db.createdEntries[0]
   assert.equal(created.sourceAttachmentId, 30)
   assert.equal(created.title, 'Receta de emergencia')
@@ -397,7 +397,7 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
 })
 
 test('Documentos: sin categoría sugerida hay que elegirla (no hay "Alergia" por defecto)', async (t) => {
-  const { b, unmount } = await mountApp('/personas/1/documentos/32', { loggedIn: true })
+  const { b, unmount } = await mountApp('/people/1/documents/32', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /No se pudo extraer el texto/.test(text()), 'mensaje de error')
   await click(byText('button', 'Escribir el registro'), 'Escribir el registro')
@@ -412,7 +412,7 @@ test('Documentos: sin categoría sugerida hay que elegirla (no hay "Alergia" por
 })
 
 test('Documentos: una lectura fallida permite escribir el registro a mano o reintentar', async (t) => {
-  const { b, unmount } = await mountApp('/personas/1/documentos/32', { loggedIn: true })
+  const { b, unmount } = await mountApp('/people/1/documents/32', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /No se pudo extraer el texto/.test(text()), 'mensaje de error')
   assert.equal(document.querySelector('#entry-title'), null, 'el formulario no aparece hasta elegirlo')
@@ -427,7 +427,7 @@ test('Documentos: una lectura fallida permite escribir el registro a mano o rein
 })
 
 test('Documentos: abre el archivo en otra pestaña y avisa si el navegador la bloquea', async (t) => {
-  const { unmount } = await mountApp('/personas/1/documentos/32', { loggedIn: true })
+  const { unmount } = await mountApp('/people/1/documents/32', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => !!byText('button', 'Abrir archivo'), 'botón Abrir archivo')
   const original = window.open
@@ -445,7 +445,7 @@ test('Documentos: abre el archivo en otra pestaña y avisa si el navegador la bl
 })
 
 test('Consultas: muestra la hora y permite editar la cita y quitarle la hora', async (t) => {
-  const { b, unmount } = await mountApp('/personas/1?tab=consultas', { loggedIn: true })
+  const { b, unmount } = await mountApp('/people/1?tab=appointments', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /Control con cardiología/.test(text()), 'lista de consultas')
   assert.match(text(), /3:30/)
@@ -461,7 +461,7 @@ test('Consultas: muestra la hora y permite editar la cita y quitarle la hora', a
 })
 
 test('Vista del delegado: muestra solo citas, con hora y sin notas, las próximas primero', async (t) => {
-  const { unmount } = await mountApp('/acceso/enlace-citas', { loggedIn: false })
+  const { unmount } = await mountApp('/access/enlace-citas', { loggedIn: false })
   t.after(unmount)
   await waitFor(() => /Cardiología/.test(text()), 'citas compartidas')
   assert.match(text(), /3:30/)
@@ -470,10 +470,23 @@ test('Vista del delegado: muestra solo citas, con hora y sin notas, las próxima
   assert.doesNotMatch(text(), /No hay registros/)
 })
 
+test('Enlace antiguo /acceso/:token redirige a /access/:token y conserva la query', async (t) => {
+  const { unmount } = await mountApp('/acceso/enlace-citas?x=1', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => pathname() === '/access/enlace-citas' && /Cardiología/.test(text()), 'redirige al acceso delegado')
+  assert.equal(search(), '?x=1', 'conserva la query')
+})
+
+test('Enlace antiguo /invitaciones/:id redirige a /invitations/:id', async (t) => {
+  const { unmount } = await mountApp('/invitaciones/7', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => pathname() === '/invitations/7' && /Lucía/.test(text()), 'redirige a la invitación')
+})
+
 const inputById = (id: string) => document.getElementById(id) as HTMLInputElement
 
 test('Registro: pide confirmar la contraseña, muestra requisitos y no envía la confirmación', async (t) => {
-  const { b, unmount } = await mountApp('/registro', { loggedIn: false })
+  const { b, unmount } = await mountApp('/register', { loggedIn: false })
   t.after(unmount)
   await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
   await type(inputById('auth-name'), 'Ana')
@@ -501,7 +514,7 @@ test('Recuperar contraseña: desde el login pide el código, cambia la contrase�
   t.after(unmount)
   await waitFor(() => !!byText('a', '¿Olvidaste tu contraseña?'), 'enlace de recuperación')
   await click(byText('a', '¿Olvidaste tu contraseña?'), 'enlace de recuperación')
-  await waitFor(() => pathname() === '/recuperar-contrasena' && !!inputById('auth-email'), 'pantalla de recuperación')
+  await waitFor(() => pathname() === '/forgot-password' && !!inputById('auth-email'), 'pantalla de recuperación')
   await type(inputById('auth-email'), 'ana@example.test')
   await click(byText('button', 'Enviar código'), 'Enviar código')
   await waitFor(() => !!inputById('reset-code'), 'paso del código')
@@ -522,16 +535,16 @@ test('Recuperar contraseña: desde el login pide el código, cambia la contrase�
 
 test('getPostLoginTarget: vuelve a la ruta guardada y rechaza destinos inválidos', () => {
   assert.equal(getPostLoginTarget(null), '/')
-  assert.equal(getPostLoginTarget({ from: { pathname: '/invitaciones/7', search: '?x=1' } }), '/invitaciones/7?x=1')
+  assert.equal(getPostLoginTarget({ from: { pathname: '/invitations/7', search: '?x=1' } }), '/invitations/7?x=1')
   assert.equal(getPostLoginTarget({ from: { pathname: '/login' } }), '/')
-  assert.equal(getPostLoginTarget({ from: { pathname: '/registro' } }), '/')
+  assert.equal(getPostLoginTarget({ from: { pathname: '/register' } }), '/')
   assert.equal(getPostLoginTarget({ from: { pathname: '//evil.example' } }), '/', 'no sale del sitio')
   assert.equal(getPostLoginTarget({ from: { pathname: 'https://evil.example' } }), '/')
   assert.equal(getPostLoginTarget({ from: 'texto' }), '/')
 })
 
 test('Enlace del correo sin sesión: login y vuelve a la invitación; aceptar lleva a la persona', async (t) => {
-  const { b, unmount } = await mountApp('/invitaciones/7', { loggedIn: false })
+  const { b, unmount } = await mountApp('/invitations/7', { loggedIn: false })
   t.after(unmount)
   await waitFor(() => pathname() === '/login' && !!document.querySelector('input[type="password"]'), 'redirección a /login')
 
@@ -539,15 +552,15 @@ test('Enlace del correo sin sesión: login y vuelve a la invitación; aceptar ll
   await type(document.querySelector<HTMLInputElement>('input[type="password"]')!, 'Demo12345')
   await click(document.querySelector('form button[type="submit"]'), 'el botón de ingresar')
 
-  await waitFor(() => pathname() === '/invitaciones/7', 'volver a /invitaciones/7 después del login')
+  await waitFor(() => pathname() === '/invitations/7', 'volver a /invitations/7 después del login')
   await waitFor(() => /Lucía/.test(text()), 'mostrar la invitación')
   await click(byText('button', /Aceptar invitación/), 'el botón Aceptar invitación')
-  await waitFor(() => pathname() === '/personas/3', 'ir a la persona aceptada')
+  await waitFor(() => pathname() === '/people/3', 'ir a la persona aceptada')
   assert.ok(b.calls.includes('POST /me/relationships/7/accept'))
 })
 
 test('Invitación que ya no está pendiente: estado vacío, sin botón de aceptar', async (t) => {
-  const { unmount } = await mountApp('/invitaciones/99', { loggedIn: true })
+  const { unmount } = await mountApp('/invitations/99', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /ya no está pendiente/.test(text()), 'estado vacío de invitación')
   assert.equal(byText('button', /Aceptar invitación/), null)
@@ -561,34 +574,34 @@ test('Dashboard: saludo, próxima cita más cercana entre todas las personas e i
   assert.match(text(), /Pedro/)
   assert.doesNotMatch(text(), /Control de presión/, 'la consulta pasada no es la próxima')
   assert.doesNotMatch(text(), /Control con cardiología/, 'la de Rosa es más lejana')
-  assert.ok(document.querySelector('a[href="/invitaciones/7"]'), 'enlace a la invitación pendiente')
+  assert.ok(document.querySelector('a[href="/invitations/7"]'), 'enlace a la invitación pendiente')
 })
 
 test('Layout: navegación con la ruta activa y contador de avisos sin leer', async (t) => {
-  const { unmount } = await mountApp('/personas', { loggedIn: true })
+  const { unmount } = await mountApp('/people', { loggedIn: true })
   t.after(unmount)
-  await waitFor(() => !!document.querySelector('a[aria-current="page"][href="/personas"]'), 'enlace activo de Personas')
-  await waitFor(() => !!document.querySelector('a[href="/avisos"][aria-label*="3"]'), 'campana con 3 sin leer')
+  await waitFor(() => !!document.querySelector('a[aria-current="page"][href="/people"]'), 'enlace activo de Personas')
+  await waitFor(() => !!document.querySelector('a[href="/notifications"][aria-label*="3"]'), 'campana con 3 sin leer')
 })
 
 test('Avisos: filtro en la URL, marcar como leído actualiza la lista y el contador', async (t) => {
-  const { b, unmount } = await mountApp('/avisos', { loggedIn: true })
+  const { b, unmount } = await mountApp('/notifications', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /Aviso 4/.test(text()), 'lista de todos los avisos')
 
   await click(byText('button', 'Sin leer'), 'el filtro Sin leer')
-  await waitFor(() => new URLSearchParams(search()).get('filtro') === 'sin-leer', 'filtro en la URL')
+  await waitFor(() => new URLSearchParams(search()).get('filter') === 'unread', 'filtro en la URL')
   await waitFor(() => !/Aviso 4/.test(text()), 'el aviso leído desaparece en Sin leer')
   assert.ok(b.calls.includes('GET /notifications?unread=true'))
 
   await click(byText('button', /Marcar como leído/), 'el botón Marcar como leído')
   await waitFor(() => b.calls.some((c) => /^PATCH \/notifications\/\d+\/read$/.test(c)), 'PATCH de leído')
-  await waitFor(() => !!document.querySelector('a[href="/avisos"][aria-label*="2"]'), 'contador baja a 2')
+  await waitFor(() => !!document.querySelector('a[href="/notifications"][aria-label*="2"]'), 'contador baja a 2')
   await waitFor(() => /marcado como leído/.test(text()), 'toast de confirmación')
 })
 
 test('Perfil: editar el nombre lo guarda y actualiza el header', async (t) => {
-  const { b, unmount } = await mountApp('/perfil', { loggedIn: true })
+  const { b, unmount } = await mountApp('/profile', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /ana@demo\.yuyay/.test(text()), 'datos del perfil')
   const input = [...document.querySelectorAll<HTMLInputElement>('form input')].find((i) => i.value === 'Ana Torres')
@@ -601,28 +614,28 @@ test('Perfil: editar el nombre lo guarda y actualiza el header', async (t) => {
 
 test('getNotificationLink: el aviso de invitación solo enlaza si queda pendiente', () => {
   const ready = { status: 'ready' as const, bySubject: new Map([[3, 7]]) }
-  assert.deepEqual(getNotificationLink({ type: 'INVITATION', careSubjectId: 3 }, ready), { to: '/invitaciones/7', label: 'Ver invitación' })
+  assert.deepEqual(getNotificationLink({ type: 'INVITATION', careSubjectId: 3 }, ready), { to: '/invitations/7', label: 'Ver invitación' })
   assert.equal(getNotificationLink({ type: 'INVITATION', careSubjectId: 2 }, ready), null, 'invitación ya aceptada')
   assert.equal(getNotificationLink({ type: 'INVITATION', careSubjectId: 4 }, ready), null, 'invitación revocada')
-  assert.deepEqual(getNotificationLink({ type: 'CAREGIVER_JOINED', careSubjectId: 2 }, ready), { to: '/personas/2?tab=cuidadores', label: 'Ver cuidadores' })
-  assert.deepEqual(getNotificationLink({ type: 'CAREGIVER_JOINED', careSubjectId: 2 }, { status: 'error', bySubject: new Map() }), { to: '/personas/2?tab=cuidadores', label: 'Ver cuidadores' }, 'no depende de la lista de pendientes')
-  assert.deepEqual(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: 1 }, ready), { to: '/personas/1', label: 'Ver persona' })
+  assert.deepEqual(getNotificationLink({ type: 'CAREGIVER_JOINED', careSubjectId: 2 }, ready), { to: '/people/2?tab=caregivers', label: 'Ver cuidadores' })
+  assert.deepEqual(getNotificationLink({ type: 'CAREGIVER_JOINED', careSubjectId: 2 }, { status: 'error', bySubject: new Map() }), { to: '/people/2?tab=caregivers', label: 'Ver cuidadores' }, 'no depende de la lista de pendientes')
+  assert.deepEqual(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: 1 }, ready), { to: '/people/1', label: 'Ver persona' })
   assert.equal(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: null }, ready), null)
   for (const status of ['loading', 'error'] as const) {
     const unknown = { status, bySubject: new Map<number, number>() }
     assert.equal(getNotificationLink({ type: 'INVITATION', careSubjectId: 3 }, unknown), null, `sin saber si está pendiente (${status}) no enlaza`)
-    assert.deepEqual(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: 1 }, unknown), { to: '/personas/1', label: 'Ver persona' })
+    assert.deepEqual(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: 1 }, unknown), { to: '/people/1', label: 'Ver persona' })
   }
 })
 
 test('Avisos: enlaza la invitación pendiente y el nuevo cuidador, y omite enlaces de invitaciones anteriores', async (t) => {
-  const { unmount } = await mountApp('/avisos', { loggedIn: true })
+  const { unmount } = await mountApp('/notifications', { loggedIn: true })
   t.after(unmount)
-  await waitFor(() => !!document.querySelector('a[href="/invitaciones/7"]'), 'enlace Ver invitación')
-  const invitation = document.querySelector('a[href="/invitaciones/7"]')!
+  await waitFor(() => !!document.querySelector('a[href="/invitations/7"]'), 'enlace Ver invitación')
+  const invitation = document.querySelector('a[href="/invitations/7"]')!
   assert.equal(invitation.textContent?.trim(), 'Ver invitación')
-  assert.equal(document.querySelector('a[href="/personas/3"]'), null, 'no enlaza a la persona con la invitación pendiente (403)')
-  assert.equal(document.querySelector('a[href="/personas/2?tab=cuidadores"]')?.textContent?.trim(), 'Ver cuidadores')
+  assert.equal(document.querySelector('a[href="/people/3"]'), null, 'no enlaza a la persona con la invitación pendiente (403)')
+  assert.equal(document.querySelector('a[href="/people/2?tab=caregivers"]')?.textContent?.trim(), 'Ver cuidadores')
   const joined = byText('h2', /^Nuevo cuidador para Pedro$/)?.closest('article')
   assert.ok(joined)
   assert.ok([...joined.querySelectorAll('span')].some((span) => span.textContent?.trim() === 'Nuevo cuidador'))
@@ -633,48 +646,48 @@ test('Avisos: enlaza la invitación pendiente y el nuevo cuidador, y omite enlac
   }
 
   await click(invitation, 'Ver invitación')
-  await waitFor(() => pathname() === '/invitaciones/7' && /Lucía/.test(text()), 'abrir la invitación')
+  await waitFor(() => pathname() === '/invitations/7' && /Lucía/.test(text()), 'abrir la invitación')
 })
 
 test('Perfil: Notas de voz muestra audios sin mezclar documentos y conserva los filtros al navegar', async (t) => {
-  const { b, unmount } = await mountApp('/personas/1?tab=audios&categoria=MEDICATION&page=2', { loggedIn: true })
+  const { b, unmount } = await mountApp('/people/1?tab=voice-notes&category=MEDICATION&page=2', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /nota\.m4a/.test(text()), 'listar la nota de voz de la persona')
   assert.doesNotMatch(text(), /examen\.png/)
   assert.ok(b.calls.includes('GET /care-subjects/1/attachments'))
-  assert.equal(document.querySelector('a[aria-current="page"][href*="tab=audios"]')?.textContent, 'Notas de voz')
+  assert.equal(document.querySelector('a[aria-current="page"][href*="tab=voice-notes"]')?.textContent, 'Notas de voz')
   await click(byText('a', 'Documentos'), 'pestaña Documentos')
   await waitFor(() => /examen\.png/.test(text()), 'listar documentos al cambiar de sección')
   assert.doesNotMatch(text(), /nota\.m4a/)
-  assert.match(search(), /categoria=MEDICATION/)
+  assert.match(search(), /category=MEDICATION/)
   assert.match(search(), /page=2/)
 })
 
 test('Perfil: Resúmenes carga el historial privado y mantiene acceso a crear un resumen', async (t) => {
-  const { b, unmount } = await mountApp('/personas/1?tab=resumenes', { loggedIn: true })
+  const { b, unmount } = await mountApp('/people/1?tab=handoffs', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /Resumen de control anual/.test(text()), 'mostrar el resumen de la persona')
   assert.ok(b.calls.includes('GET /care-subjects/1/handoffs'))
-  assert.ok(document.querySelector('a[href="/personas/1/traspaso/nuevo"]'))
-  assert.equal(document.querySelector('a[aria-current="page"][href*="tab=resumenes"]')?.textContent, 'Resúmenes')
-  assert.equal(document.querySelector('a[href^="/traspaso/"]'), null, 'no fabricar un enlace público desde el ID')
+  assert.ok(document.querySelector('a[href="/people/1/handoff/new"]'))
+  assert.equal(document.querySelector('a[aria-current="page"][href*="tab=handoffs"]')?.textContent, 'Resúmenes')
+  assert.equal(document.querySelector('a[href^="/handoff/"]'), null, 'no fabricar un enlace público desde el ID')
 })
 
 test('Perfil: el principal elimina a una persona tras confirmar y vuelve a la lista', async (t) => {
-  const { b, unmount } = await mountApp('/personas/2', { loggedIn: true })
+  const { b, unmount } = await mountApp('/people/2', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /Pedro/.test(text()) && Boolean(byText('button', 'Eliminar persona')), 'mostrar el detalle de Pedro')
   await click(byText('button', 'Eliminar persona'), 'abrir la confirmación')
   const dialog = document.querySelector('dialog[open]')
   assert.ok(dialog, 'pide confirmar antes de eliminar')
   await click([...dialog.querySelectorAll('button')].find((el) => el.textContent === 'Eliminar persona') ?? null, 'confirmar')
-  await waitFor(() => pathname() === '/personas', 'volver a la lista de personas')
+  await waitFor(() => pathname() === '/people', 'volver a la lista de personas')
   assert.ok(b.calls.includes('DELETE /care-subjects/2'))
   await waitFor(() => /Se eliminó a Pedro/.test(text()), 'confirmar el borrado con un aviso')
 })
 
 test('Perfil: una persona inexistente muestra "no encontrada" sin botón de reintentar', async (t) => {
-  const { unmount } = await mountApp('/personas/999', { loggedIn: true })
+  const { unmount } = await mountApp('/people/999', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /No encontramos lo que buscas/.test(text()), 'mostrar el 404')
   assert.equal(byText('button', 'Reintentar'), null)
@@ -691,14 +704,14 @@ const scopedDocuments = (db: Db) => {
 const SCOPE_TEXTS = /Uso adecuado|No seguro|Posible uso ajeno/
 
 test('Documentos: sin clasificación del backend no aparece ninguna etiqueta de uso', async (t) => {
-  const { unmount } = await mountApp('/personas/1?tab=documentos', { loggedIn: true })
+  const { unmount } = await mountApp('/people/1?tab=documents', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /examen\.png/.test(text()), 'lista de documentos')
   assert.doesNotMatch(text(), SCOPE_TEXTS)
 })
 
 test('Documentos: muestra la etiqueta de uso de cada documento clasificado', async (t) => {
-  const { unmount } = await mountApp('/personas/1?tab=documentos', { loggedIn: true, seed: scopedDocuments })
+  const { unmount } = await mountApp('/people/1?tab=documents', { loggedIn: true, seed: scopedDocuments })
   t.after(unmount)
   await waitFor(() => /borroso\.png/.test(text()), 'lista de documentos')
   const row = (name: string) => [...document.querySelectorAll('li, article, tr')].find((el) => el.textContent?.includes(name))?.textContent ?? ''
@@ -709,14 +722,14 @@ test('Documentos: muestra la etiqueta de uso de cada documento clasificado', asy
 })
 
 test('Documentos: la revisión muestra la etiqueta con su explicación', async (t) => {
-  const { unmount } = await mountApp('/personas/1/documentos/34', { loggedIn: true, seed: scopedDocuments })
+  const { unmount } = await mountApp('/people/1/documents/34', { loggedIn: true, seed: scopedDocuments })
   t.after(unmount)
   await waitFor(() => /Posible uso ajeno/.test(text()), 'etiqueta en la revisión')
   assert.match(text(), /El texto no parece de un documento de salud\. Si es un error, avisa al equipo\./)
 })
 
 test('Perfil: el resumen de uso de documentos aparece solo con el clasificador encendido', async (t) => {
-  const on = await mountApp('/perfil', {
+  const on = await mountApp('/profile', {
     loggedIn: true,
     seed: (db) => {
       db.scope = { enabled: true, appropriate: 3, unsure: 1, strikes: 2 }
@@ -730,7 +743,7 @@ test('Perfil: el resumen de uso de documentos aparece solo con el clasificador e
   assert.match(card.textContent ?? '', /No afecta tu cuenta/)
   await on.unmount()
 
-  const off = await mountApp('/perfil', {
+  const off = await mountApp('/profile', {
     loggedIn: true,
     seed: (db) => {
       db.scope = { enabled: false, appropriate: 0, unsure: 0, strikes: 0 }
@@ -741,7 +754,7 @@ test('Perfil: el resumen de uso de documentos aparece solo con el clasificador e
   assert.doesNotMatch(text(), /Uso de documentos/)
   await off.unmount()
 
-  const old = await mountApp('/perfil', { loggedIn: true })
+  const old = await mountApp('/profile', { loggedIn: true })
   t.after(old.unmount)
   await waitFor(() => /ana@demo\.yuyay/.test(text()), 'datos del perfil')
   await waitFor(() => old.b.calls.some((c) => c.includes('/users/me/document-scope')), 'consulta del resumen')

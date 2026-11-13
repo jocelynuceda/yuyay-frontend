@@ -18,7 +18,7 @@ export function HandoffsPanel({ subjectId }: { subjectId: number }) {
           <h2 id="handoffs-title" className="text-2xl font-semibold">Resúmenes para el médico</h2>
           <p className="text-sm text-muted">Revisa los resúmenes preparados para una consulta o urgencia.</p>
         </div>
-        <Link to={`/personas/${subjectId}/traspaso/nuevo`} className={linkButtonClass}>Nuevo resumen</Link>
+        <Link to={`/people/${subjectId}/handoff/new`} className={linkButtonClass}>Nuevo resumen</Link>
       </div>
       <HandoffHistory key={subjectId} subjectId={subjectId} />
     </section>

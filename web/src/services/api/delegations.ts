@@ -14,7 +14,7 @@ export async function listDelegations(careSubjectId: number, signal?: AbortSigna
   return data
 }
 
-/** Devuelve el token y el shareLink (/acceso/{token}) para compartir. */
+/** Devuelve el token y el shareLink (/access/{token}) para compartir. */
 export async function createDelegation(careSubjectId: number, request: DelegationRequest) {
   const { data } = await api.post<DelegationCreated>(`/care-subjects/${careSubjectId}/delegations`, request)
   return data
@@ -24,7 +24,7 @@ export async function revokeDelegation(delegationId: number) {
   await api.delete(`/delegations/${delegationId}`)
 }
 
-// ---- Vista pública del delegado (/acceso/:token) ----
+// ---- Vista pública del delegado (/access/:token) ----
 
 /** Canjea el token del enlace por una sesión de delegado (sin login). */
 export async function exchangeDelegationToken(token: string) {

@@ -23,10 +23,10 @@ export function getNotificationLink(
   const { careSubjectId } = notification
   if (careSubjectId === null) return null
   const relationshipId = pending.bySubject.get(careSubjectId)
-  if (relationshipId !== undefined) return { to: `/invitaciones/${relationshipId}`, label: 'Ver invitación' }
+  if (relationshipId !== undefined) return { to: `/invitations/${relationshipId}`, label: 'Ver invitación' }
   if (notification.type === 'INVITATION') return null
   if (notification.type === 'CAREGIVER_JOINED') {
-    return { to: `/personas/${careSubjectId}?tab=cuidadores`, label: 'Ver cuidadores' }
+    return { to: `/people/${careSubjectId}?tab=caregivers`, label: 'Ver cuidadores' }
   }
-  return { to: `/personas/${careSubjectId}`, label: 'Ver persona' }
+  return { to: `/people/${careSubjectId}`, label: 'Ver persona' }
 }

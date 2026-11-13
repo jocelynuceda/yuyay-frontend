@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import { HealthEntryCard } from '../components/HealthEntryCard';
 import { LoadingView } from '../components/LoadingView';
+import { AvatarPicker } from '../components/AvatarPicker';
 import { PillAction, ProfileCard } from '../components/ProfileCard';
 import { StatusMessage } from '../components/StatusMessage';
+import { useAvatar } from '../hooks/useAvatar';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import {
@@ -27,7 +29,7 @@ import {
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { categoryMeta, EXAM_CATEGORY, fallbackCategory } from '../utils/categories';
-import { ageFrom, careRoleLabel, formatDate, initialsOf } from '../utils/format';
+import { ageFrom, careRoleLabel, formatDate } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'SubjectDetail'>;
 
@@ -125,6 +127,8 @@ function SubjectProfile({
   // Se traen todos los registros una vez: los contadores y el filtro por categoría se calculan aquí
   const entries = useFetch(() => getHealthEntries(subjectId), [subjectId]);
   const relationships = useFetch(() => getCareRelationships(subjectId), [subjectId]);
+  const avatar = useAvatar({ type: 'subject', id: subjectId, age: ageFrom(subject.data?.birthDate) });
+  const [pickingAvatar, setPickingAvatar] = useState(false);
   useRefreshOnFocus(() => {
     entries.reload();
     subject.reload();
@@ -185,10 +189,20 @@ function SubjectProfile({
         />
       }
     >
+      <AvatarPicker
+        visible={pickingAvatar}
+        title={`Avatar de ${s.name}`}
+        current={avatar.avatar}
+        automatic={avatar.automatic}
+        isCustom={avatar.isCustom}
+        onSelect={(choice) => void avatar.setAvatar(choice)}
+        onClose={() => setPickingAvatar(false)}
+      />
       <ProfileCard
         name={s.name}
         subtitle={s.birthDate ? `Nació el ${formatDate(s.birthDate)}` : 'Fecha de nacimiento no registrada'}
-        initials={initialsOf(s.name)}
+        avatar={avatar.avatar}
+        onAvatarPress={() => setPickingAvatar(true)}
         chip={careRoleLabel[s.myRole]}
         stats={[
           { icon: 'calendar-outline', value: age !== null ? String(age) : '–', label: 'Años' },

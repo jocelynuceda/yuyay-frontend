@@ -22,7 +22,7 @@ type HandoffControl = Control<HandoffFormValues, unknown, z.output<typeof handof
 type Loaded = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; entries: HealthEntry[] }
 
 /**
- * Nuevo traspaso (/personas/:id/traspaso/nuevo): 1. elegir registros, 2. motivo y preguntas,
+ * Nuevo traspaso (/people/:id/handoff/new): 1. elegir registros, 2. motivo y preguntas,
  * 3. revisar. Al crearlo, ofrece generar el enlace temporal para el médico.
  */
 export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; subjectName?: string }) {

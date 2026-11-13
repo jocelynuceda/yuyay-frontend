@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LoadError } from '../../components/layout/LoadError'
-import { getInitials } from '../../components/ui/initials'
+import { SubjectAvatar } from '../../components/ui/AvatarPicker'
 import { Modal } from '../../components/ui/Modal'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { useFetch } from '../../hooks/useFetch'
@@ -15,9 +15,9 @@ import { CareSubjectForm } from '../forms/CareSubjectForm'
 /** Sin tildes ni mayúsculas, para que "jose" encuentre a "José". */
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 
-function sortSubjects(subjects: CareSubject[], orden: PeopleSort) {
+function sortSubjects(subjects: CareSubject[], sort: PeopleSort) {
   const byName = (a: CareSubject, b: CareSubject) => a.name.localeCompare(b.name, 'es')
-  if (orden === 'nombre') return [...subjects].sort(byName)
+  if (sort === 'name') return [...subjects].sort(byName)
   // Por edad, de mayor a menor; sin fecha de nacimiento al final
   return [...subjects].sort((a, b) => {
     const ageA = ageFrom(a.birthDate)
@@ -30,7 +30,7 @@ function sortSubjects(subjects: CareSubject[], orden: PeopleSort) {
 }
 
 /**
- * /personas: grilla de tarjetas con búsqueda (con espera) y orden. Los filtros viven en la URL:
+ * /people: grilla de tarjetas con búsqueda (con espera) y orden. Los filtros viven en la URL:
  * la página los lee con el router y los pasa en `params`; `onParamsChange` avisa para reescribirla.
  */
 export function PeopleGrid({
@@ -50,7 +50,7 @@ export function PeopleGrid({
   const subjects = data ?? []
   const visible = sortSubjects(
     query ? subjects.filter((s) => normalize(s.name).includes(query)) : subjects,
-    params.orden,
+    params.sort,
   )
 
   return (
@@ -92,12 +92,12 @@ export function PeopleGrid({
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold">Ordenar por</span>
           <select
-            value={params.orden}
-            onChange={(e) => onParamsChange({ ...params, orden: e.target.value as PeopleSort })}
+            value={params.sort}
+            onChange={(e) => onParamsChange({ ...params, sort: e.target.value as PeopleSort })}
             className={`rounded-xl border border-line bg-card px-4 py-2.5 ${focusRing}`}
           >
-            <option value="nombre">Nombre (A–Z)</option>
-            <option value="edad">Edad (mayor primero)</option>
+            <option value="name">Nombre (A–Z)</option>
+            <option value="age">Edad (mayor primero)</option>
           </select>
         </label>
       </div>
@@ -139,9 +139,7 @@ function PersonCard({ subject, onOpen }: { subject: CareSubject; onOpen: () => v
       onClick={onOpen}
       className={`flex h-full w-full items-start gap-4 rounded-3xl bg-card p-5 text-left transition hover:shadow-md ${focusRing}`}
     >
-      <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-soft font-semibold text-soft-text">
-        {getInitials(subject.name)}
-      </span>
+      <SubjectAvatar subject={subject} />
       <span className="min-w-0">
         <span className="block truncate text-lg font-semibold">{subject.name}</span>
         <span className="block text-sm text-muted">{age !== null ? `${age} años` : 'Edad no registrada'}</span>
