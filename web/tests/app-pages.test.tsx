@@ -573,7 +573,12 @@ test('Dashboard: saludo, próxima cita más cercana entre todas las personas e i
   await waitFor(() => /Control con urología/.test(text()), 'próxima cita')
   assert.match(text(), /Pedro/)
   assert.doesNotMatch(text(), /Control de presión/, 'la consulta pasada no es la próxima')
-  assert.doesNotMatch(text(), /Control con cardiología/, 'la de Rosa es más lejana')
+  const hero = [...document.querySelectorAll('section')].find((el) => el.querySelector('h2')?.textContent === 'Próxima cita')!
+  assert.doesNotMatch(hero.textContent ?? '', /Control con cardiología/, 'la de Rosa es más lejana')
+  // Como en la app móvil, también se listan las próximas citas de todas las personas, la más cercana primero
+  await waitFor(() => !!document.getElementById('upcoming-title'), 'lista de próximas citas')
+  const list = document.getElementById('upcoming-title')!.closest('section')!.textContent ?? ''
+  assert.ok(list.indexOf('Control con urología') < list.indexOf('Control con cardiología'), 'ordenadas por fecha')
   assert.ok(document.querySelector('a[href="/invitations/7"]'), 'enlace a la invitación pendiente')
 })
 

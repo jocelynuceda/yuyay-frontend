@@ -40,6 +40,12 @@ export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { su
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Consultation | null>(null)
   const [removing, setRemoving] = useState<Consultation | null>(null)
+  // Como en la app móvil, se puede ver lo que cambió desde cualquier consulta pasada; por defecto, desde la última
+  const [changesFrom, setChangesFrom] = useState<Consultation | null>(null)
+  const picked = useFetch(
+    (signal) => (changesFrom ? listChangesSinceConsultation(subjectId, changesFrom.id, signal) : Promise.resolve(null)),
+    [subjectId, changesFrom?.id],
+  )
   const { notify, anchorProps } = useSuccessNotice()
 
   if (!data) {
@@ -47,6 +53,8 @@ export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { su
   }
 
   const { upcoming, past, lastPast, changes } = data
+  const shownFrom = changesFrom ?? lastPast
+  const shownChanges = changesFrom ? picked.data : changes
   const item = (c: Consultation, isUpcoming: boolean) => editing?.id === c.id ? (
     <li key={c.id}>
       <ConsultationForm
@@ -70,6 +78,15 @@ export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { su
         </p>
         <p className="font-semibold">{c.reason}</p>
         {c.notes ? <p className="mt-1 whitespace-pre-line text-sm text-muted">{c.notes}</p> : null}
+        {!isUpcoming && shownFrom?.id !== c.id ? (
+          <button
+            type="button"
+            onClick={() => setChangesFrom(c.id === lastPast?.id ? null : c)}
+            className={`mt-2 rounded-sm text-sm font-semibold text-primary underline ${focusRing}`}
+          >
+            Ver cambios desde esta consulta
+          </button>
+        ) : null}
         {isUpcoming ? (
           <div className="mt-3">
             <AddToCalendar consultation={c} subjectName={subjectName} />
@@ -137,7 +154,13 @@ export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { su
         />
       ) : null}
 
-      <ChangesSinceLast lastPast={lastPast} changes={changes} />
+      <ChangesSinceLast
+        from={shownFrom}
+        isLast={!changesFrom}
+        changes={shownChanges}
+        error={changesFrom ? picked.error : null}
+        onShowLast={() => setChangesFrom(null)}
+      />
 
       <div className="grid gap-3">
         <h3 className="text-lg font-semibold">Próximas</h3>
@@ -176,19 +199,40 @@ export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { su
   )
 }
 
-/** Lo que conviene contarle al médico: registros creados, editados o borrados desde la última consulta. */
-function ChangesSinceLast({ lastPast, changes }: { lastPast: Consultation | null; changes: HealthEntryVersion[] }) {
+/** Lo que conviene contarle al médico: registros creados, editados o borrados desde una consulta pasada. */
+function ChangesSinceLast({
+  from,
+  isLast,
+  changes,
+  error,
+  onShowLast,
+}: {
+  from: Consultation | null
+  isLast: boolean
+  changes: HealthEntryVersion[] | null
+  error: string | null
+  onShowLast: () => void
+}) {
   return (
-    <section aria-labelledby="changes-title" className="rounded-3xl border-2 border-accent bg-card p-5">
+    <section aria-labelledby="changes-title" aria-live="polite" className="rounded-3xl border-2 border-accent bg-card p-5">
       <h3 id="changes-title" className="text-lg font-semibold">
-        Cambios desde la última consulta
+        {isLast || !from ? 'Cambios desde la última consulta' : `Cambios desde la consulta del ${formatDate(from.date)}`}
       </h3>
-      {lastPast ? (
+      {from ? (
         <>
           <p className="text-sm text-muted">
-            Desde el {formatDate(lastPast.date)} · {lastPast.reason}
+            Desde el {formatDate(from.date)} · {from.reason}
           </p>
-          {changes.length === 0 ? (
+          {!isLast ? (
+            <button type="button" onClick={onShowLast} className={`mt-1 rounded-sm text-sm font-semibold text-primary underline ${focusRing}`}>
+              Ver desde la última consulta
+            </button>
+          ) : null}
+          {error ? (
+            <p role="alert" className="mt-3 text-danger">{error}</p>
+          ) : !changes ? (
+            <p role="status" className="mt-3 text-muted">Cargando cambios…</p>
+          ) : changes.length === 0 ? (
             <p className="mt-3 text-muted">Sin registros nuevos ni editados.</p>
           ) : (
             <ul className="mt-3 grid gap-2">

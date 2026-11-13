@@ -6,14 +6,14 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/
 
 /** Nueva consulta o edición. Acepta fechas pasadas, de hoy y futuras. La hora es opcional. */
 export const consultationSchema = z.object({
-  date: requiredDate(),
+  date: requiredDate('Elige una fecha.', { maxYearsAhead: 2 }),
   time: z
     .string()
     .trim()
     .refine((value) => !value || TIME.test(value), 'Hora inválida.')
     .transform((value) => value || null),
   reason: requiredText('Escribe el motivo de la consulta.', 200),
-  notes: optionalText(),
+  notes: optionalText(500),
 }) satisfies z.ZodType<ConsultationRequest, unknown>
 
 export type ConsultationFormValues = z.input<typeof consultationSchema>

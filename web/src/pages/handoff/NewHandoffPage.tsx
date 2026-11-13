@@ -107,6 +107,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
             <Field id="handoff-reason" label="Motivo de la consulta" error={errors.reason}>
               <textarea
                 rows={3}
+                maxLength={200}
                 placeholder="Ej. Control de presión y dolor de rodilla"
                 {...a11yProps('handoff-reason', errors.reason)}
                 {...register('reason')}
@@ -118,7 +119,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
               hint="Una por línea. El médico las verá junto al resumen."
               error={errors.questions}
             >
-              <textarea rows={4} {...a11yProps('handoff-questions', errors.questions, 'hint')} {...register('questions')} />
+              <textarea rows={4} maxLength={500} {...a11yProps('handoff-questions', errors.questions, 'hint')} {...register('questions')} />
             </Field>
           </>
         ) : null}

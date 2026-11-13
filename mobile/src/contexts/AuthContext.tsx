@@ -13,6 +13,8 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Actualiza el usuario en memoria después de editar el perfil. */
+  updateUser: (user: User) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -76,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRecoveryError(null);
       return restore();
     },
+    updateUser: setUser,
     login: (email, password) => startSession(() => api.login(email, password)),
     register: (name, email, password) => startSession(() => api.register(name, email, password)),
     logout: async () => {

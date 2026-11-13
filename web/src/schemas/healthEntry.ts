@@ -8,6 +8,8 @@ import {
 } from '../types'
 import { optionalDate, optionalText, requiredText } from './common'
 
+export const EXAM_RESULT = 'EXAM_RESULT'
+
 /**
  * Nuevo / editar registro. Al editar la categoría no se puede cambiar
  * (usar `toUpdateRequest`), pero se mantiene en el formulario para la regla de dosis.
@@ -16,14 +18,18 @@ export const healthEntrySchema = z
   .object({
     categoryCode: z.enum(CATEGORY_CODES, 'Elige una categoría.'),
     title: requiredText('Escribe un título.', 150),
-    details: optionalText(),
+    details: optionalText(2000),
     dose: optionalText(60),
     frequency: optionalText(60),
-    occurredOn: optionalDate(),
+    occurredOn: optionalDate({ notFuture: true }),
     confidenceLevel: z.enum(['CONFIRMED', 'UNCERTAIN'], 'Indica qué tan seguro es el dato.'),
-    notes: optionalText(),
+    notes: optionalText(500),
   })
   .superRefine((values, ctx) => {
+    // Igual que en la app móvil: un examen siempre lleva la fecha en que se hizo
+    if (values.categoryCode === EXAM_RESULT && !values.occurredOn) {
+      ctx.addIssue({ code: 'custom', path: ['occurredOn'], message: 'Ingresa la fecha del examen.' })
+    }
     if (values.categoryCode === MEDICATION) return
     // El backend responde 400 si se envía dosis o frecuencia fuera de medicación.
     for (const field of ['dose', 'frequency'] as const) {

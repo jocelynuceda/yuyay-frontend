@@ -2,10 +2,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LoadError } from '../../components/layout/LoadError'
 import { Button } from '../../components/ui/Button'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Pagination } from '../../components/ui/Pagination'
 import { useFetch } from '../../hooks/useFetch'
-import { getHandoff, listHandoffs } from '../../services/api/handoffs'
-import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
+import { useSuccessNotice } from '../../hooks/useSuccessNotice'
+import { deleteHandoff, getHandoff, listHandoffSessions, listHandoffs, revokeHandoffSession } from '../../services/api/handoffs'
+import type { HandoffSession } from '../../types'
+import { categoryLabels, confidenceLabels, formatDate, formatDateTime } from '../../utils/format'
+import { CreateHandoffLink } from '../handoff/HandoffLinkStep'
 import { linkButtonClass } from '../../utils/styles'
 
 const PAGE_SIZE = 10
@@ -71,7 +75,16 @@ function HandoffHistory({ subjectId }: { subjectId: number }) {
                     {expanded ? 'Ocultar resumen' : 'Ver resumen'}
                   </Button>
                 </div>
-                {expanded ? <HandoffDetails handoffId={item.id} /> : null}
+                {expanded ? (
+                  <HandoffDetails
+                    handoffId={item.id}
+                    reason={item.reason}
+                    onDeleted={() => {
+                      setExpandedId(null)
+                      reload()
+                    }}
+                  />
+                ) : null}
               </li>
             )
           })}
@@ -93,8 +106,21 @@ function HandoffHistory({ subjectId }: { subjectId: number }) {
   )
 }
 
-function HandoffDetails({ handoffId }: { handoffId: number }) {
+/** Estado del enlace, con las mismas etiquetas que la app móvil. */
+function sessionState(session: HandoffSession) {
+  if (session.revokedAt) return 'Revocado'
+  if (new Date(session.expiresAt) < new Date()) return 'Vencido'
+  if (session.firstOpenedAt) return 'Abierto'
+  return 'Sin abrir'
+}
+
+function HandoffDetails({ handoffId, reason, onDeleted }: { handoffId: number; reason: string; onDeleted: () => void }) {
   const { data, error, errorStatus, loading, reload } = useFetch((signal) => getHandoff(handoffId, signal), [handoffId])
+  const sessions = useFetch((signal) => listHandoffSessions(handoffId, signal), [handoffId])
+  const [creatingLink, setCreatingLink] = useState(false)
+  const [revoking, setRevoking] = useState<HandoffSession | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const { notify, anchorProps } = useSuccessNotice()
 
   return (
     <div className="mt-3 grid gap-3 border-t border-line pt-3">
@@ -128,6 +154,79 @@ function HandoffDetails({ handoffId }: { handoffId: number }) {
           )}
         </div>
       ) : null}
+
+      <span {...anchorProps} />
+      <div className="grid gap-2">
+        <h4 className="font-semibold">Enlaces para el médico</h4>
+        {sessions.error ? <LoadError message={sessions.error} onRetry={sessions.reload} /> : null}
+        {sessions.data?.length === 0 ? <p className="text-muted">Aún no se compartió este resumen.</p> : null}
+        {sessions.data?.length ? (
+          <ul className="grid gap-2">
+            {sessions.data.map((session) => {
+              const state = sessionState(session)
+              return (
+                <li key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2">
+                  <span className="text-sm">
+                    <span className="font-semibold">{state}</span> · creado el {formatDateTime(session.createdAt)} · vence el{' '}
+                    {formatDateTime(session.expiresAt)}
+                  </span>
+                  {state === 'Sin abrir' || state === 'Abierto' ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      aria-label={`Revocar el enlace creado el ${formatDateTime(session.createdAt)}`}
+                      onClick={() => setRevoking(session)}
+                    >
+                      Revocar
+                    </Button>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        ) : null}
+        {creatingLink ? <CreateHandoffLink handoffId={handoffId} onCreated={sessions.reload} /> : null}
+        <div className="flex flex-wrap gap-2">
+          {!creatingLink ? (
+            <Button size="sm" onClick={() => setCreatingLink(true)}>
+              Compartir con el médico
+            </Button>
+          ) : null}
+          <Button variant="secondary" size="sm" className="text-danger" onClick={() => setDeleting(true)}>
+            Borrar resumen
+          </Button>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={!!revoking}
+        title="¿Revocar este enlace?"
+        message="Quien tenga el enlace ya no podrá abrir el resumen."
+        confirmLabel="Revocar enlace"
+        workingLabel="Revocando…"
+        cancelLabel="Volver"
+        onCancel={() => setRevoking(null)}
+        onConfirm={async () => {
+          if (!revoking) return
+          await revokeHandoffSession(revoking.id)
+          setRevoking(null)
+          notify('Enlace revocado.')
+          sessions.reload()
+        }}
+      />
+      <ConfirmDialog
+        open={deleting}
+        title="¿Borrar este resumen?"
+        message={`"${reason}". Los enlaces que compartiste dejarán de funcionar.`}
+        confirmLabel="Borrar resumen"
+        cancelLabel="Volver"
+        onCancel={() => setDeleting(false)}
+        onConfirm={async () => {
+          await deleteHandoff(handoffId)
+          setDeleting(false)
+          onDeleted()
+        }}
+      />
     </div>
   )
 }

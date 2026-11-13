@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
+import { MIN_YEAR, todayIso } from '../../schemas/common'
 import {
+  EXAM_RESULT,
   emptyHealthEntry,
   healthEntryFields,
   healthEntrySchema,
@@ -10,10 +12,13 @@ import {
   type HealthEntryFormOutput,
   type HealthEntryFormValues,
 } from '../../schemas/healthEntry'
+import { uploadAttachment } from '../../services/api/attachments'
 import { createHealthEntry, updateHealthEntry } from '../../services/api/healthEntries'
 import { CATEGORY_CODES, MEDICATION, type CategoryCode, type HealthEntry } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
+import { ENTRY_ATTACHMENT_ACCEPT, validateEntryAttachment } from '../../utils/attachments'
 import { categoryLabels } from '../../utils/format'
+import { focusRing } from '../../utils/styles'
 import { a11yProps } from './fieldProps'
 import { ChoiceOption, Field, FormActions, FormShell, ServerError } from './fields'
 
@@ -91,7 +96,23 @@ export function HealthEntryForm({
         },
     mode: 'onChange',
   })
-  const isMedication = useWatch({ control, name: 'categoryCode' }) === MEDICATION
+  const categoryCode = useWatch({ control, name: 'categoryCode' })
+  const isMedication = categoryCode === MEDICATION
+  const isExam = categoryCode === EXAM_RESULT
+  // Archivo opcional al crear (foto, PDF o audio), como en la app móvil
+  const [file, setFile] = useState<File | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const [uploaded, setUploaded] = useState<{ file: File; id: number } | null>(null)
+  const canAttach = !entry && sourceAttachmentId === undefined
+
+  async function uploadFile() {
+    if (!file) return undefined
+    // Si el registro falla después de subir el archivo, reintentar no debe subirlo de nuevo
+    if (uploaded?.file === file) return uploaded.id
+    const { id } = await uploadAttachment(subjectId, file)
+    setUploaded({ file, id })
+    return id
+  }
 
   useEffect(() => {
     onRegisterAppendDetails?.((text, previous) => {
@@ -121,7 +142,10 @@ export function HealthEntryForm({
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
     try {
-      if (!entry) return onSaved(await createHealthEntry(subjectId, { ...values, sourceAttachmentId }))
+      if (!entry) {
+        const attachmentId = sourceAttachmentId ?? (await uploadFile())
+        return onSaved(await createHealthEntry(subjectId, { ...values, sourceAttachmentId: attachmentId }))
+      }
       // Cada PATCH crea una versión nueva: si nada cambió, no se envía
       if (!isDirty) return onSaved(null)
       onSaved(await updateHealthEntry(subjectId, entry.id, toUpdateRequest(values)))
@@ -181,10 +205,15 @@ export function HealthEntryForm({
         </fieldset>
       )}
 
-      <Field id="entry-title" label="Título" error={errors.title} hint={suggestionHint(suggestedFields?.title)}>
+      <Field
+        id="entry-title"
+        label={isExam ? 'Nombre del examen' : 'Título'}
+        error={errors.title}
+        hint={suggestionHint(suggestedFields?.title)}
+      >
         <input
           maxLength={150}
-          placeholder={isMedication ? 'Ej. Losartán 50 mg' : 'Ej. Alergia a la penicilina'}
+          placeholder={isExam ? 'Ej. Hemograma completo' : isMedication ? 'Ej. Losartán 50 mg' : 'Ej. Alergia a la penicilina'}
           {...a11yProps('entry-title', errors.title, suggestionHint(suggestedFields?.title))}
           {...register('title')}
         />
@@ -213,20 +242,54 @@ export function HealthEntryForm({
 
       <Field
         id="entry-occurredOn"
-        label="Fecha (opcional)"
+        label={isExam ? 'Fecha del examen' : 'Fecha (opcional)'}
         error={errors.occurredOn}
         hint={suggestionHint(suggestedFields?.occurredOn)}
       >
         <input
           type="date"
+          min={`${MIN_YEAR}-01-01`}
+          max={todayIso()}
           {...a11yProps('entry-occurredOn', errors.occurredOn, suggestionHint(suggestedFields?.occurredOn))}
           {...register('occurredOn')}
         />
       </Field>
 
-      <Field id="entry-details" label="Detalles (opcional)" error={errors.details}>
-        <textarea rows={3} {...a11yProps('entry-details', errors.details)} {...register('details')} />
+      <Field id="entry-details" label={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'} error={errors.details}>
+        <textarea rows={3} maxLength={2000} {...a11yProps('entry-details', errors.details)} {...register('details')} />
       </Field>
+
+      {canAttach ? (
+        <div className="grid gap-1.5">
+          <label htmlFor="entry-file" className="text-sm font-semibold">
+            Adjuntar foto, PDF o audio (opcional)
+          </label>
+          <input
+            id="entry-file"
+            type="file"
+            accept={ENTRY_ATTACHMENT_ACCEPT}
+            aria-invalid={!!fileError}
+            aria-describedby={fileError ? 'entry-file-error' : 'entry-file-hint'}
+            className={`text-sm ${focusRing}`}
+            onChange={(event) => {
+              const picked = event.target.files?.[0] ?? null
+              const problem = picked ? validateEntryAttachment(picked) : null
+              setFileError(problem)
+              setFile(problem ? null : picked)
+              if (problem) event.target.value = ''
+            }}
+          />
+          {fileError ? (
+            <p id="entry-file-error" role="alert" className="text-sm text-danger">
+              {fileError}
+            </p>
+          ) : (
+            <p id="entry-file-hint" className="text-sm text-muted">
+              JPG, PNG, PDF o audio M4A o WEBM, hasta 10 MB.
+            </p>
+          )}
+        </div>
+      ) : null}
 
       <fieldset className="grid gap-2">
         <legend className="text-sm font-semibold">¿Qué tan seguro es el dato?</legend>
@@ -241,7 +304,7 @@ export function HealthEntryForm({
       </fieldset>
 
       <Field id="entry-notes" label="Notas (opcional)" error={errors.notes}>
-        <textarea rows={2} {...a11yProps('entry-notes', errors.notes)} {...register('notes')} />
+        <textarea rows={2} maxLength={500} {...a11yProps('entry-notes', errors.notes)} {...register('notes')} />
       </Field>
 
       <FormActions

@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { LoadError } from '../../components/layout/LoadError'
 import type { HealthEntryVersion } from '../../types'
 import { useFetch } from '../../hooks/useFetch'
+import { openAttachment } from '../../services/api/attachments'
 import { deleteHealthEntry, getHealthEntry, listHealthEntryVersions } from '../../services/api/healthEntries'
+import { getErrorMessage } from '../../utils/apiErrors'
 import { loadEntryHistory } from '../../utils/entryHistory'
 import { confidenceLabels, formatDate, formatDateTime } from '../../utils/format'
 import { changedFields, changeTypeLabels, displayField, versionFieldLabels } from '../../utils/versions'
@@ -119,6 +121,9 @@ export function EntryDetailPage({
             <Detail label="Detalles" value={current.details ?? '—'} wide />
             <Detail label="Notas" value={current.notes ?? '—'} wide />
           </dl>
+          {current.sourceAttachmentId ? (
+            <AttachmentLink subjectId={subjectId} attachmentId={current.sourceAttachmentId} />
+          ) : null}
           <p className="mt-4 text-sm text-muted">
             Última actualización: {current.declaredBy.name}, {formatDateTime(current.declaredAt)}
           </p>
@@ -191,6 +196,43 @@ function VersionItem({
         <p className="mt-2 text-sm text-muted">Se guardó sin cambios en los campos.</p>
       ) : null}
     </li>
+  )
+}
+
+/** Archivo que respalda el registro (foto, PDF o audio), como en la app móvil. */
+function AttachmentLink({ subjectId, attachmentId }: { subjectId: number; attachmentId: number }) {
+  const [opening, setOpening] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function open() {
+    setOpening(true)
+    setError(null)
+    try {
+      const opened = await openAttachment(subjectId, attachmentId)
+      if (!opened) setError('Tu navegador bloqueó la pestaña nueva. Permite las ventanas emergentes e inténtalo de nuevo.')
+    } catch (e) {
+      setError(getErrorMessage(e))
+    } finally {
+      setOpening(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 grid gap-2">
+      <button
+        type="button"
+        onClick={() => void open()}
+        disabled={opening}
+        className={`justify-self-start rounded-xl border border-line px-4 py-2 text-sm font-semibold disabled:opacity-60 ${focusRing}`}
+      >
+        {opening ? 'Abriendo…' : 'Ver archivo adjunto'}
+      </button>
+      {error ? (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
+    </div>
   )
 }
 

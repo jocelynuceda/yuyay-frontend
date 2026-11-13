@@ -183,6 +183,7 @@ export interface HealthEntryInput {
   frequency?: string;
   occurredOn?: string;
   confidenceLevel: ConfidenceLevel;
+  notes?: string;
   sourceAttachmentId?: number;
 }
 

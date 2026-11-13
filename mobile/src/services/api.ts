@@ -27,6 +27,7 @@ import type {
   HealthEntryVersion,
   InviteCaregiverInput,
   Notification,
+  User,
 } from '../types';
 
 /** Quita los campos vacíos para que el backend reciba null. */
@@ -49,6 +50,9 @@ export const resetPassword = (email: string, code: string, newPassword: string) 
   http.post('/auth/reset-password', { email, code, newPassword });
 
 export const logout = (refreshToken: string) => http.post('/auth/logout', { refreshToken });
+
+/** Solo cambia el nombre de la cuenta. */
+export const updateMe = (name: string) => http.patch<User>('/users/me', { name }).then((r) => r.data);
 
 export const getCareSubjects = () => http.get<CareSubject[]>('/care-subjects').then((r) => r.data);
 

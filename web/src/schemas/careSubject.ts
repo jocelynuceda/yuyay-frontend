@@ -6,7 +6,7 @@ import { optionalDate, optionalText, requiredText } from './common'
 export const careSubjectSchema = z.object({
   name: requiredText('Escribe el nombre.', 120),
   birthDate: optionalDate({ past: true }),
-  notes: optionalText(),
+  notes: optionalText(500),
 }) satisfies z.ZodType<CareSubjectRequest, unknown>
 
 export type CareSubjectFormValues = z.input<typeof careSubjectSchema>

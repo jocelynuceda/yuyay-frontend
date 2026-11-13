@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
+import { maxYear, todayIso } from '../../schemas/common'
 import { delegationFields, delegationSchema, emptyDelegation, type DelegationFormValues } from '../../schemas/delegation'
 import { createDelegation } from '../../services/api/delegations'
 import { CATEGORY_CODES, type DelegationCreated } from '../../types'
@@ -10,12 +11,6 @@ import { categoryLabels } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { a11yProps } from './fieldProps'
 import { Field, FormActions, FormShell, ServerError } from './fields'
-
-/** Valor mínimo del <input type="datetime-local">: ahora, en hora local. */
-function nowLocal() {
-  const now = new Date()
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
-}
 
 /** Delegar acceso de solo lectura a ciertas categorías, por tiempo limitado (vista /access/:token). */
 export function DelegationForm({
@@ -100,8 +95,14 @@ export function DelegationForm({
         ) : null}
       </fieldset>
 
-      <Field id="delegation-until" label="Válido hasta" error={errors.validUntil}>
-        <input type="datetime-local" min={nowLocal()} {...a11yProps('delegation-until', errors.validUntil)} {...register('validUntil')} />
+      <Field id="delegation-until" label="Válido hasta" hint="El acceso vence al final de ese día." error={errors.validUntil}>
+        <input
+          type="date"
+          min={todayIso()}
+          max={`${maxYear(1)}-12-31`}
+          {...a11yProps('delegation-until', errors.validUntil, 'hint')}
+          {...register('validUntil')}
+        />
       </Field>
 
       <FormActions submitting={isSubmitting} submitLabel="Crear acceso" submittingLabel="Creando…" onCancel={onCancel} />
