@@ -8,6 +8,7 @@ import { delegationSchema } from '../src/schemas/delegation'
 import { handoffSchema } from '../src/schemas/handoff'
 import { healthEntrySchema } from '../src/schemas/healthEntry'
 import { validateEntryAttachment } from '../src/utils/attachments'
+import { canManageHandoffLinks, handoffLinkState } from '../src/utils/handoffLinks'
 
 const shift = (days: number) => {
   const d = new Date()
@@ -66,4 +67,22 @@ test('Adjunto de un registro: foto, PDF o audio de hasta 10 MB', () => {
   }
   assert.match(validateEntryAttachment({ type: 'image/heic', size: 1 })!, /Formato no permitido/)
   assert.match(validateEntryAttachment({ type: 'audio/mp4', size: 10 * 1024 * 1024 + 1 })!, /10 MB/)
+})
+
+test('el estado del enlace de un resumen sigue la regla del backend', () => {
+  const now = new Date('2026-11-13T12:00:00Z')
+  const base = { expiresAt: '2026-11-14T12:00:00Z', sessionWindowMinutes: 30, firstOpenedAt: null, revokedAt: null }
+  assert.equal(handoffLinkState(base, now), 'Sin abrir')
+  assert.equal(handoffLinkState({ ...base, revokedAt: '2026-11-13T11:00:00Z' }, now), 'Revocado')
+  assert.equal(handoffLinkState({ ...base, expiresAt: '2026-11-13T11:59:00Z' }, now), 'Vencido')
+  assert.equal(handoffLinkState({ ...base, firstOpenedAt: '2026-11-13T11:50:00Z' }, now), 'Abierto')
+  // La ventana de 30 minutos desde la primera apertura ya pasó, aunque expiresAt no haya llegado
+  assert.equal(handoffLinkState({ ...base, firstOpenedAt: '2026-11-13T11:29:00Z' }, now), 'Vencido')
+})
+
+test('solo quien creó el resumen o el cuidador principal maneja sus enlaces', () => {
+  assert.equal(canManageHandoffLinks(7, 7, false), true)
+  assert.equal(canManageHandoffLinks(7, 8, true), true)
+  assert.equal(canManageHandoffLinks(7, 8, false), false)
+  assert.equal(canManageHandoffLinks(7, undefined, false), false)
 })

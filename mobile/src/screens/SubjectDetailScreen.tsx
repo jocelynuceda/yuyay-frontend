@@ -148,7 +148,7 @@ function SubjectProfile({
   const quickActions: QuickAction[] = [
     { icon: 'calendar-outline', label: 'Citas', onPress: () => navigation.navigate('Consultations', { subjectId, subjectName: s.name, isPrincipal }) },
     { icon: 'people-outline', label: 'Cuidadores', onPress: () => navigation.navigate('Caregivers', { subjectId, isPrincipal }) },
-    { icon: 'clipboard-outline', label: 'Resumen', onPress: () => navigation.navigate('Handoffs', { subjectId }) },
+    { icon: 'clipboard-outline', label: 'Resumen', onPress: () => navigation.navigate('Handoffs', { subjectId, isPrincipal }) },
     { icon: 'key-outline', label: 'Delegar', onPress: () => navigation.navigate('Delegations', { subjectId, isPrincipal }) },
     { icon: 'document-attach-outline', label: 'Documentos', onPress: () => navigation.navigate('Documents', { subjectId }) },
     { icon: 'flask-outline', label: 'Exámenes', onPress: () => navigation.navigate('Exams', { subjectId }) },

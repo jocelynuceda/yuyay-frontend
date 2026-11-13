@@ -9,12 +9,22 @@ import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 import { deleteHandoff, getHandoff, listHandoffSessions, listHandoffs, revokeHandoffSession } from '../../services/api/handoffs'
 import type { HandoffSession } from '../../types'
 import { categoryLabels, confidenceLabels, formatDate, formatDateTime } from '../../utils/format'
+import { canManageHandoffLinks, handoffLinkState } from '../../utils/handoffLinks'
 import { CreateHandoffLink } from '../handoff/HandoffLinkStep'
 import { linkButtonClass } from '../../utils/styles'
 
 const PAGE_SIZE = 10
 
-export function HandoffsPanel({ subjectId }: { subjectId: number }) {
+export function HandoffsPanel({
+  subjectId,
+  isPrincipal,
+  userId,
+}: {
+  subjectId: number
+  isPrincipal: boolean
+  /** Usuario con sesión: puede manejar los enlaces de los resúmenes que creó. */
+  userId: number | undefined
+}) {
   return (
     <section aria-labelledby="handoffs-title" className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -24,12 +34,12 @@ export function HandoffsPanel({ subjectId }: { subjectId: number }) {
         </div>
         <Link to={`/people/${subjectId}/handoff/new`} className={linkButtonClass}>Nuevo resumen</Link>
       </div>
-      <HandoffHistory key={subjectId} subjectId={subjectId} />
+      <HandoffHistory key={subjectId} subjectId={subjectId} isPrincipal={isPrincipal} userId={userId} />
     </section>
   )
 }
 
-function HandoffHistory({ subjectId }: { subjectId: number }) {
+function HandoffHistory({ subjectId, isPrincipal, userId }: { subjectId: number; isPrincipal: boolean; userId: number | undefined }) {
   const [page, setPage] = useState(0)
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const { data, error, loading, reload } = useFetch(async (signal) => {
@@ -79,6 +89,7 @@ function HandoffHistory({ subjectId }: { subjectId: number }) {
                   <HandoffDetails
                     handoffId={item.id}
                     reason={item.reason}
+                    canManageLinks={canManageHandoffLinks(item.createdByUserId, userId, isPrincipal)}
                     onDeleted={() => {
                       setExpandedId(null)
                       reload()
@@ -106,21 +117,19 @@ function HandoffHistory({ subjectId }: { subjectId: number }) {
   )
 }
 
-/** Estado del enlace, con las mismas etiquetas que la app móvil. */
-function sessionState(session: HandoffSession) {
-  if (session.revokedAt) return 'Revocado'
-  if (new Date(session.expiresAt) < new Date()) return 'Vencido'
-  if (session.firstOpenedAt) return 'Abierto'
-  return 'Sin abrir'
-}
-
-function HandoffDetails({ handoffId, reason, onDeleted }: { handoffId: number; reason: string; onDeleted: () => void }) {
+function HandoffDetails({
+  handoffId,
+  reason,
+  canManageLinks,
+  onDeleted,
+}: {
+  handoffId: number
+  reason: string
+  canManageLinks: boolean
+  onDeleted: () => void
+}) {
   const { data, error, errorStatus, loading, reload } = useFetch((signal) => getHandoff(handoffId, signal), [handoffId])
-  const sessions = useFetch((signal) => listHandoffSessions(handoffId, signal), [handoffId])
-  const [creatingLink, setCreatingLink] = useState(false)
-  const [revoking, setRevoking] = useState<HandoffSession | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const { notify, anchorProps } = useSuccessNotice()
 
   return (
     <div className="mt-3 grid gap-3 border-t border-line pt-3">
@@ -155,48 +164,83 @@ function HandoffDetails({ handoffId, reason, onDeleted }: { handoffId: number; r
         </div>
       ) : null}
 
-      <span {...anchorProps} />
       <div className="grid gap-2">
         <h4 className="font-semibold">Enlaces para el médico</h4>
-        {sessions.error ? <LoadError message={sessions.error} onRetry={sessions.reload} /> : null}
-        {sessions.data?.length === 0 ? <p className="text-muted">Aún no se compartió este resumen.</p> : null}
-        {sessions.data?.length ? (
-          <ul className="grid gap-2">
-            {sessions.data.map((session) => {
-              const state = sessionState(session)
-              return (
-                <li key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2">
-                  <span className="text-sm">
-                    <span className="font-semibold">{state}</span> · creado el {formatDateTime(session.createdAt)} · vence el{' '}
-                    {formatDateTime(session.expiresAt)}
-                  </span>
-                  {state === 'Sin abrir' || state === 'Abierto' ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      aria-label={`Revocar el enlace creado el ${formatDateTime(session.createdAt)}`}
-                      onClick={() => setRevoking(session)}
-                    >
-                      Revocar
-                    </Button>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
-        ) : null}
-        {creatingLink ? <CreateHandoffLink handoffId={handoffId} onCreated={sessions.reload} /> : null}
-        <div className="flex flex-wrap gap-2">
-          {!creatingLink ? (
-            <Button size="sm" onClick={() => setCreatingLink(true)}>
-              Compartir con el médico
-            </Button>
-          ) : null}
+        {canManageLinks ? (
+          <HandoffLinks handoffId={handoffId} />
+        ) : (
+          <p className="text-sm text-muted">Solo quien creó este resumen o el cuidador principal puede compartirlo.</p>
+        )}
+        <div>
           <Button variant="secondary" size="sm" className="text-danger" onClick={() => setDeleting(true)}>
             Borrar resumen
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleting}
+        title="¿Borrar este resumen?"
+        message={`"${reason}". Los enlaces que compartiste dejarán de funcionar.`}
+        confirmLabel="Borrar resumen"
+        cancelLabel="Volver"
+        onCancel={() => setDeleting(false)}
+        onConfirm={async () => {
+          await deleteHandoff(handoffId)
+          setDeleting(false)
+          onDeleted()
+        }}
+      />
+    </div>
+  )
+}
+
+/** Enlaces del resumen: solo se cargan si la persona puede manejarlos (el backend responde 403 si no). */
+function HandoffLinks({ handoffId }: { handoffId: number }) {
+  const sessions = useFetch((signal) => listHandoffSessions(handoffId, signal), [handoffId])
+  const [creatingLink, setCreatingLink] = useState(false)
+  const [revoking, setRevoking] = useState<HandoffSession | null>(null)
+  const { notify, anchorProps } = useSuccessNotice()
+
+  return (
+    <>
+      <span {...anchorProps} />
+      {sessions.error ? <LoadError message={sessions.error} onRetry={sessions.reload} /> : null}
+      {sessions.data?.length === 0 ? <p className="text-muted">Aún no se compartió este resumen.</p> : null}
+      {sessions.data?.length ? (
+        <ul className="grid gap-2">
+          {sessions.data.map((session) => {
+            const state = handoffLinkState(session)
+            return (
+              <li key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2">
+                <span className="text-sm">
+                  <span className="font-semibold">{state}</span> · creado el {formatDateTime(session.createdAt)} · vence el{' '}
+                  {formatDateTime(session.expiresAt)}
+                </span>
+                {state === 'Sin abrir' || state === 'Abierto' ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    aria-label={`Revocar el enlace creado el ${formatDateTime(session.createdAt)}`}
+                    onClick={() => setRevoking(session)}
+                  >
+                    Revocar
+                  </Button>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
+      {creatingLink ? (
+        <CreateHandoffLink handoffId={handoffId} onCreated={sessions.reload} />
+      ) : (
+        <div>
+          <Button size="sm" onClick={() => setCreatingLink(true)}>
+            Compartir con el médico
+          </Button>
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!revoking}
@@ -214,19 +258,6 @@ function HandoffDetails({ handoffId, reason, onDeleted }: { handoffId: number; r
           sessions.reload()
         }}
       />
-      <ConfirmDialog
-        open={deleting}
-        title="¿Borrar este resumen?"
-        message={`"${reason}". Los enlaces que compartiste dejarán de funcionar.`}
-        confirmLabel="Borrar resumen"
-        cancelLabel="Volver"
-        onCancel={() => setDeleting(false)}
-        onConfirm={async () => {
-          await deleteHandoff(handoffId)
-          setDeleting(false)
-          onDeleted()
-        }}
-      />
-    </div>
+    </>
   )
 }

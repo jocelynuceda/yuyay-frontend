@@ -17,7 +17,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'Handoffs'>;
 export function HandoffsScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { subjectId } = route.params;
+  const { subjectId, isPrincipal } = route.params;
   const handoffs = useFetch(() => getHandoffs(subjectId), [subjectId]);
   useRefreshOnFocus(handoffs.reload);
 
@@ -39,7 +39,7 @@ export function HandoffsScreen({ route, navigation }: Props) {
       <SubmitButton
         label="Nuevo resumen"
         icon="clipboard-plus-outline"
-        onPress={() => navigation.navigate('NewHandoff', { subjectId })}
+        onPress={() => navigation.navigate('NewHandoff', { subjectId, isPrincipal })}
       />
 
       <StatusMessage message={handoffs.error} />
@@ -56,7 +56,7 @@ export function HandoffsScreen({ route, navigation }: Props) {
             iconFg={colors.accentText}
             title={h.reason}
             subtitle={formatDate(h.createdAt)}
-            onPress={() => navigation.navigate('HandoffView', { handoffId: h.id })}
+            onPress={() => navigation.navigate('HandoffView', { handoffId: h.id, isPrincipal })}
           />
         ))
       )}

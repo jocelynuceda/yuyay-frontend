@@ -78,7 +78,7 @@ test('El historial de arreglos se ordena y abre el detalle privado bajo demanda'
     if (requests.length === 2) await new Promise<void>((resolve) => { finishDetail = resolve })
     return ok(config, detail)
   })
-  const { container } = await mount(t, <HandoffsPanel subjectId={4} />)
+  const { container } = await mount(t, <HandoffsPanel subjectId={4} isPrincipal={false} userId={99} />)
 
   assert.deepEqual([...container.querySelectorAll('h3')].map((heading) => heading.textContent), ['Control anual', 'Control anterior'])
   assert.equal(requests.length, 1)
@@ -111,7 +111,7 @@ test('El historial solicita la página del backend y permite regresar a la prime
     }
     return ok(config, result)
   })
-  const { container } = await mount(t, <HandoffsPanel subjectId={4} />)
+  const { container } = await mount(t, <HandoffsPanel subjectId={4} isPrincipal={false} userId={99} />)
   assert.match(container.textContent ?? '', /Control anual/)
   await click(container, 'Siguiente')
   assert.match(container.textContent ?? '', /Control anterior/)
@@ -139,9 +139,9 @@ test('El historial cancela la carga anterior y distingue error recuperable de li
     }
     return ok(config, [])
   })
-  const { container, render } = await mount(t, <HandoffsPanel subjectId={4} />)
+  const { container, render } = await mount(t, <HandoffsPanel subjectId={4} isPrincipal={false} userId={99} />)
   assert.match(container.querySelector('[role="status"]')?.textContent ?? '', /Cargando resúmenes/)
-  await render(<HandoffsPanel subjectId={5} />)
+  await render(<HandoffsPanel subjectId={5} isPrincipal={false} userId={99} />)
   assert.equal(requests[0]?.signal?.aborted, true)
   await act(async () => finishList())
   assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /No tienes acceso/)
@@ -149,6 +149,40 @@ test('El historial cancela la carga anterior y distingue error recuperable de li
   await click(container, 'Reintentar')
   assert.equal(container.querySelector('[role="alert"]'), null)
   assert.match(container.textContent ?? '', /Aún no hay resúmenes/)
+})
+
+test('Los enlaces del resumen solo se piden y se muestran a quien lo creó o al principal', async (t) => {
+  const urls: string[] = []
+  const opened = new Date(Date.now() - 40 * 60_000).toISOString()
+  const later = new Date(Date.now() + 24 * 3600_000).toISOString()
+  mockApi(t, async (config) => {
+    urls.push(config.url ?? '')
+    if (config.url === '/care-subjects/4/handoffs') return ok(config, [handoff])
+    if (config.url === '/handoffs/1') return ok(config, detail)
+    if (config.url === '/handoffs/1/sessions') {
+      return ok(config, [{
+        id: 3, handoffId: 1, expiresAt: later, sessionWindowMinutes: 30, firstOpenedAt: opened, revokedAt: null, createdAt: opened,
+      }])
+    }
+    throw new Error(`Petición inesperada: ${config.url}`)
+  })
+
+  // Otro cuidador: no se piden los enlaces (el backend respondería 403) y no puede compartir
+  const other = await mount(t, <HandoffsPanel subjectId={4} isPrincipal={false} userId={99} />)
+  await click(other.container, 'Ver resumen')
+  assert.ok(!urls.includes('/handoffs/1/sessions'))
+  assert.match(other.container.textContent ?? '', /Solo quien creó este resumen o el cuidador principal/)
+  assert.doesNotMatch(other.container.textContent ?? '', /Compartir con el médico/)
+  assert.match(other.container.textContent ?? '', /Borrar resumen/)
+
+  // Quien lo creó: ve sus enlaces; abierto hace 40 min con ventana de 30 ya cuenta como vencido
+  const creator = await mount(t, <HandoffsPanel subjectId={4} isPrincipal={false} userId={8} />)
+  await click(creator.container, 'Ver resumen')
+  assert.ok(urls.includes('/handoffs/1/sessions'))
+  assert.match(creator.container.textContent ?? '', /Vencido/)
+  assert.doesNotMatch(creator.container.textContent ?? '', /Abierto/)
+  assert.equal(creator.container.querySelector('[aria-label^="Revocar"]'), null)
+  assert.match(creator.container.textContent ?? '', /Compartir con el médico/)
 })
 
 test('Las próximas consultas de un cuidador ofrecen Calendar con hora guardada o todo el día', async (t) => {
