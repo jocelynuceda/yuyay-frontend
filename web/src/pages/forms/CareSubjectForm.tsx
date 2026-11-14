@@ -12,7 +12,7 @@ import {
 import { createCareSubject, updateCareSubject } from '../../services/api/careSubjects'
 import type { CareSubject } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
-import { yesterdayIso } from '../../schemas/common'
+import { yesterdayIso, MIN_YEAR } from '../../schemas/common'
 import { a11yProps } from './fieldProps'
 import { Field, FormActions, FormShell, ServerError } from './fields'
 
@@ -72,7 +72,7 @@ export function CareSubjectForm({
       </Field>
 
       <Field id="subject-birthDate" label="Fecha de nacimiento (opcional)" error={errors.birthDate}>
-        <input type="date" max={yesterdayIso()} {...a11yProps('subject-birthDate', errors.birthDate)} {...register('birthDate')} />
+        <input type="date" min={`${MIN_YEAR}-01-01`} max={yesterdayIso()} {...a11yProps('subject-birthDate', errors.birthDate)} {...register('birthDate')} />
       </Field>
 
       <Field
@@ -81,7 +81,7 @@ export function CareSubjectForm({
         hint="Lo que conviene saber de un vistazo: idioma, movilidad, contacto de emergencia…"
         error={errors.notes}
       >
-        <textarea rows={3} {...a11yProps('subject-notes', errors.notes, 'hint')} {...register('notes')} />
+        <textarea rows={3} maxLength={500} {...a11yProps('subject-notes', errors.notes, 'hint')} {...register('notes')} />
       </Field>
 
       <FormActions

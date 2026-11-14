@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { SegmentedButtons } from 'react-native-paper';
+import { DateField, datePartsOf, parseDateParts } from '../components/DateField';
 import { DeleteButton, FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
@@ -13,6 +14,7 @@ import { deleteHealthEntry, getHealthEntry, updateHealthEntry } from '../service
 import { ApiError } from '../services/http';
 import { fonts, makeStyles } from '../theme';
 import type { ConfidenceLevel, HealthEntry, HomeStackParamList } from '../types';
+import { EXAM_CATEGORY } from '../utils/categories';
 import { confirmAction } from '../utils/confirm';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'EditEntry'>;
@@ -36,6 +38,8 @@ function EntryForm({ entry, subjectId, onDone }: { entry: HealthEntry; subjectId
   const [frequency, setFrequency] = useState(v.frequency ?? '');
   const [details, setDetails] = useState(v.details ?? '');
   const [notes, setNotes] = useState(v.notes ?? '');
+  const initialDate = v.occurredOn ? datePartsOf(v.occurredOn) : { day: '', month: '', year: '' };
+  const [dateParts, setDateParts] = useState(initialDate);
   const [confidenceLevel, setConfidence] = useState<ConfidenceLevel>(v.confidenceLevel);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -46,10 +50,15 @@ function EntryForm({ entry, subjectId, onDone }: { entry: HealthEntry; subjectId
 
   // El backend solo acepta dosis y frecuencia en medicación
   const isMedication = entry.categoryCode === 'MEDICATION';
+  const isExam = entry.categoryCode === EXAM_CATEGORY;
+  // La fecha se puede cambiar o quitar, como en la web; en un examen es obligatoria
+  const date = parseDateParts(dateParts);
+  const hasDate = Boolean(dateParts.day || dateParts.month || dateParts.year);
+  const dateError = hasDate ? date.error : isExam ? 'Ingresa la fecha del examen.' : undefined;
 
   async function handleSave() {
     setSubmitted(true);
-    if (!title.trim()) return;
+    if (!title.trim() || dateError) return;
     setSaving(true);
     setError(null);
     try {
@@ -58,7 +67,7 @@ function EntryForm({ entry, subjectId, onDone }: { entry: HealthEntry; subjectId
         details: details.trim(),
         dose: isMedication ? dose.trim() : '',
         frequency: isMedication ? frequency.trim() : '',
-        occurredOn: v.occurredOn,
+        occurredOn: hasDate ? date.iso : null,
         notes: notes.trim(),
         confidenceLevel,
       });
@@ -120,9 +129,15 @@ function EntryForm({ entry, subjectId, onDone }: { entry: HealthEntry; subjectId
             </View>
           </View>
         ) : null}
+        <DateField
+          label={isExam ? 'Fecha del examen' : 'Fecha del registro (opcional)'}
+          initial={initialDate}
+          onChange={setDateParts}
+          error={fieldErrors.occurredOn ?? (submitted ? dateError : undefined)}
+        />
       </FormCard>
 
-      <FormCard title="Detalles (opcional)">
+      <FormCard title={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'}>
         <TextArea value={details} onChangeText={setDetails} placeholder="Lo que conviene saber" maxLength={2000} />
       </FormCard>
 

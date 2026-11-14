@@ -21,6 +21,14 @@ export function yesterdayIso(): string {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
 }
 
+/** Mismas reglas de fechas que la app móvil (mobile/src/utils/dates.ts). */
+export const MIN_YEAR = 1900
+const yearOf = (value: string) => Number(value.slice(0, 4))
+const minYear = (v: string) => v === '' || yearOf(v) >= MIN_YEAR
+const minYearMessage = `El año debe ser ${MIN_YEAR} o posterior.`
+/** Último año permitido para fechas futuras (por ejemplo, citas hasta dentro de 2 años). */
+export const maxYear = (yearsAhead: number) => new Date().getFullYear() + yearsAhead
+
 const tooLong = (max: number) => `Máximo ${max} caracteres.`
 
 /** Texto obligatorio. `message` es lo que se muestra si está vacío. */
@@ -33,17 +41,31 @@ export const requiredText = (message: string, max?: number) => {
 export const optionalText = (max?: number) =>
   (max ? z.string().trim().max(max, tooLong(max)) : z.string().trim()).transform((v) => v || null)
 
-/** Fecha obligatoria de un <input type="date">. */
-export const requiredDate = (message = 'Elige una fecha.') =>
-  z.string().trim().min(1, message).refine(isIsoDate, 'Fecha inválida.')
+/** Fecha obligatoria de un <input type="date">. Con `maxYearsAhead`, acepta fechas futuras hasta ese año. */
+export const requiredDate = (message = 'Elige una fecha.', { maxYearsAhead }: { maxYearsAhead?: number } = {}) =>
+  z
+    .string()
+    .trim()
+    .min(1, message)
+    .refine(isIsoDate, 'Fecha inválida.')
+    .refine(minYear, minYearMessage)
+    .refine(
+      (v) => maxYearsAhead === undefined || yearOf(v) <= maxYear(maxYearsAhead),
+      `El año debe ser ${maxYear(maxYearsAhead ?? 0)} o anterior.`,
+    )
 
-/** Fecha opcional de un <input type="date">; '' se envía como null. */
-export const optionalDate = ({ past = false } = {}) =>
+/**
+ * Fecha opcional de un <input type="date">; '' se envía como null.
+ * `past`: anterior a hoy (nacimiento). `notFuture`: hoy o antes (un registro de algo que ya pasó).
+ */
+export const optionalDate = ({ past = false, notFuture = false } = {}) =>
   z
     .string()
     .trim()
     .refine((v) => v === '' || isIsoDate(v), 'Fecha inválida.')
-    .refine((v) => !past || v === '' || v < todayIso(), 'Debe ser una fecha pasada.')
+    .refine(minYear, minYearMessage)
+    .refine((v) => !past || v === '' || v < todayIso(), 'La fecha debe ser anterior a hoy.')
+    .refine((v) => !notFuture || v === '' || v <= todayIso(), 'La fecha no puede ser futura.')
     .transform((v) => v || null)
 
 export const email = (message = 'Escribe un correo válido.') =>

@@ -4,15 +4,18 @@ import test from 'node:test'
 import { consultationSchema, consultationToForm, toConsultationUpdate } from '../src/schemas/consultation'
 import { delegationSchema } from '../src/schemas/delegation'
 import { healthEntrySchema } from '../src/schemas/healthEntry'
+import { todayIso } from '../src/schemas/common'
 import { categoryLabels, consultationOrder, formatTime } from '../src/utils/format'
 
-test('La categoría Examen es válida y tiene nombre', () => {
-  const values = { categoryCode: 'EXAM_RESULT', title: 'Hemograma', details: '', dose: '', frequency: '', occurredOn: '', confidenceLevel: 'CONFIRMED', notes: '' }
+test('La categoría Examen es válida, tiene nombre y exige la fecha del examen como en la app móvil', () => {
+  const values = { categoryCode: 'EXAM_RESULT', title: 'Hemograma', details: '', dose: '', frequency: '', occurredOn: '2026-11-01', confidenceLevel: 'CONFIRMED', notes: '' }
   assert.equal(healthEntrySchema.safeParse(values).success, true)
+  const withoutDate = healthEntrySchema.safeParse({ ...values, occurredOn: '' })
+  assert.equal(withoutDate.error?.issues[0].message, 'Ingresa la fecha del examen.')
   assert.deepEqual(categoryLabels.EXAM_RESULT, { name: 'Examen', plural: 'Exámenes' })
 })
 
-const delegation = { granteeName: 'Ana', granteeEmail: 'ana@example.test', validUntil: '2099-01-01T10:00' }
+const delegation = { granteeName: 'Ana', granteeEmail: 'ana@example.test', validUntil: todayIso() }
 
 test('Una delegación puede compartir solo citas, pero no puede ir vacía', () => {
   assert.equal(delegationSchema.safeParse({ ...delegation, categoryCodes: [], includeConsultations: true }).success, true)

@@ -4,6 +4,7 @@ import { AvatarButton } from '../../components/ui/AvatarButton'
 import { AvatarPicker, SubjectAvatar } from '../../components/ui/AvatarPicker'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Modal } from '../../components/ui/Modal'
+import { useAuth } from '../../hooks/useAuth'
 import { useFetch } from '../../hooks/useFetch'
 import { useToast } from '../../hooks/useToast'
 import { deleteCareSubject } from '../../services/api/careSubjects'
@@ -43,6 +44,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
   const navigate = useNavigate()
   const subjectId = subject.id
   const isPrincipal = subject.myRole === 'PRINCIPAL'
+  const userId = useAuth().user?.id
   const age = ageFrom(subject.birthDate)
   const visibleTabs = isPrincipal ? tabs : tabs.filter(({ id }) => id !== 'access-log')
   const requestedTab = searchParams.get('tab')
@@ -222,7 +224,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
       )}
       {activeTab === 'access' && <DelegationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'appointments' && <ConsultationsPanel subjectId={subjectId} subjectName={subject.name} isPrincipal={isPrincipal} />}
-      {activeTab === 'handoffs' && <HandoffsPanel key={subjectId} subjectId={subjectId} />}
+      {activeTab === 'handoffs' && <HandoffsPanel key={subjectId} subjectId={subjectId} isPrincipal={isPrincipal} userId={userId} />}
       {isPrincipal && activeTab === 'access-log' && <AccessLogPanel subjectId={subjectId} />}
     </>
   )

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { MIN_YEAR, maxYear } from '../../schemas/common'
 import {
   consultationFields,
   consultationSchema,
@@ -70,7 +71,7 @@ export function ConsultationForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id="consultation-date" label="Fecha" error={errors.date}>
-          <input type="date" {...a11yProps('consultation-date', errors.date)} {...register('date')} />
+          <input type="date" min={`${MIN_YEAR}-01-01`} max={`${maxYear(2)}-12-31`} {...a11yProps('consultation-date', errors.date)} {...register('date')} />
         </Field>
         <Field id="consultation-time" label="Hora (opcional)" error={errors.time}>
           <input type="time" {...a11yProps('consultation-time', errors.time)} {...register('time')} />
@@ -92,7 +93,7 @@ export function ConsultationForm({
         hint="Especialidad, clínica, qué llevar, qué dijo el médico…"
         error={errors.notes}
       >
-        <textarea rows={3} {...a11yProps('consultation-notes', errors.notes, 'hint')} {...register('notes')} />
+        <textarea rows={3} maxLength={500} {...a11yProps('consultation-notes', errors.notes, 'hint')} {...register('notes')} />
       </Field>
 
       <FormActions submitting={isSubmitting} submitLabel={editing ? 'Guardar cambios' : 'Guardar consulta'} onCancel={onCancel} />

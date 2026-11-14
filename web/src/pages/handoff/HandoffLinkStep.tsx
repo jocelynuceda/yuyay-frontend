@@ -14,6 +14,19 @@ import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
 
 /** Después de crear el resumen: generar el enlace temporal y copiarlo para enviarlo al médico. */
 export function HandoffLinkStep({ handoff, subjectName }: { handoff: HandoffDetail; subjectName?: string }) {
+  return (
+    <div className="grid gap-6">
+      <p role="status" className="rounded-2xl bg-accent-tint p-5 font-semibold text-accent-text">
+        Resumen creado{subjectName ? ` para ${subjectName}` : ''} con {handoff.items.length} registro
+        {handoff.items.length === 1 ? '' : 's'}.
+      </p>
+      <CreateHandoffLink handoffId={handoff.id} />
+    </div>
+  )
+}
+
+/** Formulario del enlace temporal; una vez creado, muestra el enlace para copiarlo. */
+export function CreateHandoffLink({ handoffId, onCreated }: { handoffId: number; onCreated?: () => void }) {
   const [session, setSession] = useState<HandoffSessionCreated | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
   const {
@@ -30,58 +43,50 @@ export function HandoffLinkStep({ handoff, subjectName }: { handoff: HandoffDeta
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
     try {
-      setSession(await createHandoffSession(handoff.id, values))
+      setSession(await createHandoffSession(handoffId, values))
+      onCreated?.()
     } catch (error) {
       setServerError(applyServerErrors(error, setError, ['expiresInHours', 'sessionWindowMinutes']))
     }
   })
 
-  return (
-    <div className="grid gap-6">
-      <p role="status" className="rounded-2xl bg-accent-tint p-5 font-semibold text-accent-text">
-        Resumen creado{subjectName ? ` para ${subjectName}` : ''} con {handoff.items.length} registro
-        {handoff.items.length === 1 ? '' : 's'}.
-      </p>
+  if (session) return <ShareLink session={session} />
 
-      {session ? (
-        <ShareLink session={session} />
-      ) : (
-        <FormShell
-          title="Crear enlace para el médico"
-          description="El médico lo abre sin cuenta. Le pedirá su nombre y rol, y queda en la bitácora."
-          onSubmit={onSubmit}
+  return (
+    <FormShell
+      title="Crear enlace para el médico"
+      description="El médico lo abre sin cuenta. Le pedirá su nombre y rol, y queda en la bitácora."
+      onSubmit={onSubmit}
+    >
+      <ServerError message={serverError} />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field id={`session-hours-${handoffId}`} label="Vence en (horas)" hint="Entre 1 y 72." error={errors.expiresInHours}>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={72}
+            {...a11yProps(`session-hours-${handoffId}`, errors.expiresInHours, 'hint')}
+            {...register('expiresInHours')}
+          />
+        </Field>
+        <Field
+          id={`session-window-${handoffId}`}
+          label="Minutos de consulta"
+          hint="Tiempo para leerlo desde que lo abre."
+          error={errors.sessionWindowMinutes}
         >
-          <ServerError message={serverError} />
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field id="session-hours" label="Vence en (horas)" hint="Entre 1 y 72." error={errors.expiresInHours}>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={72}
-                {...a11yProps('session-hours', errors.expiresInHours, 'hint')}
-                {...register('expiresInHours')}
-              />
-            </Field>
-            <Field
-              id="session-window"
-              label="Minutos de consulta"
-              hint="Tiempo para leerlo desde que lo abre."
-              error={errors.sessionWindowMinutes}
-            >
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                {...a11yProps('session-window', errors.sessionWindowMinutes, 'hint')}
-                {...register('sessionWindowMinutes')}
-              />
-            </Field>
-          </div>
-          <FormActions submitting={isSubmitting} submitLabel="Crear enlace" submittingLabel="Creando…" />
-        </FormShell>
-      )}
-    </div>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            {...a11yProps(`session-window-${handoffId}`, errors.sessionWindowMinutes, 'hint')}
+            {...register('sessionWindowMinutes')}
+          />
+        </Field>
+      </div>
+      <FormActions submitting={isSubmitting} submitLabel="Crear enlace" submittingLabel="Creando…" />
+    </FormShell>
   )
 }
 

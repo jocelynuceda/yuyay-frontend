@@ -20,7 +20,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'NewHandoff'>;
 export function NewHandoffScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { subjectId } = route.params;
+  const { subjectId, isPrincipal } = route.params;
   const categories = useFetch(getHealthCategories);
   const entries = useFetch(() => getHealthEntries(subjectId), [subjectId]);
   // null = todavía no se tocó: se marcan todos los registros
@@ -57,7 +57,7 @@ export function NewHandoffScreen({ route, navigation }: Props) {
         questions: questions.trim(),
         healthEntryIds: [...selected],
       });
-      navigation.replace('HandoffView', { handoffId: handoff.id });
+      navigation.replace('HandoffView', { handoffId: handoff.id, isPrincipal });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No pudimos crear el resumen.');
     } finally {

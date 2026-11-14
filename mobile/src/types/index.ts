@@ -70,6 +70,7 @@ export interface HandoffItem {
 export interface Handoff {
   id: number;
   careSubjectId: number;
+  createdByUserId: number;
   reason: string;
   questions: string | null;
   createdAt: string;
@@ -183,6 +184,7 @@ export interface HealthEntryInput {
   frequency?: string;
   occurredOn?: string;
   confidenceLevel: ConfidenceLevel;
+  notes?: string;
   sourceAttachmentId?: number;
 }
 
@@ -312,9 +314,9 @@ export type HomeStackParamList = {
   EntryHistory: { subjectId: number; entryId: number };
   Caregivers: { subjectId: number; isPrincipal: boolean };
   InviteCaregiver: { subjectId: number };
-  Handoffs: { subjectId: number };
-  NewHandoff: { subjectId: number };
-  HandoffView: { handoffId: number };
+  Handoffs: { subjectId: number; isPrincipal: boolean };
+  NewHandoff: { subjectId: number; isPrincipal: boolean };
+  HandoffView: { handoffId: number; isPrincipal: boolean };
   Delegations: { subjectId: number; isPrincipal: boolean };
   NewDelegation: { subjectId: number };
   Consultations: { subjectId: number; subjectName: string; isPrincipal: boolean };

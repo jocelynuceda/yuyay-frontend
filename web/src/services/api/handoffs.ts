@@ -4,6 +4,7 @@ import type {
   HandoffDetail,
   HandoffPublicView,
   HandoffRequest,
+  HandoffSession,
   HandoffSessionCreated,
   HandoffSessionRequest,
   OpenHandoffRequest,
@@ -24,6 +25,21 @@ export async function getHandoff(handoffId: number, signal?: AbortSignal) {
 export async function createHandoff(careSubjectId: number, request: HandoffRequest) {
   const { data } = await api.post<HandoffDetail>(`/care-subjects/${careSubjectId}/handoffs`, request)
   return data
+}
+
+/** Los enlaces compartidos dejan de funcionar. */
+export async function deleteHandoff(handoffId: number) {
+  await api.delete(`/handoffs/${handoffId}`)
+}
+
+export async function listHandoffSessions(handoffId: number, signal?: AbortSignal) {
+  const { data } = await api.get<HandoffSession[]>(`/handoffs/${handoffId}/sessions`, { signal })
+  return data
+}
+
+/** Lo puede hacer quien creó el resumen o el cuidador principal. */
+export async function revokeHandoffSession(sessionId: number) {
+  await api.delete(`/handoff-sessions/${sessionId}`)
 }
 
 /** Genera el enlace temporal (token) para el médico. */
