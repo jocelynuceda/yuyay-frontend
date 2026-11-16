@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { API_URL, http, session } from './http';
+import { API_URL, CLIENT_HEADERS, http, session } from './http';
 import { attachmentUploadOptions } from './attachmentUpload';
 import { collectPages, type Page } from './pagination';
 import type {
@@ -214,7 +214,7 @@ export async function getAttachmentSource(subjectId: number, attachmentId: numbe
   await getAttachment(subjectId, attachmentId);
   return {
     uri: `${API_URL}/api/v1${path}/content`,
-    headers: { Authorization: `Bearer ${session.accessToken}` },
+    headers: { ...CLIENT_HEADERS, Authorization: `Bearer ${session.accessToken}` },
   };
 }
 

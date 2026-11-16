@@ -2,13 +2,13 @@ import { AxiosError, create } from 'axios';
 import type { DelegateConsultation, DelegateSession, HealthEntry } from '../types';
 import { ApiError, toApiError } from './client';
 import { createDelegateStore, type DelegateOwner } from '../utils/delegateStore';
-import { API_URL, secureStorage } from './http';
+import { API_URL, CLIENT_HEADERS, secureStorage } from './http';
 
 // El acceso queda en el dispositivo, pero atado a quien lo abrió (o a nadie, si no había sesión)
 const store = createDelegateStore(secureStorage);
 
 // Cliente aparte: quien abre un acceso delegado no tiene cuenta, así que no debe usar el refresh ni cerrar sesiones.
-const delegateHttp = create({ baseURL: `${API_URL}/api/v1`, timeout: 15000 });
+const delegateHttp = create({ baseURL: `${API_URL}/api/v1`, timeout: 15000, headers: CLIENT_HEADERS });
 
 delegateHttp.interceptors.response.use(undefined, (error: unknown) => {
   // El backend responde 403 cuando la delegación venció o fue revocada

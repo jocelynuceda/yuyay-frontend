@@ -2,8 +2,10 @@ import { create } from 'axios';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import * as Updates from 'expo-updates';
 import type { AuthResponse } from '../types';
 import { ApiError, createApiClient, toApiError } from './client';
+import { CLIENT_HEADER, clientHeaderValue } from '../utils/clientHeader.ts';
 import { createSession, NoSessionError } from './session';
 
 function resolveApiUrl(): string {
@@ -15,6 +17,17 @@ function resolveApiUrl(): string {
 }
 
 export const API_URL = resolveApiUrl();
+
+function resolveClientHeader(): string {
+  try {
+    // En Expo Go, desarrollo o web no hay updateId y el valor termina en '+dev'.
+    return clientHeaderValue(Platform.OS, Constants.expoConfig?.version, Updates.updateId, Updates.isEmbeddedLaunch);
+  } catch {
+    return clientHeaderValue(Platform.OS);
+  }
+}
+
+export const CLIENT_HEADERS = { [CLIENT_HEADER]: resolveClientHeader() };
 export { ApiError, NoSessionError };
 
 const LEGACY_REFRESH_KEY = 'yuyay.refreshToken';
@@ -28,7 +41,7 @@ export const secureStorage = {
     ? Promise.resolve(globalThis.localStorage?.removeItem(key)) : SecureStore.deleteItemAsync(key),
 };
 
-const auth = create({ baseURL: `${API_URL}/api/v1/auth`, timeout: 15000 });
+const auth = create({ baseURL: `${API_URL}/api/v1/auth`, timeout: 15000, headers: CLIENT_HEADERS });
 let onSessionExpired = () => {};
 let onRecoveryRequired = (_message: string) => {};
 
@@ -66,4 +79,4 @@ export function setSessionHandlers(expired: () => void, recovery: (message: stri
     onRecoveryRequired = () => {};
   };
 }
-export const http = createApiClient(`${API_URL}/api/v1`, session);
+export const http = createApiClient(`${API_URL}/api/v1`, session, { clientHeader: CLIENT_HEADERS[CLIENT_HEADER] });
