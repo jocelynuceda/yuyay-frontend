@@ -1,4 +1,5 @@
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+export type UploadSource = 'camera' | 'gallery' | 'files' | 'web';
 export class AttachmentValidationError extends Error {}
 
 export interface AttachmentFile {
@@ -26,7 +27,7 @@ export function validateAttachment(file: AttachmentFile) {
 }
 
 /** Web necesita el File real; React Native interpreta el descriptor URI como archivo. */
-export function appendAttachment(form: Pick<FormData, 'append'>, file: AttachmentFile, platform: 'web' | 'native') {
+export function appendAttachment(form: Pick<FormData, 'append'>, file: AttachmentFile, platform: 'web' | 'native', source?: UploadSource) {
   validateAttachment(file);
   if (platform === 'web') {
     if (!file.file) throw new AttachmentValidationError('No pudimos leer el archivo. Vuelve a seleccionarlo.');
@@ -34,6 +35,7 @@ export function appendAttachment(form: Pick<FormData, 'append'>, file: Attachmen
   } else {
     form.append('file', { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
   }
+  if (source) form.append('source', source);
 }
 
 // Sustituir el default JSON evita serializar FormData. Axios deja que web/RN generen el boundary.

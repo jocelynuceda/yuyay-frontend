@@ -100,3 +100,19 @@ test('writes and non-transient errors are never retried', async () => {
     assert.equal(calls, 1, `${method} ${status ?? 'network'}`);
   }
 });
+
+test('the client header is sent on every request only when the app provides it', async () => {
+  const seen: unknown[] = [];
+  const session = { generation: 1, accessToken: 'token', refresh: async () => {} };
+  for (const clientHeader of ['android/1.0.0+0f3a9c12', undefined]) {
+    const http = createApiClient('http://localhost', session, { clientHeader });
+    http.defaults.adapter = async (config) => {
+      seen.push(config.headers.get('X-Yuyay-Client'));
+      return { status: 200, statusText: 'OK', data: {}, headers: {}, config } as AxiosResponse;
+    };
+    await http.get('/users/me');
+    await http.post('/care-subjects/1/attachments', new FormData());
+  }
+  assert.deepEqual(seen.slice(0, 2), ['android/1.0.0+0f3a9c12', 'android/1.0.0+0f3a9c12']);
+  assert.deepEqual(seen.slice(2).map((value) => value ?? null), [null, null]);
+});

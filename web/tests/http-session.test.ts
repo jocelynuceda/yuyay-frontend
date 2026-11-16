@@ -174,3 +174,17 @@ test('8. Un fallo de removeItem y de revocación no vuelve a autenticar la pesta
   assert.equal(backend.calls.refresh, 0)
   assert.equal(http.getAccessToken(), null)
 })
+
+test('9. Toda petición, privada o pública, se identifica como cliente web para el diagnóstico del backend', async () => {
+  const { http } = await setup()
+  const seen: string[] = []
+  const capture = async (config: any) => {
+    seen.push(String(config.headers['X-Yuyay-Client']))
+    return { status: 200, statusText: 'OK', data: {}, headers: {}, config }
+  }
+  http.api.defaults.adapter = capture
+  http.publicApi.defaults.adapter = capture
+  await http.api.get('/users/me')
+  await http.publicApi.get('/actuator/health')
+  assert.deepEqual(seen, ['web', 'web'])
+})

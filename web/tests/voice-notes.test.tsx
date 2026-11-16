@@ -207,6 +207,7 @@ test('el panel lista audio, carga contenido privado y recupera errores de carga,
       assert.equal(file.type, 'audio/webm')
       assert.match(file.name, /\.webm$/)
       assert.equal(await file.text(), 'inicio-final')
+      assert.equal(config.data.get('source'), null, 'una nota de voz no pasa por el OCR y no declara origen')
       if (++uploadRequests === 1) throw fail(config, 400, 'El servidor rechazó el audio.')
       const created = attachment({ id: 4, contentType: file.type, originalFilename: file.name })
       notes.push(created)

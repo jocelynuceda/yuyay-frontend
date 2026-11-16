@@ -320,6 +320,7 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   const [upload] = b.db.uploads
   assert.ok(upload.form instanceof FormData, 'se envía como FormData, no como JSON')
   assert.equal((upload.form.get('file') as File).name, 'receta.pdf')
+  assert.equal(upload.form.get('source'), 'web', 'el backend registra que el documento vino de la web')
   assert.equal(upload.timeout, 60000)
 
   await waitFor(() => /Leyendo el documento/.test(text()), 'lectura en curso')

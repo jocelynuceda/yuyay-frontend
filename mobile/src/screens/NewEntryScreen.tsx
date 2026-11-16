@@ -14,6 +14,7 @@ import { useToast } from '../hooks/useToast';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { createHealthEntry, getHealthCategories, uploadAttachment } from '../services/api';
 import { audioFormData, imageFormData } from '../services/attachmentFiles';
+import type { UploadSource } from '../services/attachmentUpload';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { ConfidenceLevel, HomeStackParamList } from '../types';
@@ -41,6 +42,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
   const [dateParts, setDateParts] = useState(initial.dateParts);
   const [submitted, setSubmitted] = useState(false);
   const [photo, setPhoto] = useState<ImagePickerAsset | null>(null);
+  const [photoSource, setPhotoSource] = useState<UploadSource | undefined>();
   const voice = useVoiceRecorder();
   const toast = useToast();
   // Si el registro falla después de subir el archivo, reintentar no debe subirlo de nuevo
@@ -58,7 +60,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
     const uri = photo?.uri ?? voice.uri;
     if (!uri) return undefined;
     if (uploaded.current?.uri === uri) return uploaded.current.id;
-    const form = photo ? imageFormData(photo) : await audioFormData(uri);
+    const form = photo ? imageFormData(photo, photoSource) : await audioFormData(uri);
     const { id } = await uploadAttachment(subjectId, form);
     uploaded.current = { uri, id };
     return id;
@@ -170,7 +172,15 @@ export function NewEntryScreen({ route, navigation }: Props) {
       />
 
       {sourceAttachmentId ? null : (
-        <EntryAttachmentField photo={photo} onPhotoChange={setPhoto} voice={voice} disabled={saving} />
+        <EntryAttachmentField
+          photo={photo}
+          onPhotoChange={(asset, source) => {
+            setPhoto(asset);
+            setPhotoSource(source);
+          }}
+          voice={voice}
+          disabled={saving}
+        />
       )}
 
       <Text style={styles.label}>¿Qué tan seguro estás?</Text>
