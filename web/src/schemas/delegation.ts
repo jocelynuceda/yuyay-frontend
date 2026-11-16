@@ -2,8 +2,14 @@ import { z } from 'zod'
 import { CATEGORY_CODES, type DelegationRequest } from '../types'
 import { email, isIsoDate, requiredText, todayIso } from './common'
 
-/** Último día que se puede elegir: la misma fecha un año después (AAAA-MM-DD), igual que en la app móvil. */
-export const maxDelegationDay = (today = todayIso()) => `${Number(today.slice(0, 4)) + 1}${today.slice(4)}`
+/**
+ * Último día que se puede elegir: la misma fecha un año después (AAAA-MM-DD), igual que en la app móvil.
+ * Un 29 de febrero pasa al 28, porque el año siguiente no es bisiesto.
+ */
+export function maxDelegationDay(today = todayIso()) {
+  const next = `${Number(today.slice(0, 4)) + 1}${today.slice(4)}`
+  return next.endsWith('-02-29') ? next.replace(/-29$/, '-28') : next
+}
 
 /** Delegar acceso. `validUntil` viene de un <input type="date">. */
 export const delegationSchema = z

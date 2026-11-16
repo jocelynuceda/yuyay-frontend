@@ -13,12 +13,11 @@ import { fonts, makeStyles } from '../theme';
 import type { DelegationCreated, HomeStackParamList } from '../types';
 import { categoryMeta } from '../utils/categories';
 import { shareText } from '../utils/confirm';
+import { oneYearFrom } from '../utils/dates';
 import { formatDate, isEmail, todayIso } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewDelegation'>;
 
-/** La misma fecha un año después (AAAA-MM-DD). */
-const oneYearFrom = (iso: string) => `${Number(iso.slice(0, 4)) + 1}${iso.slice(4)}`;
 
 /** Las citas se eligen junto a las categorías, pero no son una categoría de salud. */
 const CONSULTATIONS = 'CONSULTATIONS';

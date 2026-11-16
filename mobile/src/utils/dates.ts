@@ -67,6 +67,12 @@ export function liveDateError(
   return undefined;
 }
 
+/** La misma fecha un año después (AAAA-MM-DD); un 29 de febrero pasa al 28, porque el año siguiente no es bisiesto. */
+export function oneYearFrom(iso: string): string {
+  const next = `${Number(iso.slice(0, 4)) + 1}${iso.slice(4)}`;
+  return next.endsWith('-02-29') ? next.replace(/-29$/, '-28') : next;
+}
+
 /** Separa una fecha AAAA-MM-DD en las tres casillas de DateField. */
 export function datePartsOf(iso: string): DateParts {
   const [year, month, day] = iso.split('-');

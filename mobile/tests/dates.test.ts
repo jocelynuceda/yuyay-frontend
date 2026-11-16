@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { datePartsOf, liveDateError, parseDateParts } from '../src/utils/dates.ts';
+import { datePartsOf, liveDateError, oneYearFrom, parseDateParts } from '../src/utils/dates.ts';
 
 // Día fijo para que las pruebas no dependan de cuándo se ejecutan
 const today = new Date(2026, 10, 9);
@@ -68,4 +68,10 @@ test('el nacimiento debe ser anterior a hoy, como exige el backend', () => {
   const nacimiento = { strictPast: true, today };
   assert.equal(parseDateParts(parts('09', '11', '2026'), nacimiento).error, 'La fecha debe ser anterior a hoy.');
   assert.equal(parseDateParts(parts('08', '11', '2026'), nacimiento).iso, '2026-11-08');
+});
+
+test('oneYearFrom: la misma fecha un año después, y del 29 de febrero pasa al 28', () => {
+  assert.equal(oneYearFrom('2026-11-16'), '2027-11-16');
+  assert.equal(oneYearFrom('2028-02-29'), '2029-02-28');
+  assert.equal(oneYearFrom('2027-02-28'), '2028-02-28');
 });
