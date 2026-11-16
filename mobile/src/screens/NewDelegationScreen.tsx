@@ -13,9 +13,11 @@ import { fonts, makeStyles } from '../theme';
 import type { DelegationCreated, HomeStackParamList } from '../types';
 import { categoryMeta } from '../utils/categories';
 import { shareText } from '../utils/confirm';
+import { oneYearFrom } from '../utils/dates';
 import { formatDate, isEmail, todayIso } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewDelegation'>;
+
 
 /** Las citas se eligen junto a las categorías, pero no son una categoría de salud. */
 const CONSULTATIONS = 'CONSULTATIONS';
@@ -35,8 +37,8 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   const [created, setCreated] = useState<DelegationCreated | null>(null);
 
   const today = todayIso();
-  // Desde hoy y hasta un año hacia adelante
-  const dateRules = { allowFuture: true, maxYearsAhead: 1, notBefore: today };
+  // Desde hoy y hasta un año después, igual que en la web
+  const dateRules = { allowFuture: true, notBefore: today, notAfter: oneYearFrom(today) };
   const date = parseDateParts(dateParts, dateRules);
   const { year, month, day } = dateParts;
   const dateError = !dateParts.day && !dateParts.month && !dateParts.year ? 'Elige hasta cuándo.' : date.error;
@@ -126,6 +128,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
+          maxLength={150}
           autoCapitalize="none"
           autoCorrect={false}
           error={(submitted ? errors.email : undefined) ?? fieldErrors.granteeEmail}

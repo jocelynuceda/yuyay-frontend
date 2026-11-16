@@ -2,8 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
-import { maxYear, todayIso } from '../../schemas/common'
-import { delegationFields, delegationSchema, emptyDelegation, type DelegationFormValues } from '../../schemas/delegation'
+import { todayIso } from '../../schemas/common'
+import {
+  delegationFields,
+  delegationSchema,
+  emptyDelegation,
+  maxDelegationDay,
+  type DelegationFormValues,
+} from '../../schemas/delegation'
 import { createDelegation } from '../../services/api/delegations'
 import { CATEGORY_CODES, type DelegationCreated } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
@@ -99,7 +105,7 @@ export function DelegationForm({
         <input
           type="date"
           min={todayIso()}
-          max={`${maxYear(1)}-12-31`}
+          max={maxDelegationDay()}
           {...a11yProps('delegation-until', errors.validUntil, 'hint')}
           {...register('validUntil')}
         />

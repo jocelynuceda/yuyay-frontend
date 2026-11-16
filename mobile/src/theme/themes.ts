@@ -316,8 +316,8 @@ const darkGradients: Gradients = {
 };
 
 export const fonts = {
-  display: 'Fraunces_600SemiBold',
-  displayMedium: 'Fraunces_500Medium',
+  display: 'Outfit_700Bold',
+  displayMedium: 'Outfit_600SemiBold',
   regular: 'PlusJakartaSans_400Regular',
   medium: 'PlusJakartaSans_500Medium',
   semibold: 'PlusJakartaSans_600SemiBold',

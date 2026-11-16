@@ -25,7 +25,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'Documents'>;
 export const ocrBadge: Record<OcrStatus, { label: string; tone: BadgeTone }> = {
   PENDING: { label: 'Leyendo…', tone: 'amber' },
   DONE: { label: 'Listo', tone: 'accent' },
-  FAILED: { label: 'Sin leer', tone: 'soft' },
+  FAILED: { label: 'Sin leer', tone: 'danger' },
 };
 
 /** Cada cuánto se revisa si el backend terminó de leer los documentos. */

@@ -7,6 +7,8 @@ export type DateRules = {
   strictPast?: boolean;
   /** Fecha mínima permitida, en formato AAAA-MM-DD. */
   notBefore?: string;
+  /** Fecha máxima permitida, en formato AAAA-MM-DD. */
+  notAfter?: string;
 };
 
 export const MIN_YEAR = 1900;
@@ -23,7 +25,7 @@ export function rangeError({ day, month }: DateParts): string | undefined {
 /** Valida las tres partes y devuelve la fecha ISO (AAAA-MM-DD) o el motivo del error. */
 export function parseDateParts(
   parts: DateParts,
-  { allowFuture = false, maxYearsAhead, notBefore, strictPast, today = new Date() }: DateRules & { today?: Date } = {},
+  { allowFuture = false, maxYearsAhead, notBefore, notAfter, strictPast, today = new Date() }: DateRules & { today?: Date } = {},
 ): { iso: string; error?: string } {
   const { day, month, year } = parts;
   if (!day && !month && !year) return { iso: '' };
@@ -48,6 +50,7 @@ export function parseDateParts(
   }
   const iso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   if (notBefore && iso < notBefore) return { iso: '', error: 'La fecha no puede ser anterior a hoy.' };
+  if (notAfter && iso > notAfter) return { iso: '', error: 'Máximo un año desde hoy.' };
   return { iso };
 }
 
@@ -62,6 +65,12 @@ export function liveDateError(
   if (complete(month) && (Number(month) < 1 || Number(month) > 12)) return MONTH_ERROR;
   if (year.length === 4) return parseDateParts(parts, options).error;
   return undefined;
+}
+
+/** La misma fecha un año después (AAAA-MM-DD); un 29 de febrero pasa al 28, porque el año siguiente no es bisiesto. */
+export function oneYearFrom(iso: string): string {
+  const next = `${Number(iso.slice(0, 4)) + 1}${iso.slice(4)}`;
+  return next.endsWith('-02-29') ? next.replace(/-29$/, '-28') : next;
 }
 
 /** Separa una fecha AAAA-MM-DD en las tres casillas de DateField. */

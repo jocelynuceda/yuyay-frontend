@@ -7,7 +7,9 @@ export type AvatarChoice = { kind: LionKind; variant: LionVariant }
 export type AvatarId = `${LionKind}-${LionVariant}`
 
 /** Recorte de la cabeza en public/lions (copia de mobile/assets/lions/*-face.png). */
-export const avatarSrc = ({ kind, variant }: AvatarChoice) => `/lions/${kind}-${variant}-face.png`
+/** La leona adulta usa la imagen de la leoncita. */
+export const avatarSrc = ({ kind, variant }: AvatarChoice) =>
+  kind === 'adult' && variant === 'lioness' ? '/lions/cub-lioness-face.png' : `/lions/${kind}-${variant}-face.png`
 
 const labels: Record<LionKind, Record<LionVariant, string>> = {
   cub: { lion: 'Leoncito', lioness: 'Leoncita' },

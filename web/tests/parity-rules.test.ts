@@ -52,7 +52,7 @@ test('Delegación: se elige el día, desde hoy hasta el año próximo, y vence a
   assert.equal(end.getHours(), 23)
   assert.equal(end.getMinutes(), 59)
   assert.equal(message(delegationSchema.safeParse({ ...d, validUntil: shift(-1) })), 'La fecha no puede ser anterior a hoy.')
-  assert.equal(message(delegationSchema.safeParse({ ...d, validUntil: `${maxYear(2)}-01-01` })), `El año debe ser ${maxYear(1)} o anterior.`)
+  assert.equal(message(delegationSchema.safeParse({ ...d, validUntil: `${maxYear(2)}-01-01` })), 'Máximo un año desde hoy.')
 })
 
 test('Resumen: motivo de hasta 200 caracteres y preguntas de hasta 500', () => {

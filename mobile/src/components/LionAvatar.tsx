@@ -11,14 +11,14 @@ type Art = Record<LionVariant, ImageSourcePropType>;
 /** Recorte de la cabeza (assets/lions/*-face.png), para los avatares circulares. */
 const faces: Record<LionKind, Art> = {
   cub: { lion: require('../../assets/lions/cub-lion-face.png'), lioness: require('../../assets/lions/cub-lioness-face.png') },
-  adult: { lion: require('../../assets/lions/adult-lion-face.png'), lioness: require('../../assets/lions/adult-lioness-face.png') },
+  adult: { lion: require('../../assets/lions/adult-lion-face.png'), lioness: require('../../assets/lions/cub-lioness-face.png') },
   elder: { lion: require('../../assets/lions/elder-lion-face.png'), lioness: require('../../assets/lions/elder-lioness-face.png') },
 };
 
 /** Cuerpo completo, para pantallas vacías, la bienvenida, etc. */
 export const lionIllustrations: Record<LionKind, Art> = {
   cub: { lion: require('../../assets/lions/cub-lion.png'), lioness: require('../../assets/lions/cub-lioness.png') },
-  adult: { lion: require('../../assets/lions/adult-lion.png'), lioness: require('../../assets/lions/adult-lioness.png') },
+  adult: { lion: require('../../assets/lions/adult-lion.png'), lioness: require('../../assets/lions/cub-lioness.png') },
   elder: { lion: require('../../assets/lions/elder-lion.png'), lioness: require('../../assets/lions/elder-lioness.png') },
 };
 
