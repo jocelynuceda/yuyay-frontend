@@ -207,7 +207,7 @@ function EntriesCards({ entries, onOpen }: { entries: HealthEntry[]; onOpen: (en
   )
 }
 
-function ConfidenceBadge({ level }: { level: HealthEntry['latestVersion']['confidenceLevel'] }) {
+export function ConfidenceBadge({ level }: { level: HealthEntry['latestVersion']['confidenceLevel'] }) {
   return (
     <span
       className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
