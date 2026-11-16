@@ -2,7 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
-import { delegationFields, delegationSchema, emptyDelegation, type DelegationFormValues } from '../../schemas/delegation'
+import {
+  delegationFields,
+  delegationSchema,
+  emptyDelegation,
+  maxDelegationDate,
+  type DelegationFormValues,
+} from '../../schemas/delegation'
 import { createDelegation } from '../../services/api/delegations'
 import { CATEGORY_CODES, type DelegationCreated } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
@@ -11,10 +17,9 @@ import { focusRing } from '../../utils/styles'
 import { a11yProps } from './fieldProps'
 import { Field, FormActions, FormShell, ServerError } from './fields'
 
-/** Valor mínimo del <input type="datetime-local">: ahora, en hora local. */
-function nowLocal() {
-  const now = new Date()
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+/** Fecha para un <input type="datetime-local">, en hora local. */
+function toLocalInput(date: Date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 }
 
 /** Delegar acceso de solo lectura a ciertas categorías, por tiempo limitado (vista /access/:token). */
@@ -28,6 +33,8 @@ export function DelegationForm({
   onCancel?: () => void
 }) {
   const [serverError, setServerError] = useState<string | null>(null)
+  // Desde ahora y hasta un año después; se calcula una vez al abrir el formulario
+  const [bounds] = useState(() => ({ min: toLocalInput(new Date()), max: toLocalInput(maxDelegationDate()) }))
   const {
     register,
     handleSubmit,
@@ -101,7 +108,7 @@ export function DelegationForm({
       </fieldset>
 
       <Field id="delegation-until" label="Válido hasta" error={errors.validUntil}>
-        <input type="datetime-local" min={nowLocal()} {...a11yProps('delegation-until', errors.validUntil)} {...register('validUntil')} />
+        <input type="datetime-local" min={bounds.min} max={bounds.max} {...a11yProps('delegation-until', errors.validUntil)} {...register('validUntil')} />
       </Field>
 
       <FormActions submitting={isSubmitting} submitLabel="Crear acceso" submittingLabel="Creando…" onCancel={onCancel} />

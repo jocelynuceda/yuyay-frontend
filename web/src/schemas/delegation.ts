@@ -2,6 +2,13 @@ import { z } from 'zod'
 import { CATEGORY_CODES, type DelegationRequest } from '../types'
 import { email, requiredText } from './common'
 
+/** Igual que en la app móvil: el acceso dura como mucho un año. */
+export function maxDelegationDate(now = new Date()) {
+  const limit = new Date(now)
+  limit.setFullYear(limit.getFullYear() + 1)
+  return limit
+}
+
 /** Delegar acceso. `validUntil` viene de un <input type="datetime-local"> (hora local). */
 export const delegationSchema = z
   .object({
@@ -14,6 +21,7 @@ export const delegationSchema = z
       .min(1, 'Elige hasta cuándo es válido.')
       .refine((v) => !Number.isNaN(new Date(v).getTime()), 'Fecha inválida.')
       .refine((v) => new Date(v).getTime() > Date.now(), 'Debe ser una fecha futura.')
+      .refine((v) => new Date(v).getTime() <= maxDelegationDate().getTime(), 'Máximo un año desde hoy.')
       .transform((v) => new Date(v).toISOString()),
   })
   .refine((values) => values.categoryCodes.length > 0 || values.includeConsultations, {

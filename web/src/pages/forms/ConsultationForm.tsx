@@ -92,7 +92,7 @@ export function ConsultationForm({
         hint="Especialidad, clínica, qué llevar, qué dijo el médico…"
         error={errors.notes}
       >
-        <textarea rows={3} {...a11yProps('consultation-notes', errors.notes, 'hint')} {...register('notes')} />
+        <textarea rows={3} maxLength={500} {...a11yProps('consultation-notes', errors.notes, 'hint')} {...register('notes')} />
       </Field>
 
       <FormActions submitting={isSubmitting} submitLabel={editing ? 'Guardar cambios' : 'Guardar consulta'} onCancel={onCancel} />

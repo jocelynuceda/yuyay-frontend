@@ -25,7 +25,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'NewEntry'>;
 export function NewEntryScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { subjectId, sourceAttachmentId, returnToSource, ocrDraft } = route.params;
+  const { subjectId, sourceAttachmentId, returnToSource } = route.params;
   const initial = initialEntryFields(route.params);
   const categories = useFetch(getHealthCategories);
   const [categoryCode, setCategoryCode] = useState(initial.categoryCode);
@@ -33,6 +33,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
   const [dose, setDose] = useState('');
   const [frequency, setFrequency] = useState('');
   const [details, setDetails] = useState(initial.details);
+  const [notes, setNotes] = useState('');
   const [confidenceLevel, setConfidence] = useState<ConfidenceLevel>(initial.confidenceLevel);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -48,11 +49,9 @@ export function NewEntryScreen({ route, navigation }: Props) {
   // El backend solo acepta dosis y frecuencia en medicación
   const isMedication = categoryCode === 'MEDICATION';
   const isExam = categoryCode === EXAM_CATEGORY;
-  const showDate = isExam || !!ocrDraft;
+  // Igual que en la web: la fecha siempre se puede poner y solo es obligatoria en un examen
   const date = parseDateParts(dateParts);
-  const dateError = showDate
-    ? (date.error ?? (isExam && !date.iso ? 'Ingresa la fecha del examen.' : undefined))
-    : undefined;
+  const dateError = date.error ?? (isExam && !date.iso ? 'Ingresa la fecha del examen.' : undefined);
 
   async function uploadPicked() {
     const uri = photo?.uri ?? voice.uri;
@@ -77,7 +76,8 @@ export function NewEntryScreen({ route, navigation }: Props) {
         details: details.trim(),
         dose: isMedication ? dose.trim() : '',
         frequency: isMedication ? frequency.trim() : '',
-        occurredOn: showDate && date.iso ? date.iso : undefined,
+        occurredOn: date.iso || undefined,
+        notes: notes.trim(),
         confidenceLevel,
         sourceAttachmentId: attachmentId,
       });
@@ -142,15 +142,23 @@ export function NewEntryScreen({ route, navigation }: Props) {
           </View>
         </View>
       ) : null}
-      {showDate ? (
-        <DateField
-          label={isExam ? 'Fecha del examen' : 'Fecha del registro (opcional)'}
-          initial={dateParts}
-          onChange={setDateParts}
-          error={fieldErrors.occurredOn ?? (submitted ? dateError : undefined)}
-        />
-      ) : null}
-      <FormField label={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'} value={details} onChangeText={setDetails} multiline numberOfLines={3} />
+      <DateField
+        label={isExam ? 'Fecha del examen' : 'Fecha (opcional)'}
+        initial={dateParts}
+        onChange={setDateParts}
+        error={fieldErrors.occurredOn ?? (submitted ? dateError : undefined)}
+      />
+      <FormField label={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'} value={details} onChangeText={setDetails} multiline numberOfLines={3} maxLength={2000} />
+      <FormField
+        label="Notas (opcional)"
+        placeholder="Quién lo indicó, de dónde salió el dato…"
+        value={notes}
+        onChangeText={setNotes}
+        multiline
+        numberOfLines={2}
+        maxLength={500}
+        error={fieldErrors.notes}
+      />
 
       {sourceAttachmentId ? null : (
         <EntryAttachmentField photo={photo} onPhotoChange={setPhoto} voice={voice} disabled={saving} />

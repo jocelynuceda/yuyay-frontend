@@ -7,6 +7,7 @@ const tonesFor = (colors: Colors) => ({
   soft: { bg: colors.soft, fg: colors.softText },
   ink: { bg: colors.ink, fg: colors.onInk },
   amber: { bg: colors.amberBg, fg: colors.amberText },
+  danger: { bg: colors.dangerBg, fg: colors.danger },
   light: { bg: colors.glass, fg: colors.ink },
 });
 

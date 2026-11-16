@@ -12,6 +12,7 @@ import {
 } from '../../schemas/healthEntry'
 import { createHealthEntry, updateHealthEntry } from '../../services/api/healthEntries'
 import { CATEGORY_CODES, MEDICATION, type CategoryCode, type HealthEntry } from '../../types'
+import { todayIso } from '../../schemas/common'
 import { applyServerErrors } from '../../utils/apiErrors'
 import { categoryLabels } from '../../utils/format'
 import { a11yProps } from './fieldProps'
@@ -91,7 +92,11 @@ export function HealthEntryForm({
         },
     mode: 'onChange',
   })
-  const isMedication = useWatch({ control, name: 'categoryCode' }) === MEDICATION
+  const categoryCode = useWatch({ control, name: 'categoryCode' })
+  const isMedication = categoryCode === MEDICATION
+  const isExam = categoryCode === 'EXAM_RESULT'
+  // Hoy es la última fecha válida; se calcula una vez al abrir el formulario
+  const [maxDate] = useState(todayIso)
 
   useEffect(() => {
     onRegisterAppendDetails?.((text, previous) => {
@@ -213,19 +218,20 @@ export function HealthEntryForm({
 
       <Field
         id="entry-occurredOn"
-        label="Fecha (opcional)"
+        label={isExam ? 'Fecha del examen' : 'Fecha (opcional)'}
         error={errors.occurredOn}
         hint={suggestionHint(suggestedFields?.occurredOn)}
       >
         <input
           type="date"
+          max={maxDate}
           {...a11yProps('entry-occurredOn', errors.occurredOn, suggestionHint(suggestedFields?.occurredOn))}
           {...register('occurredOn')}
         />
       </Field>
 
       <Field id="entry-details" label="Detalles (opcional)" error={errors.details}>
-        <textarea rows={3} {...a11yProps('entry-details', errors.details)} {...register('details')} />
+        <textarea rows={3} maxLength={2000} {...a11yProps('entry-details', errors.details)} {...register('details')} />
       </Field>
 
       <fieldset className="grid gap-2">
@@ -241,7 +247,7 @@ export function HealthEntryForm({
       </fieldset>
 
       <Field id="entry-notes" label="Notas (opcional)" error={errors.notes}>
-        <textarea rows={2} {...a11yProps('entry-notes', errors.notes)} {...register('notes')} />
+        <textarea rows={2} maxLength={500} {...a11yProps('entry-notes', errors.notes)} {...register('notes')} />
       </Field>
 
       <FormActions

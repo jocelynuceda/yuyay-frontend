@@ -7,6 +7,8 @@ export type DateRules = {
   strictPast?: boolean;
   /** Fecha mínima permitida, en formato AAAA-MM-DD. */
   notBefore?: string;
+  /** Fecha máxima permitida, en formato AAAA-MM-DD. */
+  notAfter?: string;
 };
 
 export const MIN_YEAR = 1900;
@@ -23,7 +25,7 @@ export function rangeError({ day, month }: DateParts): string | undefined {
 /** Valida las tres partes y devuelve la fecha ISO (AAAA-MM-DD) o el motivo del error. */
 export function parseDateParts(
   parts: DateParts,
-  { allowFuture = false, maxYearsAhead, notBefore, strictPast, today = new Date() }: DateRules & { today?: Date } = {},
+  { allowFuture = false, maxYearsAhead, notBefore, notAfter, strictPast, today = new Date() }: DateRules & { today?: Date } = {},
 ): { iso: string; error?: string } {
   const { day, month, year } = parts;
   if (!day && !month && !year) return { iso: '' };
@@ -48,6 +50,7 @@ export function parseDateParts(
   }
   const iso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   if (notBefore && iso < notBefore) return { iso: '', error: 'La fecha no puede ser anterior a hoy.' };
+  if (notAfter && iso > notAfter) return { iso: '', error: 'Máximo un año desde hoy.' };
   return { iso };
 }
 

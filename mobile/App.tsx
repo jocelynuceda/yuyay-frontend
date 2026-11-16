@@ -1,4 +1,4 @@
-import { Fraunces_500Medium, Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+import { Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   PlusJakartaSans_400Regular,
@@ -30,8 +30,8 @@ function ThemedApp() {
   const theme = useTheme();
   const { ready } = useThemePreference();
   const [fontsLoaded] = useFonts({
-    Fraunces_500Medium,
-    Fraunces_600SemiBold,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,

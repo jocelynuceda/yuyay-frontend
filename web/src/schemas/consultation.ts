@@ -13,7 +13,7 @@ export const consultationSchema = z.object({
     .refine((value) => !value || TIME.test(value), 'Hora inválida.')
     .transform((value) => value || null),
   reason: requiredText('Escribe el motivo de la consulta.', 200),
-  notes: optionalText(),
+  notes: optionalText(500),
 }) satisfies z.ZodType<ConsultationRequest, unknown>
 
 export type ConsultationFormValues = z.input<typeof consultationSchema>

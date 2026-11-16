@@ -5,8 +5,8 @@ import { optionalText, requiredText } from './common'
 /** Nuevo traspaso: paso 1 elige registros, paso 2 motivo y preguntas, paso 3 revisa. */
 export const handoffSchema = z.object({
   healthEntryIds: z.array(z.number().int()).min(1, 'Elige al menos un registro.'),
-  reason: requiredText('Escribe el motivo del traspaso.'),
-  questions: optionalText(),
+  reason: requiredText('Escribe el motivo del traspaso.', 200),
+  questions: optionalText(500),
 }) satisfies z.ZodType<HandoffRequest, unknown>
 
 export type HandoffFormValues = z.input<typeof handoffSchema>

@@ -20,7 +20,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'Caregivers'>;
 
 const statusBadge = {
   ACTIVE: { label: 'Activo', tone: 'accent' },
-  PENDING: { label: 'Pendiente', tone: 'amber' },
+  PENDING: { label: 'Invitación pendiente', tone: 'amber' },
   REVOKED: { label: 'Quitado', tone: 'soft' },
 } as const;
 

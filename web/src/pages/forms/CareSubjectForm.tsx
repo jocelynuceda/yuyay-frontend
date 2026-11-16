@@ -81,7 +81,7 @@ export function CareSubjectForm({
         hint="Lo que conviene saber de un vistazo: idioma, movilidad, contacto de emergencia…"
         error={errors.notes}
       >
-        <textarea rows={3} {...a11yProps('subject-notes', errors.notes, 'hint')} {...register('notes')} />
+        <textarea rows={3} maxLength={500} {...a11yProps('subject-notes', errors.notes, 'hint')} {...register('notes')} />
       </Field>
 
       <FormActions

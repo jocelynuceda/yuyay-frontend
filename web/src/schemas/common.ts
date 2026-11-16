@@ -38,12 +38,13 @@ export const requiredDate = (message = 'Elige una fecha.') =>
   z.string().trim().min(1, message).refine(isIsoDate, 'Fecha inválida.')
 
 /** Fecha opcional de un <input type="date">; '' se envía como null. */
-export const optionalDate = ({ past = false } = {}) =>
+export const optionalDate = ({ past = false, notFuture = false } = {}) =>
   z
     .string()
     .trim()
     .refine((v) => v === '' || isIsoDate(v), 'Fecha inválida.')
     .refine((v) => !past || v === '' || v < todayIso(), 'Debe ser una fecha pasada.')
+    .refine((v) => !notFuture || v === '' || v <= todayIso(), 'La fecha no puede ser futura.')
     .transform((v) => v || null)
 
 export const email = (message = 'Escribe un correo válido.') =>
