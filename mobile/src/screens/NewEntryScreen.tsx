@@ -14,6 +14,7 @@ import { useToast } from '../hooks/useToast';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { createHealthEntry, getHealthCategories, uploadAttachment } from '../services/api';
 import { audioFormData, imageFormData } from '../services/attachmentFiles';
+import type { UploadSource } from '../services/attachmentUpload';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { ConfidenceLevel, HomeStackParamList } from '../types';
@@ -41,6 +42,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
   const [dateParts, setDateParts] = useState(initial.dateParts);
   const [submitted, setSubmitted] = useState(false);
   const [photo, setPhoto] = useState<ImagePickerAsset | null>(null);
+  const [photoSource, setPhotoSource] = useState<UploadSource | undefined>();
   const voice = useVoiceRecorder();
   const toast = useToast();
   // Si el registro falla después de subir el archivo, reintentar no debe subirlo de nuevo
@@ -49,15 +51,16 @@ export function NewEntryScreen({ route, navigation }: Props) {
   // El backend solo acepta dosis y frecuencia en medicación
   const isMedication = categoryCode === 'MEDICATION';
   const isExam = categoryCode === EXAM_CATEGORY;
-  // Igual que en la web: la fecha siempre se puede poner y solo es obligatoria en un examen
+  // La fecha es opcional en todas las categorías, como en la web; en un examen es obligatoria
   const date = parseDateParts(dateParts);
-  const dateError = date.error ?? (isExam && !date.iso ? 'Ingresa la fecha del examen.' : undefined);
+  const hasDate = Boolean(dateParts.day || dateParts.month || dateParts.year);
+  const dateError = hasDate ? date.error : isExam ? 'Ingresa la fecha del examen.' : undefined;
 
   async function uploadPicked() {
     const uri = photo?.uri ?? voice.uri;
     if (!uri) return undefined;
     if (uploaded.current?.uri === uri) return uploaded.current.id;
-    const form = photo ? imageFormData(photo) : await audioFormData(uri);
+    const form = photo ? imageFormData(photo, photoSource) : await audioFormData(uri);
     const { id } = await uploadAttachment(subjectId, form);
     uploaded.current = { uri, id };
     return id;
@@ -76,9 +79,9 @@ export function NewEntryScreen({ route, navigation }: Props) {
         details: details.trim(),
         dose: isMedication ? dose.trim() : '',
         frequency: isMedication ? frequency.trim() : '',
-        occurredOn: date.iso || undefined,
-        notes: notes.trim(),
+        occurredOn: hasDate && date.iso ? date.iso : undefined,
         confidenceLevel,
+        notes: notes.trim(),
         sourceAttachmentId: attachmentId,
       });
       // Desde un documento se vuelve a la lista: el texto ya se usó
@@ -143,15 +146,23 @@ export function NewEntryScreen({ route, navigation }: Props) {
         </View>
       ) : null}
       <DateField
-        label={isExam ? 'Fecha del examen' : 'Fecha (opcional)'}
+        label={isExam ? 'Fecha del examen' : 'Fecha del registro (opcional)'}
         initial={dateParts}
         onChange={setDateParts}
         error={fieldErrors.occurredOn ?? (submitted ? dateError : undefined)}
       />
-      <FormField label={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'} value={details} onChangeText={setDetails} multiline numberOfLines={3} maxLength={2000} />
+      <FormField
+        label={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'}
+        value={details}
+        onChangeText={setDetails}
+        multiline
+        numberOfLines={3}
+        maxLength={2000}
+        error={fieldErrors.details}
+      />
       <FormField
         label="Notas (opcional)"
-        placeholder="Quién lo indicó, de dónde salió el dato…"
+        placeholder="Quién lo indicó, dónde se hizo…"
         value={notes}
         onChangeText={setNotes}
         multiline
@@ -161,7 +172,15 @@ export function NewEntryScreen({ route, navigation }: Props) {
       />
 
       {sourceAttachmentId ? null : (
-        <EntryAttachmentField photo={photo} onPhotoChange={setPhoto} voice={voice} disabled={saving} />
+        <EntryAttachmentField
+          photo={photo}
+          onPhotoChange={(asset, source) => {
+            setPhoto(asset);
+            setPhotoSource(source);
+          }}
+          voice={voice}
+          disabled={saving}
+        />
       )}
 
       <Text style={styles.label}>¿Qué tan seguro estás?</Text>

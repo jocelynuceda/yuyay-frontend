@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { EmptyState } from '../components/EmptyState';
@@ -6,9 +7,10 @@ import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
-import { getNotifications, markNotificationRead } from '../services/api';
+import { getCareSubjects, getNotifications, getPendingInvitations, markNotificationRead } from '../services/api';
 import { fonts, makeStyles, radius, useTheme, type Colors } from '../theme';
-import type { Notification, NotificationType } from '../types';
+import type { Notification, NotificationType, TabNavigatorParamList } from '../types';
+import { notificationTarget } from '../utils/notificationTarget';
 import { timeAgo } from '../utils/format';
 
 const typeStyleFor = (colors: Colors): Record<NotificationType, { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string }> => ({
@@ -23,14 +25,28 @@ type Filter = 'all' | 'unread';
 export function NotificationsScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
+  const navigation = useNavigation<NavigationProp<TabNavigatorParamList>>();
   const notifications = useFetch(getNotifications);
+  const pending = useFetch(getPendingInvitations);
+  const subjects = useFetch(getCareSubjects);
   const [filter, setFilter] = useState<Filter>('all');
-  useRefreshOnFocus(notifications.reload);
-
-  async function handlePress(item: Notification) {
-    if (item.read) return;
-    await markNotificationRead(item.id).catch(() => {});
+  useRefreshOnFocus(() => {
     notifications.reload();
+    pending.reload();
+    subjects.reload();
+  });
+
+  // Como en la web: tocar un aviso lo marca como leído y lleva a lo que menciona
+  async function handlePress(item: Notification) {
+    if (!item.read) {
+      await markNotificationRead(item.id).catch(() => {});
+      notifications.reload();
+    }
+    const pendingIds = new Set((pending.data ?? []).map((rel) => rel.careSubjectId));
+    const target = notificationTarget(item, pendingIds, subjects.data ?? []);
+    if (!target) return;
+    if (target.screen === 'Home') navigation.navigate('HomeTab', { screen: 'Home' });
+    else navigation.navigate('HomeTab', { screen: target.screen, params: target.params } as never);
   }
 
   if (notifications.loading && !notifications.data) return <LoadingView />;

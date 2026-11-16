@@ -2,7 +2,7 @@ import type { DocumentPickerAsset } from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Linking, Platform } from 'react-native';
 import { getAttachmentAccess, getAttachmentSource } from './api';
-import { appendAttachment, attachmentMimeType } from './attachmentUpload';
+import { appendAttachment, attachmentMimeType, type UploadSource } from './attachmentUpload';
 
 export const imagePickerOptions: ImagePicker.ImagePickerOptions = {
   mediaTypes: ['images'],
@@ -11,13 +11,14 @@ export const imagePickerOptions: ImagePicker.ImagePickerOptions = {
   preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
 };
 
-export function imageFormData(asset: ImagePicker.ImagePickerAsset) {
+export function imageFormData(asset: ImagePicker.ImagePickerAsset, source?: UploadSource) {
   const form = new FormData();
   const type = asset.mimeType ?? 'image/jpeg';
   const name = asset.fileName ?? `documento.${type === 'image/png' ? 'png' : 'jpg'}`;
   if (Platform.OS === 'web' && asset.file) form.append('file', asset.file, name);
   // En iOS y Android FormData recibe la ruta del archivo en lugar de un Blob
   else form.append('file', { uri: asset.uri, name, type } as unknown as Blob);
+  if (source) form.append('source', source);
   return form;
 }
 
@@ -48,6 +49,7 @@ export function documentFormData(asset: DocumentPickerAsset) {
       file: asset.file,
     },
     Platform.OS === 'web' ? 'web' : 'native',
+    'files',
   );
   return form;
 }

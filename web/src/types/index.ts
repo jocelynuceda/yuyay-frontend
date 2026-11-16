@@ -256,6 +256,17 @@ export interface HandoffSessionRequest {
   sessionWindowMinutes: number // ≥ 1
 }
 
+/** Enlace temporal de un resumen, sin el token (solo se muestra al crearlo). */
+export interface HandoffSession {
+  id: number
+  handoffId: number
+  expiresAt: string
+  sessionWindowMinutes: number
+  firstOpenedAt: string | null
+  revokedAt: string | null
+  createdAt: string
+}
+
 export interface HandoffSessionCreated {
   id: number
   token: string

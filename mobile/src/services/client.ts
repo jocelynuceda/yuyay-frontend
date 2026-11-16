@@ -1,5 +1,6 @@
 import { AxiosError, create, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiErrorBody } from '../types';
+import { CLIENT_HEADER } from '../utils/clientHeader.ts';
 
 export class ApiError extends Error {
   status: number;
@@ -50,7 +51,17 @@ interface ClientSession {
   refresh: () => Promise<unknown>;
 }
 
-export function createApiClient(baseURL: string, session: ClientSession, { retryDelayMs = 600 } = {}) {
+interface ClientOptions {
+  retryDelayMs?: number;
+  /** Valor de X-Yuyay-Client; si no se pasa, la cabecera no se envía. */
+  clientHeader?: string;
+}
+
+export function createApiClient(
+  baseURL: string,
+  session: ClientSession,
+  { retryDelayMs = 600, clientHeader }: ClientOptions = {},
+) {
   const http = create({ baseURL, headers: { 'Content-Type': 'application/json' }, timeout: 15000 });
   type Request = InternalAxiosRequestConfig & {
     _retried?: boolean;
@@ -64,6 +75,7 @@ export function createApiClient(baseURL: string, session: ClientSession, { retry
     config._access = session.accessToken;
     if (session.accessToken) config.headers.Authorization = `Bearer ${session.accessToken}`;
     else config.headers.delete('Authorization');
+    if (clientHeader) config.headers.set(CLIENT_HEADER, clientHeader);
     return config;
   });
   http.interceptors.response.use((response) => response, async (error: AxiosError) => {

@@ -118,17 +118,20 @@ function rejectWithFriendlyMessage(error: unknown): never {
   throw error
 }
 
+/** Identifica al cliente en cada petición, para depurar en el backend. */
+const CLIENT_HEADERS = { 'X-Yuyay-Client': 'web' }
+
 export const api = axios.create({
   baseURL,
   timeout: REQUEST_TIMEOUT_MS,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', ...CLIENT_HEADERS },
 })
 
 /** No adjunta la sesión del usuario ni renueva tokens del delegado. */
 export const publicApi = axios.create({
   baseURL,
   timeout: REQUEST_TIMEOUT_MS,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', ...CLIENT_HEADERS },
 })
 
 export function bearer(token: string) {

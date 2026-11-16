@@ -5,12 +5,16 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { AppearancePicker } from '../components/AppearancePicker';
 import { AvatarPicker } from '../components/AvatarPicker';
+import { FormField } from '../components/FormField';
+import { SubmitButton } from '../components/FormKit';
 import { ProfileCard } from '../components/ProfileCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAvatar } from '../hooks/useAvatar';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
-import { getCareSubjects, getNotifications } from '../services/api';
+import { useToast } from '../hooks/useToast';
+import { getCareSubjects, getNotifications, updateMe } from '../services/api';
+import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { RootStackParamList, TabNavigatorParamList } from '../types';
 import { formatDate } from '../utils/format';
@@ -20,7 +24,13 @@ type Props = BottomTabScreenProps<TabNavigatorParamList, 'Profile'>;
 export function ProfileScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
+  const toast = useToast();
+  // Editar el nombre de la cuenta, como en el perfil de la web
+  const [editingName, setEditingName] = useState(false);
+  const [name, setName] = useState('');
+  const [nameError, setNameError] = useState<string | undefined>();
+  const [savingName, setSavingName] = useState(false);
   const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
   const subjects = useFetch(getCareSubjects);
   const notifications = useFetch(getNotifications);
@@ -33,6 +43,24 @@ export function ProfileScreen({ navigation }: Props) {
   if (!user) return null;
 
   const unread = notifications.data?.filter((n) => !n.read).length;
+
+  async function saveName() {
+    if (!name.trim()) {
+      setNameError('Ingresa tu nombre.');
+      return;
+    }
+    setSavingName(true);
+    setNameError(undefined);
+    try {
+      updateUser(await updateMe(name.trim()));
+      setEditingName(false);
+      toast('Nombre actualizado.');
+    } catch (e) {
+      setNameError(e instanceof ApiError ? (e.fieldErrors.name ?? e.message) : 'No pudimos guardar tu nombre.');
+    } finally {
+      setSavingName(false);
+    }
+  }
   const memberYear = new Date(user.createdAt).getFullYear();
 
   const actions: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; featured?: boolean; purple?: boolean }[] = [
@@ -119,6 +147,30 @@ export function ProfileScreen({ navigation }: Props) {
         ))}
       </View>
 
+      {editingName ? (
+        <View style={styles.nameForm}>
+          <FormField label="Nombre" value={name} onChangeText={setName} maxLength={120} autoComplete="name" error={nameError} />
+          <SubmitButton label="Guardar nombre" onPress={saveName} loading={savingName} />
+          <Pressable onPress={() => setEditingName(false)} hitSlop={8} accessibilityRole="button" style={styles.logout}>
+            <Text style={[styles.logoutText, { color: colors.muted }]}>Cancelar</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => {
+            setName(user.name);
+            setNameError(undefined);
+            setEditingName(true);
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+          style={[styles.logout, styles.editName]}
+        >
+          <Ionicons name="create-outline" size={20} color={colors.primary} />
+          <Text style={[styles.logoutText, { color: colors.primary }]}>Editar nombre</Text>
+        </Pressable>
+      )}
+
       <Text style={styles.groupLabel}>Apariencia</Text>
       <AppearancePicker />
 
@@ -194,5 +246,7 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   rowValue: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginTop: 2 },
   groupLabel: { fontFamily: fonts.medium, fontSize: 14, color: colors.muted, marginTop: 24, marginBottom: 10 },
   logout: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
+  editName: { marginTop: 16 },
+  nameForm: { marginTop: 16, gap: 8 },
   logoutText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.danger },
 }));

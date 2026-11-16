@@ -52,10 +52,10 @@ export function DocumentsScreen({ route, navigation }: Props) {
 
   if (attachments.loading && !attachments.data) return <LoadingView />;
 
-  async function upload(result: ImagePicker.ImagePickerResult) {
+  async function upload(result: ImagePicker.ImagePickerResult, source: 'camera' | 'gallery') {
     const asset = result.assets?.[0];
     if (result.canceled || !asset) return;
-    await send(() => imageFormData(asset));
+    await send(() => imageFormData(asset, source));
   }
 
   async function send(buildForm: () => FormData) {
@@ -83,11 +83,11 @@ export function DocumentsScreen({ route, navigation }: Props) {
       setError('Activa el permiso de cámara en los ajustes del celular para tomar la foto.');
       return;
     }
-    await upload(await ImagePicker.launchCameraAsync(imagePickerOptions));
+    await upload(await ImagePicker.launchCameraAsync(imagePickerOptions), 'camera');
   }
 
   async function pickImage() {
-    await upload(await ImagePicker.launchImageLibraryAsync(imagePickerOptions));
+    await upload(await ImagePicker.launchImageLibraryAsync(imagePickerOptions), 'gallery');
   }
 
   async function pickFile() {

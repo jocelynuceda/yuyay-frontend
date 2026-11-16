@@ -30,21 +30,21 @@ interface NextAppointment {
 interface PeopleSummary {
   subjects: CareSubject[]
   next: NextAppointment | null
+  /** Próximas citas de todas las personas, la más cercana primero (como "Próximas citas" en la app móvil). */
+  upcoming: NextAppointment[]
 }
+
+const UPCOMING_SHOWN = 5
 
 async function loadPeopleSummary(signal: AbortSignal): Promise<PeopleSummary> {
   const subjects = await listCareSubjects(signal)
   const lists = await Promise.all(subjects.map((subject) => listConsultations(subject.id, signal)))
   const today = todayIso()
-  let next: NextAppointment | null = null
-  for (const [index, subject] of subjects.entries()) {
-    for (const consultation of lists[index] ?? []) {
-      if (consultation.date >= today && (next === null || consultationOrder(consultation) < consultationOrder(next.consultation))) {
-        next = { subject, consultation }
-      }
-    }
-  }
-  return { subjects, next }
+  const upcoming = subjects
+    .flatMap((subject, index) => (lists[index] ?? []).map((consultation) => ({ subject, consultation })))
+    .filter(({ consultation }) => consultation.date >= today)
+    .sort((a, b) => consultationOrder(a.consultation).localeCompare(consultationOrder(b.consultation)))
+  return { subjects, next: upcoming[0] ?? null, upcoming }
 }
 
 const quickLinks: { to: string; label: string; icon: IconName }[] = [
@@ -226,6 +226,33 @@ export default function DashboardPage() {
           )}
         </StatCard>
       </div>
+
+      {people.data && people.data.upcoming.length > 1 ? (
+        <Card as="section" aria-labelledby="upcoming-title" className={`${cardAnimation} grid gap-3`}>
+          <h2 id="upcoming-title" className="text-lg font-semibold">
+            Próximas citas
+          </h2>
+          <ul className="grid gap-2">
+            {people.data.upcoming.slice(0, UPCOMING_SHOWN).map(({ subject, consultation }) => (
+              <li key={consultation.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <span>
+                  <span className="font-semibold first-letter:uppercase">
+                    {formatWeekdayDate(consultation.date)}
+                    {consultation.time ? ` · ${formatTime(consultation.time)}` : ''}
+                  </span>
+                  <span className="text-muted"> · {consultation.reason}</span>
+                </span>
+                <Link to={`/people/${subject.id}?tab=appointments`} className={linkClass}>
+                  {subject.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {people.data.upcoming.length > UPCOMING_SHOWN ? (
+            <p className="text-sm text-muted">Y {people.data.upcoming.length - UPCOMING_SHOWN} más en la ficha de cada persona.</p>
+          ) : null}
+        </Card>
+      ) : null}
     </main>
   )
 }

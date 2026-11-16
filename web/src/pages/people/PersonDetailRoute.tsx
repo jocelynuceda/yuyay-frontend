@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AvatarButton } from '../../components/ui/AvatarButton'
 import { AvatarPicker, SubjectAvatar } from '../../components/ui/AvatarPicker'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Modal } from '../../components/ui/Modal'
+import { useAuth } from '../../hooks/useAuth'
 import { useFetch } from '../../hooks/useFetch'
 import { useToast } from '../../hooks/useToast'
 import { deleteCareSubject } from '../../services/api/careSubjects'
@@ -20,6 +21,7 @@ import { DelegationsPanel } from '../care/DelegationsPanel'
 import { HandoffsPanel } from '../care/HandoffsPanel'
 import { DocumentsPanel } from '../documents/DocumentsPanel'
 import { VoiceNotesPanel } from '../documents/VoiceNotesPanel'
+import { ClinicalProfile } from '../entries/ClinicalProfile'
 import { EntriesPanel } from '../entries/EntriesPanel'
 import { CareSubjectForm } from '../forms/CareSubjectForm'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
@@ -43,11 +45,17 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
   const navigate = useNavigate()
   const subjectId = subject.id
   const isPrincipal = subject.myRole === 'PRINCIPAL'
+  const userId = useAuth().user?.id
   const age = ageFrom(subject.birthDate)
   const visibleTabs = isPrincipal ? tabs : tabs.filter(({ id }) => id !== 'access-log')
   const requestedTab = searchParams.get('tab')
   const activeTab = visibleTabs.find(({ id }) => id === requestedTab)?.id ?? 'entries'
   const [newEntry, setNewEntry] = useState<{ category: CategoryCode | null } | null>(null)
+  const newEntryRef = useRef<HTMLDivElement>(null)
+  // Al abrir el formulario desde el perfil clínico (más abajo), se lleva a la vista
+  useEffect(() => {
+    if (newEntry) newEntryRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }, [newEntry])
   const [entriesVersion, setEntriesVersion] = useState(0)
   const toast = useToast()
   const { notify, anchorProps } = useSuccessNotice()
@@ -196,13 +204,22 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
       {activeTab === 'entries' && (
         <>
           {newEntry && (
-            <HealthEntryForm
-              subjectId={subjectId}
-              initialCategory={newEntry.category ?? undefined}
-              onCancel={() => setNewEntry(null)}
-              onSaved={handleEntrySaved}
-            />
+            <div ref={newEntryRef} className="scroll-mt-6">
+              <HealthEntryForm
+                key={newEntry.category ?? 'ALL'}
+                subjectId={subjectId}
+                initialCategory={newEntry.category ?? undefined}
+                onCancel={() => setNewEntry(null)}
+                onSaved={handleEntrySaved}
+              />
+            </div>
           )}
+          <ClinicalProfile
+            key={`profile-${entriesVersion}`}
+            subjectId={subjectId}
+            onOpenEntry={(entry) => void navigate(`/people/${subjectId}/entries/${entry.id}`)}
+            onAddEntry={(category) => setNewEntry({ category })}
+          />
           <EntriesPanel
             key={entriesVersion}
             subjectId={subjectId}
@@ -222,7 +239,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
       )}
       {activeTab === 'access' && <DelegationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'appointments' && <ConsultationsPanel subjectId={subjectId} subjectName={subject.name} isPrincipal={isPrincipal} />}
-      {activeTab === 'handoffs' && <HandoffsPanel key={subjectId} subjectId={subjectId} />}
+      {activeTab === 'handoffs' && <HandoffsPanel key={subjectId} subjectId={subjectId} isPrincipal={isPrincipal} userId={userId} />}
       {isPrincipal && activeTab === 'access-log' && <AccessLogPanel subjectId={subjectId} />}
     </>
   )

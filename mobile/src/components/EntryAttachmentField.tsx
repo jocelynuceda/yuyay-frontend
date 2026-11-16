@@ -4,6 +4,7 @@ import { useState, type ComponentProps } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import type { VoiceRecorder } from '../hooks/useVoiceRecorder';
 import { imagePickerOptions } from '../services/attachmentFiles';
+import type { UploadSource } from '../services/attachmentUpload';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import { formatDuration } from '../utils/attachments';
 import { StatusMessage } from './StatusMessage';
@@ -40,7 +41,8 @@ export function EntryAttachmentField({
   disabled,
 }: {
   photo: ImagePicker.ImagePickerAsset | null;
-  onPhotoChange: (photo: ImagePicker.ImagePickerAsset | null) => void;
+  // `source` indica si la foto vino de la cámara o de la galería
+  onPhotoChange: (photo: ImagePicker.ImagePickerAsset | null, source?: UploadSource) => void;
   voice: VoiceRecorder;
   disabled?: boolean;
 }) {
@@ -48,11 +50,11 @@ export function EntryAttachmentField({
   const { colors } = useTheme();
   const [error, setError] = useState<string | null>(null);
 
-  function applyPicked(result: ImagePicker.ImagePickerResult) {
+  function applyPicked(result: ImagePicker.ImagePickerResult, source: UploadSource) {
     const asset = result.assets?.[0];
     if (result.canceled || !asset) return;
     voice.discard();
-    onPhotoChange(asset);
+    onPhotoChange(asset, source);
   }
 
   async function takePhoto() {
@@ -62,12 +64,12 @@ export function EntryAttachmentField({
       setError('Activa el permiso de cámara en los ajustes del celular para tomar la foto.');
       return;
     }
-    applyPicked(await ImagePicker.launchCameraAsync(imagePickerOptions));
+    applyPicked(await ImagePicker.launchCameraAsync(imagePickerOptions), 'camera');
   }
 
   async function pickImage() {
     setError(null);
-    applyPicked(await ImagePicker.launchImageLibraryAsync(imagePickerOptions));
+    applyPicked(await ImagePicker.launchImageLibraryAsync(imagePickerOptions), 'gallery');
   }
 
   async function record() {

@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { API_URL, http, session } from './http';
+import { API_URL, CLIENT_HEADERS, http, session } from './http';
 import { attachmentUploadOptions } from './attachmentUpload';
 import { collectPages, type Page } from './pagination';
 import type {
@@ -27,6 +27,7 @@ import type {
   HealthEntryVersion,
   InviteCaregiverInput,
   Notification,
+  User,
 } from '../types';
 
 /** Quita los campos vacíos para que el backend reciba null. */
@@ -49,6 +50,9 @@ export const resetPassword = (email: string, code: string, newPassword: string) 
   http.post('/auth/reset-password', { email, code, newPassword });
 
 export const logout = (refreshToken: string) => http.post('/auth/logout', { refreshToken });
+
+/** Solo cambia el nombre de la cuenta. */
+export const updateMe = (name: string) => http.patch<User>('/users/me', { name }).then((r) => r.data);
 
 export const getCareSubjects = () => http.get<CareSubject[]>('/care-subjects').then((r) => r.data);
 
@@ -210,7 +214,7 @@ export async function getAttachmentSource(subjectId: number, attachmentId: numbe
   await getAttachment(subjectId, attachmentId);
   return {
     uri: `${API_URL}/api/v1${path}/content`,
-    headers: { Authorization: `Bearer ${session.accessToken}` },
+    headers: { ...CLIENT_HEADERS, Authorization: `Bearer ${session.accessToken}` },
   };
 }
 

@@ -8,6 +8,7 @@ import { ChoiceChips, FormCard, SubmitButton } from '../components/FormKit';
 import { IconButton, ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
+import { useAuth } from '../hooks/useAuth';
 import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
 import {
@@ -23,6 +24,7 @@ import type { HandoffItem, HandoffSession, HomeStackParamList } from '../types';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
 import { shareText } from '../utils/confirm';
 import { formatDate } from '../utils/format';
+import { canManageHandoffLinks, handoffLinkState, type HandoffLinkState } from '../utils/handoffLinks';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HandoffView'>;
 
@@ -37,24 +39,35 @@ const SESSION_WINDOW_MINUTES = 30;
 
 const dateTime = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
+const stateTone: Record<HandoffLinkState, 'soft' | 'accent' | 'amber'> = {
+  Revocado: 'soft',
+  Vencido: 'soft',
+  Abierto: 'accent',
+  'Sin abrir': 'amber',
+};
+
 function sessionState(s: HandoffSession) {
-  if (s.revokedAt) return { label: 'Revocado', tone: 'soft' } as const;
-  if (new Date(s.expiresAt) < new Date()) return { label: 'Vencido', tone: 'soft' } as const;
-  if (s.firstOpenedAt) return { label: 'Abierto', tone: 'accent' } as const;
-  return { label: 'Sin abrir', tone: 'amber' } as const;
+  const label = handoffLinkState(s);
+  return { label, tone: stateTone[label] };
 }
 
 export function HandoffViewScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { handoffId } = route.params;
+  const { handoffId, isPrincipal } = route.params;
+  const { user } = useAuth();
   const [doctorMode, setDoctorMode] = useState(false);
   const [expiresIn, setExpiresIn] = useState(24);
   const [sharing, setSharing] = useState(false);
   const [message, setMessage] = useState<{ text: string; tone: 'error' | 'info' } | null>(null);
   const runAction = useConfirmedAction((text) => setMessage(text ? { text, tone: 'error' } : null));
   const handoff = useFetch(() => getHandoff(handoffId), [handoffId]);
-  const sessions = useFetch(() => getHandoffSessions(handoffId), [handoffId]);
+  // Solo quien creó el resumen o el principal puede ver sus enlaces: a los demás el backend responde 403
+  const canManageLinks = !!handoff.data && canManageHandoffLinks(handoff.data.createdByUserId, user?.id, isPrincipal);
+  const sessions = useFetch(
+    () => (canManageLinks ? getHandoffSessions(handoffId) : Promise.resolve([])),
+    [handoffId, canManageLinks],
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: !doctorMode });
@@ -172,40 +185,46 @@ export function HandoffViewScreen({ route, navigation }: Props) {
         );
       })}
 
-      <FormCard title="Compartir con un enlace temporal">
-        <Text style={styles.help}>
-          Se genera un código de un solo uso. Al abrirlo, el médico ve el resumen durante {SESSION_WINDOW_MINUTES}{' '}
-          minutos.
-        </Text>
-        <ChoiceChips options={expiryOptions} selected={[expiresIn]} onToggle={setExpiresIn} />
-        <SubmitButton label="Compartir" icon="share-variant" onPress={handleShare} loading={sharing} />
-        {(sessions.data ?? []).map((s) => {
-          const state = sessionState(s);
-          const live = state.label === 'Sin abrir' || state.label === 'Abierto';
-          return (
-            <ListItem
-              key={s.id}
-              icon="link-outline"
-              title={`Vence ${dateTime.format(new Date(s.expiresAt))}`}
-              subtitle={s.firstOpenedAt ? `Abierto ${dateTime.format(new Date(s.firstOpenedAt))}` : null}
-              dimmed={!live}
-              right={
-                <View style={styles.right}>
-                  <Badge label={state.label} tone={state.tone} />
-                  {live ? (
-                    <IconButton
-                      icon="close-circle-outline"
-                      label="Revocar enlace"
-                      color={colors.danger}
-                      onPress={() => handleRevoke(s.id)}
-                    />
-                  ) : null}
-                </View>
-              }
-            />
-          );
-        })}
-      </FormCard>
+      {canManageLinks ? (
+        <FormCard title="Compartir con un enlace temporal">
+          <Text style={styles.help}>
+            Se genera un código de un solo uso. Al abrirlo, el médico ve el resumen durante {SESSION_WINDOW_MINUTES}{' '}
+            minutos.
+          </Text>
+          <ChoiceChips options={expiryOptions} selected={[expiresIn]} onToggle={setExpiresIn} />
+          <SubmitButton label="Compartir" icon="share-variant" onPress={handleShare} loading={sharing} />
+          {(sessions.data ?? []).map((s) => {
+            const state = sessionState(s);
+            const live = state.label === 'Sin abrir' || state.label === 'Abierto';
+            return (
+              <ListItem
+                key={s.id}
+                icon="link-outline"
+                title={`Vence ${dateTime.format(new Date(s.expiresAt))}`}
+                subtitle={s.firstOpenedAt ? `Abierto ${dateTime.format(new Date(s.firstOpenedAt))}` : null}
+                dimmed={!live}
+                right={
+                  <View style={styles.right}>
+                    <Badge label={state.label} tone={state.tone} />
+                    {live ? (
+                      <IconButton
+                        icon="close-circle-outline"
+                        label="Revocar enlace"
+                        color={colors.danger}
+                        onPress={() => handleRevoke(s.id)}
+                      />
+                    ) : null}
+                  </View>
+                }
+              />
+            );
+          })}
+        </FormCard>
+      ) : (
+        <FormCard title="Compartir con un enlace temporal">
+          <Text style={styles.help}>Solo quien creó este resumen o el cuidador principal puede compartirlo.</Text>
+        </FormCard>
+      )}
 
       <Pressable onPress={handleDelete} style={styles.delete} accessibilityRole="button">
         <Ionicons name="trash-outline" size={18} color={colors.danger} />

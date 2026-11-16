@@ -4,29 +4,29 @@ import test from 'node:test'
 import { consultationSchema, consultationToForm, toConsultationUpdate } from '../src/schemas/consultation'
 import { delegationSchema } from '../src/schemas/delegation'
 import { healthEntrySchema } from '../src/schemas/healthEntry'
+import { todayIso } from '../src/schemas/common'
 import { categoryLabels, consultationOrder, formatTime } from '../src/utils/format'
 
-test('La categoría Examen es válida y tiene nombre', () => {
-  const values = { categoryCode: 'EXAM_RESULT', title: 'Hemograma', details: '', dose: '', frequency: '', occurredOn: '2024-08-02', confidenceLevel: 'CONFIRMED', notes: '' }
+test('La categoría Examen es válida, tiene nombre y exige la fecha del examen como en la app móvil', () => {
+  const values = { categoryCode: 'EXAM_RESULT', title: 'Hemograma', details: '', dose: '', frequency: '', occurredOn: '2026-11-01', confidenceLevel: 'CONFIRMED', notes: '' }
   assert.equal(healthEntrySchema.safeParse(values).success, true)
-  const undated = healthEntrySchema.safeParse({ ...values, occurredOn: '' })
-  assert.equal(undated.error?.issues[0].message, 'Ingresa la fecha del examen.')
+  const withoutDate = healthEntrySchema.safeParse({ ...values, occurredOn: '' })
+  assert.equal(withoutDate.error?.issues[0].message, 'Ingresa la fecha del examen.')
   assert.deepEqual(categoryLabels.EXAM_RESULT, { name: 'Examen', plural: 'Exámenes' })
 })
 
-test('Igual que en la app móvil, la fecha de un registro no puede ser futura', () => {
+const delegation = { granteeName: 'Ana', granteeEmail: 'ana@example.test', validUntil: todayIso() }
+
+test('Igual que en la app móvil, una delegación dura como mucho un año', () => {
+  const late = delegationSchema.safeParse({ ...delegation, categoryCodes: ['ALLERGY'], includeConsultations: false, validUntil: '2999-01-01' })
+  assert.equal(late.error?.issues[0].message, 'Máximo un año desde hoy.')
+})
+
+test('La fecha de un registro no puede ser futura, como en la app móvil', () => {
   const values = { categoryCode: 'ALLERGY', title: 'Penicilina', details: '', dose: '', frequency: '', occurredOn: '', confidenceLevel: 'CONFIRMED', notes: '' }
   assert.equal(healthEntrySchema.safeParse(values).success, true)
   const future = healthEntrySchema.safeParse({ ...values, occurredOn: '2999-01-01' })
   assert.equal(future.error?.issues[0].message, 'La fecha no puede ser futura.')
-})
-
-const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 16)
-const delegation = { granteeName: 'Ana', granteeEmail: 'ana@example.test', validUntil: inDays(30) }
-
-test('Igual que en la app móvil, una delegación dura como mucho un año', () => {
-  const late = delegationSchema.safeParse({ ...delegation, categoryCodes: ['ALLERGY'], includeConsultations: false, validUntil: inDays(370) })
-  assert.equal(late.error?.issues[0].message, 'Máximo un año desde hoy.')
 })
 
 test('Una delegación puede compartir solo citas, pero no puede ir vacía', () => {
