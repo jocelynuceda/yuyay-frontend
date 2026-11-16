@@ -4,6 +4,9 @@ import type { Attachment, AttachmentAccess } from '../../types'
 /** Subir o descargar un archivo tarda más que una petición normal. */
 const FILE_TIMEOUT_MS = 60000
 
+/** Origen del documento que el backend guarda como dato informativo. */
+type UploadSource = 'camera' | 'gallery' | 'files' | 'web'
+
 const base = (careSubjectId: number) => `/care-subjects/${careSubjectId}/attachments`
 
 export async function listAttachments(careSubjectId: number, signal?: AbortSignal) {
@@ -19,6 +22,8 @@ export async function getAttachment(careSubjectId: number, attachmentId: number,
 export async function uploadAttachment(careSubjectId: number, file: File) {
   const form = new FormData()
   form.append('file', file)
+  // Solo informativo y solo para documentos: las notas de voz (audio) no lo envían
+  if (!file.type.startsWith('audio/')) form.append('source', 'web' satisfies UploadSource)
   const { data } = await api.post<Attachment>(base(careSubjectId), form, {
     // Reemplaza el JSON por defecto: con él axios convertiría el FormData en texto
     headers: { 'Content-Type': 'multipart/form-data' },

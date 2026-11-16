@@ -19,6 +19,29 @@ test('native multipart uses a file descriptor; web sends the original File bytes
   assert.throws(() => appendAttachment(web, source, 'web'), /Vuelve a seleccionarlo/);
 });
 
+test('the upload source is appended only when the caller declares it', () => {
+  const declared: unknown[][] = [];
+  appendAttachment({ append: (...args: unknown[]) => { declared.push(args); } }, source, 'native', 'files');
+  assert.deepEqual(declared.map(([name]) => name), ['file', 'source']);
+  assert.deepEqual(declared[1], ['source', 'files']);
+
+  const silent: unknown[][] = [];
+  appendAttachment({ append: (...args: unknown[]) => { silent.push(args); } }, source, 'native');
+  assert.deepEqual(silent.map(([name]) => name), ['file']);
+
+  const web = new FormData();
+  const file = new File([new Uint8Array([255, 216, 255, 0])], 'foto.jpg', { type: 'image/jpeg' });
+  appendAttachment(web, { ...source, file }, 'web', 'gallery');
+  assert.equal(web.get('source'), 'gallery');
+});
+
+test('an invalid file is rejected before any field is appended', () => {
+  const calls: unknown[][] = [];
+  assert.throws(() => appendAttachment({ append: (...args: unknown[]) => { calls.push(args); } },
+    { ...source, mimeType: 'image/heic' }, 'native', 'camera'), /JPG o PNG/);
+  assert.equal(calls.length, 0);
+});
+
 test('file validation rejects audio, HEIC without conversion, empty and oversized files', () => {
   for (const mimeType of ['audio/mpeg', 'image/heic', 'application/octet-stream']) {
     assert.throws(() => validateAttachment({ ...source, mimeType }), /JPG o PNG/);
