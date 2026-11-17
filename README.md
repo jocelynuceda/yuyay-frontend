@@ -21,7 +21,7 @@ Este repositorio contiene la **aplicación web (React)** y la **aplicación móv
 | Recurso | URL |
 | --- | --- |
 | Aplicación web (Vercel) | https://yuyay-frontend.vercel.app |
-| Aplicación móvil Android (APK en Expo) | https://expo.dev/accounts/aprilwu-mobile/projects/yuyay-mobile/builds/0abe091b-6e37-4a49-ab4d-60dcf958316f |
+| Aplicación móvil Android (APK y evidencias en Google Drive) | https://drive.google.com/drive/folders/10doMdKNqrcqw2qk4jqgc0DGobgKVq26E?usp=sharing |
 | API (AWS EC2 + RDS, HTTPS) | https://api.34-193-16-240.sslip.io (también por https://yuyay-frontend.vercel.app/api) |
 | Documentación Swagger | https://yuyay-frontend.vercel.app/swagger-ui.html |
 | Estado de salud de la API | https://yuyay-frontend.vercel.app/actuator/health |
@@ -33,8 +33,8 @@ en el informe; no se publica porque la API está en internet.
 > La API corre en AWS Academy y solo responde mientras el laboratorio está encendido. Si el enlace de salud no
 > responde, el laboratorio está apagado.
 
-**Instalar la app Android:** abrir el enlace del APK en un celular Android (o escanear su QR desde una computadora),
-descargarlo y permitir la instalación de apps de fuentes desconocidas si el sistema lo pide.
+**Instalar la app Android:** abrir la carpeta de Drive en un celular Android, descargar el archivo `.apk` y permitir la
+instalación de apps de fuentes desconocidas si el sistema lo pide. En la misma carpeta están las evidencias de la app.
 
 ## Funcionalidades
 
