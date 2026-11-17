@@ -1,3 +1,4 @@
+import type { Gender } from '../../types'
 import { useAvatar, type AvatarTarget } from '../../hooks/useAvatar'
 import { focusRing } from '../../utils/styles'
 import { cx } from './cx'
@@ -82,12 +83,12 @@ export function SubjectAvatar({
   animated,
   className,
 }: {
-  subject: { id: number; birthDate: string | null }
+  subject: { id: number; birthDate: string | null; gender?: Gender | null }
   size?: 'sm' | 'md' | 'lg' | 'xl'
   animated?: boolean
   className?: string
 }) {
-  const { avatar } = useAvatar({ type: 'subject', id: subject.id, birthDate: subject.birthDate })
+  const { avatar } = useAvatar({ type: 'subject', id: subject.id, birthDate: subject.birthDate, gender: subject.gender })
   return <LionAvatar avatar={avatar} size={size} animated={animated} className={className} />
 }
 

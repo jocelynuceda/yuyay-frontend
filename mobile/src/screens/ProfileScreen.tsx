@@ -6,7 +6,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { AppearancePicker } from '../components/AppearancePicker';
 import { AvatarPicker } from '../components/AvatarPicker';
 import { FormField } from '../components/FormField';
-import { SubmitButton } from '../components/FormKit';
+import { GenderChips, SubmitButton } from '../components/FormKit';
 import { ProfileCard } from '../components/ProfileCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAvatar } from '../hooks/useAvatar';
@@ -16,7 +16,7 @@ import { useToast } from '../hooks/useToast';
 import { getCareSubjects, getNotifications, updateMe } from '../services/api';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { RootStackParamList, TabNavigatorParamList } from '../types';
+import type { Gender, RootStackParamList, TabNavigatorParamList } from '../types';
 import { formatDate } from '../utils/format';
 
 type Props = BottomTabScreenProps<TabNavigatorParamList, 'Profile'>;
@@ -29,6 +29,7 @@ export function ProfileScreen({ navigation }: Props) {
   // Editar el nombre de la cuenta, como en el perfil de la web
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState('');
+  const [gender, setGender] = useState<Gender | null>(null);
   const [nameError, setNameError] = useState<string | undefined>();
   const [savingName, setSavingName] = useState(false);
   const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -52,11 +53,11 @@ export function ProfileScreen({ navigation }: Props) {
     setSavingName(true);
     setNameError(undefined);
     try {
-      updateUser(await updateMe(name.trim()));
+      updateUser(await updateMe(name.trim(), gender));
       setEditingName(false);
-      toast('Nombre actualizado.');
+      toast('Perfil actualizado.');
     } catch (e) {
-      setNameError(e instanceof ApiError ? (e.fieldErrors.name ?? e.message) : 'No pudimos guardar tu nombre.');
+      setNameError(e instanceof ApiError ? (e.fieldErrors.name ?? e.message) : 'No pudimos guardar tu perfil.');
     } finally {
       setSavingName(false);
     }
@@ -150,7 +151,9 @@ export function ProfileScreen({ navigation }: Props) {
       {editingName ? (
         <View style={styles.nameForm}>
           <FormField label="Nombre" value={name} onChangeText={setName} maxLength={120} autoComplete="name" error={nameError} />
-          <SubmitButton label="Guardar nombre" onPress={saveName} loading={savingName} />
+          <Text style={styles.genderLabel}>Género (opcional)</Text>
+          <GenderChips value={gender} onChange={setGender} />
+          <SubmitButton label="Guardar cambios" onPress={saveName} loading={savingName} />
           <Pressable onPress={() => setEditingName(false)} hitSlop={8} accessibilityRole="button" style={styles.logout}>
             <Text style={[styles.logoutText, { color: colors.muted }]}>Cancelar</Text>
           </Pressable>
@@ -159,6 +162,7 @@ export function ProfileScreen({ navigation }: Props) {
         <Pressable
           onPress={() => {
             setName(user.name);
+            setGender(user.gender ?? null);
             setNameError(undefined);
             setEditingName(true);
           }}
@@ -167,7 +171,7 @@ export function ProfileScreen({ navigation }: Props) {
           style={[styles.logout, styles.editName]}
         >
           <Ionicons name="create-outline" size={20} color={colors.primary} />
-          <Text style={[styles.logoutText, { color: colors.primary }]}>Editar nombre</Text>
+          <Text style={[styles.logoutText, { color: colors.primary }]}>Editar perfil</Text>
         </Pressable>
       )}
 
@@ -248,5 +252,6 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   logout: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   editName: { marginTop: 16 },
   nameForm: { marginTop: 16, gap: 8 },
+  genderLabel: { fontFamily: fonts.medium, fontSize: 14, color: colors.muted, marginTop: 4 },
   logoutText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.danger },
 }));

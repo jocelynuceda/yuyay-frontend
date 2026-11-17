@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Image, type ImageSourcePropType } from 'react-native';
+import type { Gender } from '../types';
 
 export type LionKind = 'adult' | 'cub' | 'elder';
 export type LionVariant = 'lion' | 'lioness';
@@ -48,10 +49,17 @@ export function parseAvatarId(value: string | null | undefined): AvatarChoice | 
   return option ? { kind: option.kind, variant: option.variant } : null;
 }
 
-/** Avatar automático: la edad elige el león y el id alterna león y leona (el backend no guarda el sexo). */
-export const defaultAvatar = (age: number | null, id?: number): AvatarChoice => ({
+/** Leona si es mujer y león si es hombre; sin género (u "otro") se alterna por id, y sin id es león. */
+export function lionVariantFor(gender: Gender | null | undefined, id?: number): LionVariant {
+  if (gender === 'FEMALE') return 'lioness';
+  if (gender === 'MALE') return 'lion';
+  return id !== undefined && id % 2 === 1 ? 'lioness' : 'lion';
+}
+
+/** Avatar automático: la edad elige el tipo de león y el género, león o leona. */
+export const defaultAvatar = (age: number | null, id?: number, gender?: Gender | null): AvatarChoice => ({
   kind: lionForAge(age),
-  variant: id !== undefined && id % 2 === 1 ? 'lioness' : 'lion',
+  variant: lionVariantFor(gender, id),
 });
 
 /**

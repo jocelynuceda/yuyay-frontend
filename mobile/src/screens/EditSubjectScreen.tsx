@@ -1,14 +1,14 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { DateField, datePartsOf, parseDateParts } from '../components/DateField';
-import { DeleteButton, FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
+import { DeleteButton, FormCard, formStyles, GenderChips, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
 import { useToast } from '../hooks/useToast';
 import { deleteCareSubject, updateCareSubject } from '../services/api';
 import { ApiError } from '../services/http';
-import type { HomeStackParamList } from '../types';
+import type { Gender, HomeStackParamList } from '../types';
 import { confirmAction } from '../utils/confirm';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'EditSubject'>;
@@ -21,6 +21,7 @@ export function EditSubjectScreen({ route, navigation }: Props) {
   const initialDate = subject.birthDate ? datePartsOf(subject.birthDate) : undefined;
   const [name, setName] = useState(subject.name);
   const [dateParts, setDateParts] = useState(initialDate ?? { day: '', month: '', year: '' });
+  const [gender, setGender] = useState<Gender | null>(subject.gender ?? null);
   const [notes, setNotes] = useState(subject.notes ?? '');
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ export function EditSubjectScreen({ route, navigation }: Props) {
       await updateCareSubject(subject.id, {
         name: name.trim(),
         birthDate: date.iso || null,
+        gender,
         notes: notes.trim() || null,
       });
       toast('Datos actualizados.');
@@ -97,6 +99,10 @@ export function EditSubjectScreen({ route, navigation }: Props) {
           }}
           error={(submitted ? date.error : undefined) ?? fieldErrors.birthDate}
         />
+      </FormCard>
+
+      <FormCard title="Género (opcional)">
+        <GenderChips value={gender} onChange={setGender} />
       </FormCard>
 
       <FormCard title="Notas (opcional)">

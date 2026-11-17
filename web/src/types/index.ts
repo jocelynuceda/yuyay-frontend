@@ -48,10 +48,14 @@ export interface CareUserSummary extends UserSummary {
 
 // ---- Personas ----
 
+/** Género (opcional). Decide si el avatar automático es león o leona. */
+export type Gender = 'FEMALE' | 'MALE' | 'OTHER' | 'PREFER_NOT_TO_SAY'
+
 export interface CareSubject {
   id: number
   name: string
   birthDate: string | null
+  gender?: Gender | null
   notes: string | null
   createdAt: string
   myRole: CareRole
@@ -60,6 +64,7 @@ export interface CareSubject {
 export interface CareSubjectRequest {
   name: string
   birthDate: string | null
+  gender: Gender | null
   notes: string | null
 }
 
@@ -326,6 +331,7 @@ export interface UserProfile {
   email: string
   name: string
   role: string
+  gender?: Gender | null
   createdAt: string
 }
 

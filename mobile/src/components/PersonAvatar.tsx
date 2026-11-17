@@ -1,4 +1,5 @@
 import { useAvatar } from '../hooks/useAvatar';
+import type { Gender } from '../types';
 import { ageFrom } from '../utils/format';
 import { LionAvatar } from './LionAvatar';
 
@@ -8,11 +9,11 @@ export function SubjectAvatar({
   size,
   animated,
 }: {
-  subject: { id: number; birthDate: string | null };
+  subject: { id: number; birthDate: string | null; gender?: Gender | null };
   size: number;
   animated?: boolean;
 }) {
-  const { avatar } = useAvatar({ type: 'subject', id: subject.id, age: ageFrom(subject.birthDate) });
+  const { avatar } = useAvatar({ type: 'subject', id: subject.id, age: ageFrom(subject.birthDate), gender: subject.gender });
   return <LionAvatar kind={avatar.kind} variant={avatar.variant} size={size} animated={animated} />;
 }
 

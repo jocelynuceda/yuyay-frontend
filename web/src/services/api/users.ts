@@ -1,12 +1,12 @@
 import { api } from '../http'
-import type { DocumentScopeSummary, UserProfile } from '../../types'
+import type { DocumentScopeSummary, Gender, UserProfile } from '../../types'
 
 export async function getMe(signal?: AbortSignal) {
   const { data } = await api.get<UserProfile>('/users/me', { signal })
   return data
 }
 
-export async function updateMe(request: { name: string }) {
+export async function updateMe(request: { name: string; gender: Gender | null }) {
   const { data } = await api.patch<UserProfile>('/users/me', request)
   return data
 }
