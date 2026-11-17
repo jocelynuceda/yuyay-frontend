@@ -1,5 +1,5 @@
 import { useId, type FormEventHandler, type InputHTMLAttributes, type ReactNode } from 'react'
-import type { FieldError } from 'react-hook-form'
+import type { FieldError, UseFormRegisterReturn } from 'react-hook-form'
 import { focusRing } from '../../utils/styles'
 
 // Piezas comunes de los formularios. Si la base agrega Input/Button propios, se reemplazan aquí.
@@ -87,6 +87,30 @@ export function ChoiceOption({ children, ...input }: InputHTMLAttributes<HTMLInp
       <input type="radio" className="accent-primary" {...input} />
       {children}
     </label>
+  )
+}
+
+const genderOptions = [
+  { value: 'FEMALE', label: 'Mujer' },
+  { value: 'MALE', label: 'Hombre' },
+  { value: 'OTHER', label: 'Otro' },
+  { value: 'PREFER_NOT_TO_SAY', label: 'Prefiero no decir' },
+] as const
+
+/** Género opcional como opciones de radio. Elige si el avatar automático es león o leona. */
+export function GenderField({ field, legend = 'Género (opcional)' }: { field: UseFormRegisterReturn; legend?: string }) {
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="text-sm font-semibold">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        {genderOptions.map(({ value, label }) => (
+          <ChoiceOption key={value} value={value} {...field}>
+            {label}
+          </ChoiceOption>
+        ))}
+      </div>
+      <p className="text-sm text-muted">Con mujer el avatar es leona y con hombre, león.</p>
+    </fieldset>
   )
 }
 

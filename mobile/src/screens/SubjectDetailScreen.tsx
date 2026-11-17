@@ -127,7 +127,7 @@ function SubjectProfile({
   // Se traen todos los registros una vez: los contadores y el filtro por categoría se calculan aquí
   const entries = useFetch(() => getHealthEntries(subjectId), [subjectId]);
   const relationships = useFetch(() => getCareRelationships(subjectId), [subjectId]);
-  const avatar = useAvatar({ type: 'subject', id: subjectId, age: ageFrom(subject.data?.birthDate) });
+  const avatar = useAvatar({ type: 'subject', id: subjectId, age: ageFrom(subject.data?.birthDate), gender: subject.data?.gender });
   const [pickingAvatar, setPickingAvatar] = useState(false);
   useRefreshOnFocus(() => {
     entries.reload();

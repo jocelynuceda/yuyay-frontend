@@ -70,3 +70,7 @@ export const optionalDate = ({ past = false, notFuture = false } = {}) =>
 
 export const email = (message = 'Escribe un correo válido.') =>
   z.string().trim().min(1, 'Escribe un correo.').max(150, tooLong(150)).pipe(z.email(message))
+
+/** Género opcional: '' (sin elegir) se envía como null. */
+export const genderValues = ['FEMALE', 'MALE', 'OTHER', 'PREFER_NOT_TO_SAY'] as const
+export const optionalGender = () => z.union([z.enum(genderValues), z.literal('')]).optional().transform((value) => value || null)

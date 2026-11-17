@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react'
+import type { Gender } from '../types'
 import { avatarId, defaultAvatar, parseAvatarId, type AvatarChoice } from '../utils/avatars'
 import { ageFrom } from '../utils/format'
 import { useAuth } from './useAuth'
@@ -54,14 +55,15 @@ function save(key: string, value: string | null) {
   window.dispatchEvent(new Event(CHANGE_EVENT))
 }
 
-export type AvatarTarget = { type: 'me' } | { type: 'subject'; id: number; birthDate?: string | null }
+export type AvatarTarget = { type: 'me' } | { type: 'subject'; id: number; birthDate?: string | null; gender?: Gender | null }
 
 /** Avatar a mostrar (el elegido o el automático) y cómo cambiarlo; `null` vuelve al automático. */
 export function useAvatar(target: AvatarTarget) {
   const { user } = useAuth()
   const key = target.type === 'me' ? `${user?.id ?? 0}:me` : `${user?.id ?? 0}:subject:${target.id}`
   const stored = useSyncExternalStore(subscribe, () => readAll()[key] ?? null, () => null)
-  const automatic = target.type === 'me' ? defaultAvatar(30) : defaultAvatar(ageFrom(target.birthDate), target.id)
+  const automatic =
+    target.type === 'me' ? defaultAvatar(30, undefined, user?.gender) : defaultAvatar(ageFrom(target.birthDate), target.id, target.gender)
   const chosen = parseAvatarId(stored)
   const setAvatar = useCallback((choice: AvatarChoice | null) => save(key, choice ? avatarId(choice) : null), [key])
   return { avatar: chosen ?? automatic, automatic, isCustom: chosen !== null, setAvatar }

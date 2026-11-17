@@ -14,7 +14,7 @@ import type { CareSubject } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
 import { yesterdayIso, MIN_YEAR } from '../../schemas/common'
 import { a11yProps } from './fieldProps'
-import { Field, FormActions, FormShell, ServerError } from './fields'
+import { Field, FormActions, FormShell, GenderField, ServerError } from './fields'
 
 /** Nueva persona (sin `subject`) o editar persona (con `subject`). Pensado para ir dentro de un modal. */
 export function CareSubjectForm({
@@ -74,6 +74,8 @@ export function CareSubjectForm({
       <Field id="subject-birthDate" label="Fecha de nacimiento (opcional)" error={errors.birthDate}>
         <input type="date" min={`${MIN_YEAR}-01-01`} max={yesterdayIso()} {...a11yProps('subject-birthDate', errors.birthDate)} {...register('birthDate')} />
       </Field>
+
+      <GenderField field={register('gender')} />
 
       <Field
         id="subject-notes"

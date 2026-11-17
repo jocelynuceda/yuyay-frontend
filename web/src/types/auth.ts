@@ -1,8 +1,9 @@
-import type { CareUserSummary } from './index'
+import type { CareUserSummary, Gender } from './index'
 import type { RefreshResponse } from '../services/http'
 
 export interface User extends CareUserSummary {
   role: string
+  gender?: Gender | null
   createdAt: string
 }
 

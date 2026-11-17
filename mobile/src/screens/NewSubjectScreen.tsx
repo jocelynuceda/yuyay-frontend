@@ -6,14 +6,15 @@ import { Button } from 'react-native-paper';
 import { DateField, parseDateParts } from '../components/DateField';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
-import { LionAvatar, lionForAge } from '../components/LionAvatar';
+import { GenderChips } from '../components/FormKit';
+import { LionAvatar, lionForAge, lionVariantFor } from '../components/LionAvatar';
 import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
 import { createCareSubject } from '../services/api';
 import { useToast } from '../hooks/useToast';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { HomeStackParamList } from '../types';
+import type { Gender, HomeStackParamList } from '../types';
 import { ageFrom } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewSubject'>;
@@ -26,6 +27,7 @@ export function NewSubjectScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const [name, setName] = useState('');
   const [dateParts, setDateParts] = useState({ day: '', month: '', year: '' });
+  const [gender, setGender] = useState<Gender | null>(null);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -42,7 +44,7 @@ export function NewSubjectScreen({ navigation }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const subject = await createCareSubject({ name: name.trim(), birthDate: date.iso, notes: notes.trim() });
+      const subject = await createCareSubject({ name: name.trim(), birthDate: date.iso, gender, notes: notes.trim() });
       toast(`Se agregó a ${subject.name}.`);
       navigation.replace('SubjectDetail', { subjectId: subject.id, name: subject.name });
     } catch (e) {
@@ -63,7 +65,7 @@ export function NewSubjectScreen({ navigation }: Props) {
       <View style={styles.preview}>
         <View style={styles.previewTile}>
           {name.trim() ? (
-            <LionAvatar kind={lionForAge(age)} size={60} animated />
+            <LionAvatar kind={lionForAge(age)} variant={lionVariantFor(gender)} size={60} animated />
           ) : (
             <Sparkle size={34} color={colors.accent} />
           )}
@@ -97,6 +99,11 @@ export function NewSubjectScreen({ navigation }: Props) {
           }}
           error={(submitted ? date.error : undefined) ?? fieldErrors.birthDate}
         />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Género (opcional)</Text>
+        <GenderChips value={gender} onChange={setGender} />
       </View>
 
       <View style={styles.card}>

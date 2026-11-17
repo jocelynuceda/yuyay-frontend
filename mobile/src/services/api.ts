@@ -3,6 +3,7 @@ import { API_URL, CLIENT_HEADERS, http, session } from './http';
 import { attachmentUploadOptions } from './attachmentUpload';
 import { collectPages, type Page } from './pagination';
 import type {
+  Gender,
   AccessLog,
   Attachment,
   AttachmentAccess,
@@ -52,17 +53,17 @@ export const resetPassword = (email: string, code: string, newPassword: string) 
 export const logout = (refreshToken: string) => http.post('/auth/logout', { refreshToken });
 
 /** Solo cambia el nombre de la cuenta. */
-export const updateMe = (name: string) => http.patch<User>('/users/me', { name }).then((r) => r.data);
+export const updateMe = (name: string, gender: Gender | null) => http.patch<User>('/users/me', { name, gender }).then((r) => r.data);
 
 export const getCareSubjects = () => http.get<CareSubject[]>('/care-subjects').then((r) => r.data);
 
 export const getCareSubject = (id: number) => http.get<CareSubject>(`/care-subjects/${id}`).then((r) => r.data);
 
-export const createCareSubject = (data: { name: string; birthDate?: string; notes?: string }) =>
+export const createCareSubject = (data: { name: string; birthDate?: string; gender: Gender | null; notes?: string }) =>
   http.post<CareSubject>('/care-subjects', clean(data)).then((r) => r.data);
 
 /** PATCH reemplaza los tres datos: lo que llega en null queda vacío. */
-export const updateCareSubject = (id: number, data: { name: string; birthDate: string | null; notes: string | null }) =>
+export const updateCareSubject = (id: number, data: { name: string; birthDate: string | null; gender: Gender | null; notes: string | null }) =>
   http.patch<CareSubject>(`/care-subjects/${id}`, data).then((r) => r.data);
 
 /** El backend solo lo permite al principal y si la persona no tiene registros de salud (409). */

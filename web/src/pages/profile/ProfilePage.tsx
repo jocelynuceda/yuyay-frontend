@@ -16,6 +16,7 @@ import { useLogout } from '../../hooks/useLogout'
 import { useTheme } from '../../hooks/useTheme'
 import { useToast } from '../../hooks/useToast'
 import { profileSchema } from '../../schemas/profile'
+import { GenderField } from '../forms/fields'
 import { getDocumentScopeSummary, getMe, updateMe } from '../../services/api/users'
 import type { UserProfile } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
@@ -89,20 +90,20 @@ function ProfileForm({ profile, onSaved }: { profile: UserProfile; onSaved: (pro
     formState: { errors, isValid, isSubmitting },
   } = useForm({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: profile.name },
+    defaultValues: { name: profile.name, gender: profile.gender ?? ('' as const) },
     mode: 'onChange',
   })
-  const name = useWatch({ control, name: 'name' })
-  const unchanged = name.trim() === profile.name
+  const [name, gender] = useWatch({ control, name: ['name', 'gender'] })
+  const unchanged = name.trim() === profile.name && (gender || null) === (profile.gender ?? null)
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      const updated = await updateMe({ name: values.name })
+      const updated = await updateMe({ name: values.name, gender: values.gender })
       onSaved(updated)
-      reset({ name: updated.name })
+      reset({ name: updated.name, gender: updated.gender ?? '' })
       toast.success('Perfil actualizado.')
     } catch (error) {
-      const message = applyServerErrors(error, setError, ['name'])
+      const message = applyServerErrors(error, setError, ['name', 'gender'])
       if (message) toast.error(message)
     }
   })
@@ -115,6 +116,7 @@ function ProfileForm({ profile, onSaved }: { profile: UserProfile; onSaved: (pro
         error={errors.name?.message}
         {...register('name')}
       />
+      <GenderField field={register('gender')} />
       <div>
         <Button type="submit" loading={isSubmitting} disabled={!isValid || unchanged}>
           Guardar cambios
@@ -134,7 +136,7 @@ export default function ProfilePage() {
 
   function handleSaved(updated: UserProfile) {
     setSaved(updated)
-    updateUser({ name: updated.name })
+    updateUser({ name: updated.name, gender: updated.gender ?? null })
   }
 
   return (

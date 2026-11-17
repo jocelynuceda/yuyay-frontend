@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
+import type { Gender } from '../types';
 
 /** Tarjeta blanca con título, la misma de los formularios de Nueva persona y Nuevo registro. */
 export function FormCard({ title, children }: { title?: string; children: ReactNode }) {
@@ -72,6 +73,20 @@ export function ChoiceChips<T extends string | number>({
         );
       })}
     </View>
+  );
+}
+
+const genderOptions: { value: Gender; label: string }[] = [
+  { value: 'FEMALE', label: 'Mujer' },
+  { value: 'MALE', label: 'Hombre' },
+  { value: 'OTHER', label: 'Otro' },
+  { value: 'PREFER_NOT_TO_SAY', label: 'Prefiero no decir' },
+];
+
+/** Género opcional (se elige uno; tocarlo otra vez lo quita). Con mujer el avatar es leona y con hombre, león. */
+export function GenderChips({ value, onChange }: { value: Gender | null; onChange: (value: Gender | null) => void }) {
+  return (
+    <ChoiceChips options={genderOptions} selected={value ? [value] : []} onToggle={(g) => onChange(g === value ? null : g)} />
   );
 }
 

@@ -10,11 +10,15 @@ export type OcrStatus = 'PENDING' | 'DONE' | 'FAILED';
 export type AccessAction = 'VIEW' | 'CREATE' | 'UPDATE' | 'DELETE' | 'OPEN_HANDOFF_LINK' | 'EXCHANGE_DELEGATION';
 export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION' | 'CAREGIVER_JOINED';
 
+/** Género (opcional). Decide si el avatar automático es león o leona. */
+export type Gender = 'FEMALE' | 'MALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
+
 export interface User {
   id: number;
   email: string;
   name: string;
   role: Role;
+  gender?: Gender | null;
   createdAt: string;
 }
 
@@ -30,6 +34,7 @@ export interface CareSubject {
   id: number;
   name: string;
   birthDate: string | null;
+  gender?: Gender | null;
   notes: string | null;
   createdAt: string;
   myRole: CareRole;
