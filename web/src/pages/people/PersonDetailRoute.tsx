@@ -65,6 +65,16 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
   const caregivers = useFetch((signal) => listCaregivers(subjectId, signal), [subjectId])
   const activeCaregivers = caregivers.data?.filter((r) => r.status === 'ACTIVE') ?? []
 
+  /** Acceso rápido que lleva a una pestaña: se pinta como activo (con transición) mientras esa pestaña está abierta. */
+  function quickLinkProps(tab: typeof activeTab) {
+    const active = activeTab === tab
+    return {
+      to: tabLocation(tab),
+      'aria-current': active ? ('page' as const) : undefined,
+      className: `${active ? linkSecondaryClass.replace('bg-card text-ink', 'bg-primary text-white') : linkSecondaryClass} transition-colors duration-300 ease-out`,
+    }
+  }
+
   function tabLocation(tab: typeof activeTab) {
     const next = new URLSearchParams(searchParams)
     next.set('tab', tab)
@@ -121,7 +131,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
             open={pickingAvatar}
             onClose={() => setPickingAvatar(false)}
             title={`Avatar de ${subject.name}`}
-            target={{ type: 'subject', id: subject.id, birthDate: subject.birthDate }}
+            target={{ type: 'subject', id: subject.id, birthDate: subject.birthDate, gender: subject.gender }}
           />
           {subject.notes ? <p className="mt-2 whitespace-pre-line">{subject.notes}</p> : null}
           {activeCaregivers.length > 0 ? (
@@ -137,11 +147,11 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
           <Link to={`/people/${subjectId}/handoff/new`} className={linkButtonClass}>
             Preparar resumen para el médico
           </Link>
-          <Link to={tabLocation('appointments')} className={linkSecondaryClass}>
+          <Link {...quickLinkProps('appointments')}>
             Consultas
           </Link>
           {isPrincipal ? (
-            <Link to={tabLocation('access')} className={linkSecondaryClass}>
+            <Link {...quickLinkProps('access')}>
               Delegar acceso
             </Link>
           ) : null}
@@ -192,7 +202,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
             key={id}
             to={tabLocation(id)}
             aria-current={activeTab === id ? 'page' : undefined}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold ${focusRing} ${
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors duration-300 ease-out ${focusRing} ${
               activeTab === id ? 'bg-primary text-white' : 'bg-card text-ink'
             }`}
           >
