@@ -10,3 +10,5 @@ export const linkButtonClass = `inline-flex items-center justify-center gap-2 ro
 
 /** Enlace con aspecto de botón secundario. */
 export const linkSecondaryClass = `inline-flex items-center justify-center gap-2 rounded-full bg-card px-6 py-3 font-semibold text-ink shadow-[var(--shadow-soft)] ${focusRing}`
+/** Igual que linkSecondaryClass, pero pintado como activo (por ejemplo, el atajo de la pestaña abierta). */
+export const linkActiveClass = linkSecondaryClass.replace('bg-card', 'bg-primary').replace('text-ink', 'text-white')

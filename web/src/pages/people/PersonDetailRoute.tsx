@@ -11,7 +11,7 @@ import { deleteCareSubject } from '../../services/api/careSubjects'
 import { listCaregivers } from '../../services/api/caregivers'
 import type { CareSubject, CategoryCode, HealthEntry } from '../../types'
 import { ageFrom } from '../../utils/format'
-import { focusRing, linkButtonClass, linkSecondaryClass } from '../../utils/styles'
+import { focusRing, linkActiveClass, linkButtonClass, linkSecondaryClass } from '../../utils/styles'
 import { entriesSearch, parseEntriesParams, parseRouteId } from '../../utils/urlParams'
 import type { EntriesParams } from '../../utils/urlParams'
 import { AccessLogPanel } from '../care/AccessLogPanel'
@@ -71,7 +71,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     return {
       to: tabLocation(tab),
       'aria-current': active ? ('page' as const) : undefined,
-      className: `${active ? linkSecondaryClass.replace('bg-card text-ink', 'bg-primary text-white') : linkSecondaryClass} transition-colors duration-300 ease-out`,
+      className: `${active ? linkActiveClass : linkSecondaryClass} transition-colors duration-300 ease-out`,
     }
   }
 

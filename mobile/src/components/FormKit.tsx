@@ -83,11 +83,13 @@ const genderOptions: { value: Gender; label: string }[] = [
   { value: 'PREFER_NOT_TO_SAY', label: 'Prefiero no decir' },
 ];
 
-/** Género opcional (se elige uno; tocarlo otra vez lo quita). Con mujer el avatar es leona y con hombre, león. */
-export function GenderChips({ value, onChange }: { value: Gender | null; onChange: (value: Gender | null) => void }) {
-  return (
-    <ChoiceChips options={genderOptions} selected={value ? [value] : []} onToggle={(g) => onChange(g === value ? null : g)} />
-  );
+/**
+ * Género opcional: se elige uno y no se puede desmarcar, igual que en la web. El backend no borra el género
+ * cuando llega vacío, así que para dejar de declararlo está "Prefiero no decir".
+ * Con mujer el avatar es leona y con hombre, león.
+ */
+export function GenderChips({ value, onChange }: { value: Gender | null; onChange: (value: Gender) => void }) {
+  return <ChoiceChips options={genderOptions} selected={value ? [value] : []} onToggle={onChange} />;
 }
 
 /** Texto largo con contador de caracteres. */
