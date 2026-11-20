@@ -1,5 +1,5 @@
 import { getRefreshToken, publicApi } from '../http'
-import type { AuthResponse, LoginRequest, RegisterRequest } from '../../types'
+import type { AuthResponse, GoogleAuthRequest, LoginRequest, RegisterRequest } from '../../types'
 
 export async function login(request: LoginRequest): Promise<AuthResponse> {
   const { data } = await publicApi.post<AuthResponse>('/auth/login', request)
@@ -8,6 +8,12 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
 
 export async function register(request: RegisterRequest): Promise<AuthResponse> {
   const { data } = await publicApi.post<AuthResponse>('/auth/register', request)
+  return data
+}
+
+/** El backend verifica el ID token con Google y devuelve una sesión normal de Yuyay. */
+export async function loginWithGoogle(request: GoogleAuthRequest): Promise<AuthResponse> {
+  const { data } = await publicApi.post<AuthResponse>('/auth/google', request)
   return data
 }
 

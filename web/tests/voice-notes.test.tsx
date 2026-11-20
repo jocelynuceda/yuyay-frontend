@@ -158,7 +158,7 @@ function mountPanel(t: TestContext, adapter: AxiosAdapter) {
   const render = (subjectId = 1, isPrincipal = false) => act(async () => root.render(
     <AuthContext.Provider value={{
       user, isAuthenticated: true, isLoading: false, restoreError: null, retryRestore: noop,
-      login: noop, register: noop, logout: noop, updateUser: () => {},
+      login: noop, register: noop, loginWithGoogle: noop, logout: noop, updateUser: () => {},
     }}>
       <ToastContext.Provider value={{ success: (message) => notices.push(message), info: () => {}, error: () => {} }}>
         <VoiceNotesPanel subjectId={subjectId} isPrincipal={isPrincipal} />

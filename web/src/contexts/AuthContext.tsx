@@ -91,6 +91,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback((name: string, email: string, password: string) =>
     authenticate(() => authService.register({ name, email, password })), [authenticate])
 
+  const loginWithGoogle = useCallback((idToken: string, acceptedTermsVersion?: string) =>
+    authenticate(() => authService.loginWithGoogle({ idToken, acceptedTermsVersion })), [authenticate])
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken()
     operation.current += 1
@@ -117,9 +120,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retryRestore,
     login,
     register,
+    loginWithGoogle,
     logout,
     updateUser,
-  }), [user, isLoading, restoreError, retryRestore, login, register, logout, updateUser])
+  }), [user, isLoading, restoreError, retryRestore, login, register, loginWithGoogle, logout, updateUser])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

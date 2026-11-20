@@ -10,6 +10,8 @@ export interface AuthContextValue {
   retryRestore: () => Promise<void>
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
+  /** Sirve para ingresar y para crear la cuenta; el backend decide si la persona ya existe. */
+  loginWithGoogle: (idToken: string, acceptedTermsVersion?: string) => Promise<void>
   logout: () => Promise<void>
   updateUser: (changes: Partial<User>) => void
 }
