@@ -5,6 +5,7 @@ import { Text } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { AuthLayout } from '../components/AuthLayout';
 import { FormField, passwordInputProps } from '../components/FormField';
+import { GoogleSignInSection } from '../components/GoogleSignInSection';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../services/http';
@@ -67,6 +68,7 @@ export function LoginScreen({ navigation }: Props) {
         </>
       }
     >
+      <GoogleSignInSection disabled={loading} />
       <StatusMessage message={error} />
       <FormField
         label="Correo electrónico"
