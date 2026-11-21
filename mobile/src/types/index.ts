@@ -8,7 +8,7 @@ export type ConfidenceLevel = 'CONFIRMED' | 'UNCERTAIN';
 export type ChangeType = 'CREATED' | 'UPDATED' | 'DELETED';
 export type OcrStatus = 'PENDING' | 'DONE' | 'FAILED';
 export type AccessAction = 'VIEW' | 'CREATE' | 'UPDATE' | 'DELETE' | 'OPEN_HANDOFF_LINK' | 'EXCHANGE_DELEGATION';
-export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION' | 'CAREGIVER_JOINED';
+export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION' | 'CAREGIVER_JOINED' | 'APPOINTMENT_REMINDER';
 
 /** Género (opcional). Decide si el avatar automático es león o leona. */
 export type Gender = 'FEMALE' | 'MALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
@@ -60,6 +60,8 @@ export interface InviteCaregiverInput {
 
 export interface HandoffItem {
   healthEntryId: number;
+  healthEntryVersionId: number;
+  changeType: ChangeType;
   categoryCode: string;
   versionNumber: number;
   title: string;
@@ -321,7 +323,7 @@ export type HomeStackParamList = {
   Caregivers: { subjectId: number; isPrincipal: boolean };
   InviteCaregiver: { subjectId: number };
   Handoffs: { subjectId: number; isPrincipal: boolean };
-  NewHandoff: { subjectId: number; isPrincipal: boolean };
+  NewHandoff: { subjectId: number; isPrincipal: boolean; consultationId?: number };
   HandoffView: { handoffId: number; isPrincipal: boolean };
   Delegations: { subjectId: number; isPrincipal: boolean };
   NewDelegation: { subjectId: number };

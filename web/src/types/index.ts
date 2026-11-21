@@ -313,7 +313,7 @@ export interface AccessLog {
 
 export interface Notification {
   id: number
-  type: 'ENTRY_CHANGED' | 'INVITATION' | 'CAREGIVER_JOINED' | (string & {})
+  type: 'ENTRY_CHANGED' | 'INVITATION' | 'CAREGIVER_JOINED' | 'APPOINTMENT_REMINDER' | (string & {})
   title: string
   body: string
   careSubjectId: number | null
