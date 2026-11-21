@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
 import * as api from '../services/api';
 import { NoSessionError, refreshSession, session, setSessionHandlers } from '../services/http';
+import { cancelAllReminders } from '../services/localReminders';
 import type { AuthResponse, User } from '../types';
 import type { TermsAcceptance } from '../types/terms';
 
@@ -86,6 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register: (name, email, password, acceptance) => startSession(() => api.register(name, email, password, acceptance)),
     loginWithGoogle: (idToken, acceptedTermsVersion) => startSession(() => api.loginWithGoogle(idToken, acceptedTermsVersion)),
     logout: async () => {
+      // Los avisos locales de esta cuenta no deben quedar en el celular
+      if (user) void cancelAllReminders(user.id).catch(() => undefined);
       const removal = session.logout();
       const expected = session.generation;
       setUser(null);

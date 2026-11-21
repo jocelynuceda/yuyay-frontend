@@ -7,16 +7,20 @@ import {
   PlusJakartaSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoadingView } from './src/components/LoadingView';
 import { OfflineBanner } from './src/components/OfflineBanner';
+import { ReminderResponseHandler } from './src/components/ReminderResponseHandler';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/contexts/ToastContext';
 import { linking, RootNavigator } from './src/navigation/RootNavigator';
 import { ThemeProvider, useTheme, useThemePreference } from './src/theme';
+import type { RootStackParamList } from './src/types';
+
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 export default function App() {
   return (
@@ -47,9 +51,10 @@ function ThemedApp() {
         {fontsLoaded && ready ? (
           <AuthProvider>
             <ToastProvider>
-              <NavigationContainer theme={theme.navigationTheme} linking={linking}>
+              <NavigationContainer ref={navigationRef} theme={theme.navigationTheme} linking={linking}>
                 <RootNavigator />
               </NavigationContainer>
+              <ReminderResponseHandler navigation={navigationRef} />
             </ToastProvider>
           </AuthProvider>
         ) : (

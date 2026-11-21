@@ -5,15 +5,18 @@ import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
 import { IconButton, ListItem } from '../components/ListItem';
+import { LocalReminderToggle } from '../components/LocalReminderToggle';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
+import { useLocalReminders } from '../hooks/useLocalReminders';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { deleteConsultation, getConsultations } from '../services/api';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { Consultation, HomeStackParamList } from '../types';
 import { appointmentOrder, formatDate, formatTime, todayIso } from '../utils/format';
+import { reminderTriggerDate } from '../utils/localReminders';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Consultations'>;
 
@@ -25,6 +28,8 @@ export function ConsultationsScreen({ route, navigation }: Props) {
   const runAction = useConfirmedAction(setError);
   const consultations = useFetch(() => getConsultations(subjectId), [subjectId]);
   useRefreshOnFocus(consultations.reload);
+  // Avisos locales de este celular: se sincronizan cada vez que llegan las citas
+  const reminders = useLocalReminders(subjectId, consultations.data, { subjectName, isPrincipal });
 
   if (consultations.loading && !consultations.data) return <LoadingView />;
 
@@ -58,7 +63,17 @@ export function ConsultationsScreen({ route, navigation }: Props) {
       onPress={isPrincipal ? () => navigation.navigate('NewConsultation', { subjectId, consultation: c }) : undefined}
       footer={
         upcomingItem ? (
-          <AddToCalendar consultation={c} subjectName={subjectName} />
+          <>
+            <AddToCalendar consultation={c} subjectName={subjectName} />
+            {reminders.available && reminderTriggerDate(c) ? (
+              <LocalReminderToggle
+                active={reminders.active.has(c.id)}
+                busy={reminders.busy === c.id}
+                denied={reminders.denied === c.id}
+                onChange={(value) => void reminders.toggle(c, value)}
+              />
+            ) : null}
+          </>
         ) : (
           <Pressable
             onPress={() =>
