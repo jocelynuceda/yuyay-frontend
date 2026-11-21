@@ -41,6 +41,18 @@ export function GoogleSignIn({
   const [busy, setBusy] = useState(false)
   // Google dibuja el botón con un ancho fijo (de 200 a 400 px): se ajusta al espacio disponible.
   const [width, setWidth] = useState<number | null>(null)
+  const buttonContainer = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const element = buttonContainer.current
+    if (!element) return
+    const measure = () => setWidth(Math.min(400, Math.max(200, Math.floor(element.clientWidth))))
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [clientId])
 
   useEffect(() => {
     mounted.current = true
@@ -85,12 +97,10 @@ export function GoogleSignIn({
   if (!clientId) return null
 
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 gap-4">
       <div
-        ref={(element) => {
-          if (element && width === null) setWidth(Math.min(400, Math.max(200, Math.floor(element.clientWidth))))
-        }}
-        className="flex min-h-11 justify-center"
+        ref={buttonContainer}
+        className="flex min-h-11 min-w-0 justify-center"
         aria-busy={busy}
       >
         {width === null ? null : (
@@ -103,6 +113,9 @@ export function GoogleSignIn({
               shape="pill"
               size="large"
               width={width}
+              // El iframe de Google usa un documento claro incluso con el botón oscuro.
+              // Igualar su color-scheme evita el fondo blanco opaco alrededor del botón.
+              containerProps={{ style: { colorScheme: 'light' } }}
             />
           </GoogleOAuthProvider>
         )}

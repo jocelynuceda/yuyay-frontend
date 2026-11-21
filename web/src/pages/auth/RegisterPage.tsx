@@ -72,7 +72,7 @@ export default function RegisterPage() {
         </>
       }
     >
-      <FormShell title="Crear una cuenta" onSubmit={onSubmit}>
+      <FormShell title="Crear una cuenta" onSubmit={onSubmit} compact>
         <ServerError message={serverError} />
         <GoogleSignIn
           mode="register"
