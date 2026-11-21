@@ -1,3 +1,4 @@
+import { ConsultationSummaryScreen } from './ConsultationSummaryScreen';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
@@ -17,7 +18,13 @@ import { categoryMeta, fallbackCategory } from '../utils/categories';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewHandoff'>;
 
-export function NewHandoffScreen({ route, navigation }: Props) {
+export function NewHandoffScreen(props: Props) {
+  return props.route.params.consultationId
+    ? <ConsultationSummaryScreen {...props} />
+    : <ManualHandoffScreen {...props} />;
+}
+
+function ManualHandoffScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { subjectId, isPrincipal } = route.params;

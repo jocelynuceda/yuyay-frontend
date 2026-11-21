@@ -15,6 +15,7 @@ export interface NotificationLink {
  * Los avisos de invitación solo enlazan a una relación pendiente. La ausencia de esa relación
  * no confirma que el usuario tenga acceso a la persona.
  * Un aviso CAREGIVER_JOINED (un cuidador invitado aceptó) lleva a la pestaña de cuidadores de la persona.
+ * Un recordatorio de cita (APPOINTMENT_REMINDER) lleva a la pestaña de consultas.
  */
 export function getNotificationLink(
   notification: Pick<Notification, 'type' | 'careSubjectId'>,
@@ -27,6 +28,9 @@ export function getNotificationLink(
   if (notification.type === 'INVITATION') return null
   if (notification.type === 'CAREGIVER_JOINED') {
     return { to: `/people/${careSubjectId}?tab=caregivers`, label: 'Ver cuidadores' }
+  }
+  if (notification.type === 'APPOINTMENT_REMINDER') {
+    return { to: `/people/${careSubjectId}?tab=appointments`, label: 'Ver consultas' }
   }
   return { to: `/people/${careSubjectId}`, label: 'Ver persona' }
 }

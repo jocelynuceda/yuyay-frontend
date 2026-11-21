@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
@@ -57,7 +57,8 @@ export function ConsultationsScreen({ route, navigation }: Props) {
       subtitle={[formatDate(c.date), c.time && formatTime(c.time), c.notes].filter(Boolean).join(' · ')}
       onPress={isPrincipal ? () => navigation.navigate('NewConsultation', { subjectId, consultation: c }) : undefined}
       footer={
-        upcomingItem ? (
+        <View>
+        {upcomingItem ? (
           <AddToCalendar consultation={c} subjectName={subjectName} />
         ) : (
           <Pressable
@@ -69,7 +70,15 @@ export function ConsultationsScreen({ route, navigation }: Props) {
           >
             <Text style={styles.changes}>Ver cambios desde esta cita</Text>
           </Pressable>
-        )
+        )}
+        <Pressable
+          onPress={() => navigation.navigate('NewHandoff', { subjectId, isPrincipal, consultationId: c.id })}
+          hitSlop={6}
+          accessibilityRole="button"
+        >
+          <Text style={styles.changes}>Preparar resumen</Text>
+        </Pressable>
+        </View>
       }
       right={
         isPrincipal ? (
