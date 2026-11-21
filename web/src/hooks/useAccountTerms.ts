@@ -4,9 +4,9 @@ import { getTerms } from '../services/api/auth'
 import type { TermsAcceptance } from '../types/auth'
 import { useFetch } from './useFetch'
 
-export function needsTermsReview(error: unknown): boolean {
-  if (!axios.isAxiosError(error) || error.response?.status !== 400) return false
-  const code: unknown = error.response?.data?.code
+export function needsTermsReview(error: unknown, status: 400 | 428 = 400): boolean {
+  if (!axios.isAxiosError(error) || error.response?.status !== status) return false
+  const code: unknown = error.response.data?.code
   return code === 'TERMS_ACCEPTANCE_REQUIRED' || code === 'TERMS_VERSION_OUTDATED'
 }
 

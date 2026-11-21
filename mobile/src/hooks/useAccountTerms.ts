@@ -3,9 +3,9 @@ import { ApiError, getAccountTerms } from '../services/http';
 import type { TermsAcceptance } from '../types/terms';
 import { useFetch } from './useFetch';
 
-export function needsTermsReview(error: unknown): boolean {
+export function needsTermsReview(error: unknown, status: 400 | 428 = 400): boolean {
   return error instanceof ApiError
-    && error.status === 400
+    && error.status === status
     && (error.code === 'TERMS_ACCEPTANCE_REQUIRED' || error.code === 'TERMS_VERSION_OUTDATED');
 }
 

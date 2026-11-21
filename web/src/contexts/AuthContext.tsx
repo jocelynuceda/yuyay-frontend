@@ -93,7 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authenticate(() => authService.register(request)), [authenticate])
 
   const loginWithGoogle = useCallback((idToken: string, acceptance?: TermsAcceptance) =>
-    authenticate(() => authService.loginWithGoogle(acceptance ? { idToken, ...acceptance } : { idToken })), [authenticate])
+    authenticate(() => authService.loginWithGoogle({
+      idToken,
+      acceptedTermsVersion: acceptance?.termsVersion,
+    })), [authenticate])
 
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken()

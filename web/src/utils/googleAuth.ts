@@ -21,7 +21,7 @@ export const GOOGLE_TERMS_REQUIRED =
 
 /** Mensaje claro para cada fallo del ingreso con Google. */
 export function googleErrorMessage(error: unknown): string {
-  if (needsTermsReview(error)) return GOOGLE_TERMS_REQUIRED
+  if (needsTermsReview(error, 428)) return GOOGLE_TERMS_REQUIRED
   if (axios.isAxiosError(error) && error.response) {
     const code: unknown = error.response.data?.code
     if (code === 'GOOGLE_EMAIL_CONFLICT') return getHttpErrorMessage(error)
@@ -66,7 +66,7 @@ export async function completeGoogleSignIn(
       await signIn(credential, acceptance)
       return { status: 'signed-in' }
     } catch (error) {
-      if (!requestTerms || reviews >= 2 || !needsTermsReview(error)) return { status: 'error', message: googleErrorMessage(error) }
+      if (!requestTerms || reviews >= 2 || !needsTermsReview(error, 428)) return { status: 'error', message: googleErrorMessage(error) }
       const accepted = await requestTerms()
       if (!accepted) return { status: 'cancelled' }
       acceptance = accepted

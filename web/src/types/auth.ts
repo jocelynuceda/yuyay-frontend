@@ -26,10 +26,11 @@ export interface RegisterRequest extends LoginRequest, TermsAcceptance {
   name: string
 }
 
-/** Las cuentas ya vinculadas envían solo la credencial de Google. */
-export type GoogleAuthRequest = { idToken: string } & (
-  TermsAcceptance | { termsAccepted?: never; termsVersion?: never }
-)
+export interface GoogleAuthRequest {
+  idToken: string
+  /** Versión aceptada explícitamente para crear una cuenta con Google. */
+  acceptedTermsVersion?: string
+}
 
 export interface AuthResponse extends RefreshResponse {
   user: User
