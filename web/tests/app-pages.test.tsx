@@ -672,6 +672,7 @@ test('Avisos: filtro en la URL, marcar como leído actualiza la lista y el conta
 test('Perfil: consulta el documento vigente de la cuenta sin pedir otra aceptación', async (t) => {
   const { b, unmount } = await mountApp('/profile', { loggedIn: true })
   t.after(unmount)
+  await waitFor(() => !!byText('button', /^Leer los términos/), 'enlace a los términos en el perfil')
   const trigger = byText('button', /^Leer los términos/)
   await click(trigger, 'Leer los términos desde el perfil')
   await waitFor(() => /Versión 1\.0/.test(document.querySelector('dialog[open]')?.textContent ?? ''), 'documento disponible en el perfil')
