@@ -2,6 +2,7 @@ import { createContext, useCallback, useEffect, useState, type ReactNode } from 
 import * as api from '../services/api';
 import { NoSessionError, refreshSession, session, setSessionHandlers } from '../services/http';
 import type { AuthResponse, User } from '../types';
+import type { TermsAcceptance } from '../types/terms';
 
 type AuthStatus = 'loading' | 'authenticated' | 'anonymous' | 'recoverable' | 'logout-failed';
 
@@ -11,7 +12,7 @@ export interface AuthContextValue {
   recoveryError: string | null;
   retrySession: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, acceptance: TermsAcceptance) => Promise<void>;
   logout: () => Promise<void>;
   /** Actualiza el usuario en memoria después de editar el perfil. */
   updateUser: (user: User) => void;
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     updateUser: setUser,
     login: (email, password) => startSession(() => api.login(email, password)),
-    register: (name, email, password) => startSession(() => api.register(name, email, password)),
+    register: (name, email, password, acceptance) => startSession(() => api.register(name, email, password, acceptance)),
     logout: async () => {
       const removal = session.logout();
       const expected = session.generation;

@@ -1,5 +1,6 @@
 import { createContext } from 'react'
 import type { User } from '../types'
+import type { RegisterRequest, TermsAcceptance } from '../types/auth'
 
 export interface AuthContextValue {
   user: User | null
@@ -10,9 +11,9 @@ export interface AuthContextValue {
   retryRestore: () => Promise<void>
   /** true si estableció la sesión; false si otro intento o el logout lo reemplazó. */
   login: (email: string, password: string) => Promise<boolean>
-  register: (name: string, email: string, password: string) => Promise<boolean>
+  register: (request: RegisterRequest) => Promise<boolean>
   /** Sirve para ingresar y para crear la cuenta; el backend decide si la persona ya existe. */
-  loginWithGoogle: (idToken: string, acceptedTermsVersion?: string) => Promise<boolean>
+  loginWithGoogle: (idToken: string, acceptance?: TermsAcceptance) => Promise<boolean>
   logout: () => Promise<void>
   updateUser: (changes: Partial<User>) => void
 }

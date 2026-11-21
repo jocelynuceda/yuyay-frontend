@@ -2,6 +2,10 @@ import { JSDOM } from 'jsdom'
 const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/' })
 Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement })
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
+Object.assign(dom.window.HTMLDialogElement.prototype, {
+  showModal(this: HTMLDialogElement) { this.open = true },
+  close(this: HTMLDialogElement) { this.open = false },
+})
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -49,7 +53,7 @@ async function mount(t: { after: (cleanup: () => Promise<void>) => void }) {
   Object.defineProperty(window, 'google', { configurable: true, value: { accounts: { id: {
     initialize(options: { callback: typeof callback }) { callback = options.callback }, renderButton() {},
   } } } })
-  const events = { navigated: 0, termsOpened: 0, errors: [] as string[] }
+  const events = { navigated: 0, errors: [] as string[] }
   const root = createRoot(document.getElementById('root')!)
   t.after(async () => {
     await act(async () => root.unmount())
@@ -59,8 +63,7 @@ async function mount(t: { after: (cleanup: () => Promise<void>) => void }) {
   })
   await act(async () => root.render(
     <AuthProvider><Probe /><GoogleSignIn mode="login" clientId="synthetic-client"
-      onSignedIn={() => { events.navigated++ }} onError={(message) => { events.errors.push(message) }}
-      requestTerms={async () => { events.termsOpened++; return null }} /></AuthProvider>,
+      onSignedIn={() => { events.navigated++ }} onError={(message) => { events.errors.push(message) }} /></AuthProvider>,
   ))
   const script = document.querySelector('script[src^="https://accounts.google.com/gsi/client"]')
   assert.ok(script)
@@ -78,7 +81,9 @@ for (const obsoleteResponse of ['success', 401, 428] as const) {
       if (obsoleteResponse === 'success') app.requests[0].succeed('obsolete')
       else app.requests[0].fail(obsoleteResponse)
     })
-    assert.deepEqual(app.events, { navigated: 0, termsOpened: 0, errors: [] })
+    assert.deepEqual(app.events, { navigated: 0, errors: [] })
+    assert.equal(document.querySelector('dialog[open]'), null)
+    assert.equal(app.requests.length, 2, 'un 428 obsoleto no inicia la lectura de términos')
     assert.equal(http.getAccessToken(), null)
     assert.equal(app.auth().isAuthenticated, false)
     await act(async () => { app.requests[1].succeed('password'); assert.equal(await password, true) })
@@ -100,7 +105,8 @@ test('Una respuesta Google descartada no oculta el error vigente de contraseña'
     app.requests[1].fail(401)
     await rejected
   })
-  assert.deepEqual(app.events, { navigated: 0, termsOpened: 0, errors: [] })
+  assert.deepEqual(app.events, { navigated: 0, errors: [] })
+  assert.equal(document.querySelector('dialog[open]'), null)
   assert.equal(http.getAccessToken(), null)
 })
 

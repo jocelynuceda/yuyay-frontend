@@ -276,6 +276,7 @@ export interface Notification {
 export interface ApiErrorBody {
   status: number;
   message: string;
+  code?: string;
   fieldErrors?: { field: string; message: string }[] | null;
 }
 

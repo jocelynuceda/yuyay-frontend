@@ -3,6 +3,8 @@ import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AuthShell } from '../../components/layout/AuthShell'
+import { AccountTerms } from '../../components/AccountTerms'
+import { needsTermsReview, useAccountTerms } from '../../hooks/useAccountTerms'
 import { useAuth } from '../../hooks/useAuth'
 import { registerSchema } from '../../schemas/auth'
 import { applyServerErrors } from '../../utils/apiErrors'
@@ -19,6 +21,8 @@ export default function RegisterPage() {
   const location = useLocation()
   const [serverError, setServerError] = useState<string | null>(null)
   const [shown, setShown] = useState(false)
+  const [termsError, setTermsError] = useState<string | null>(null)
+  const terms = useAccountTerms()
   const {
     register,
     handleSubmit,
@@ -36,11 +40,21 @@ export default function RegisterPage() {
 
   const onSubmit = handleSubmit(async ({ name, email, password }) => {
     setServerError(null)
+    setTermsError(null)
+    if (!terms.acceptance) {
+      setTermsError('Lee y acepta los términos de uso y el aviso de privacidad para crear tu cuenta.')
+      return
+    }
     try {
-      if (await submitAuth(name, email, password)) {
+      if (await submitAuth({ name, email, password, ...terms.acceptance })) {
         void navigate(getPostLoginTarget(location.state), { replace: true })
       }
     } catch (error) {
+      if (needsTermsReview(error)) {
+        setTermsError('Revisa el documento vigente y confirma tu aceptación para continuar.')
+        terms.review()
+        return
+      }
       setServerError(applyServerErrors(error, setError, ['name', 'email', 'password']))
     }
   })
@@ -97,6 +111,7 @@ export default function RegisterPage() {
             autoComplete="new-password"
           />
         </Field>
+        <AccountTerms terms={terms} requireAcceptance disabled={isSubmitting} validationError={terms.acceptance ? null : termsError} />
         <FormActions submitting={isSubmitting} submitLabel="Registrarme" submittingLabel="Creando cuenta…" />
       </FormShell>
     </AuthShell>

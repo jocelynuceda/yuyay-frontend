@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import type { AuthResponse } from '../types';
+import type { TermsDocument } from '../types/terms';
 import { ApiError, createApiClient, toApiError } from './client';
 import { CLIENT_HEADER, clientHeaderValue } from '../utils/clientHeader.ts';
 import { createSession, NoSessionError } from './session';
@@ -42,6 +43,12 @@ export const secureStorage = {
 };
 
 const auth = create({ baseURL: `${API_URL}/api/v1/auth`, timeout: 15000, headers: CLIENT_HEADERS });
+
+export function getAccountTerms(): Promise<TermsDocument> {
+  return auth.get<TermsDocument>('/terms').then(({ data }) => data).catch((error: unknown) => {
+    throw toApiError(error);
+  });
+}
 let onSessionExpired = () => {};
 let onRecoveryRequired = (_message: string) => {};
 

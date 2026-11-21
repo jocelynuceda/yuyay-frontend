@@ -12,14 +12,23 @@ export interface LoginRequest {
   password: string
 }
 
-export interface RegisterRequest extends LoginRequest {
+export interface TermsAcceptance {
+  termsAccepted: true
+  termsVersion: string
+}
+
+export interface TermsDocument {
+  version: string
+  text: string
+}
+
+export interface RegisterRequest extends LoginRequest, TermsAcceptance {
   name: string
 }
 
-/** Ingreso o alta con la credencial (ID token) que entrega Google. */
 export interface GoogleAuthRequest {
   idToken: string
-  /** Solo al crear una cuenta nueva: versión de los términos que la persona aceptó. */
+  /** Versión aceptada explícitamente para crear una cuenta con Google. */
   acceptedTermsVersion?: string
 }
 
