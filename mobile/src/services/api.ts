@@ -243,3 +243,12 @@ export async function getAttachmentSource(subjectId: number, attachmentId: numbe
 
 export const retryOcr = (subjectId: number, attachmentId: number) =>
   http.post<Attachment>(`/care-subjects/${subjectId}/attachments/${attachmentId}/ocr-retry`).then((r) => r.data);
+
+export const prepareConsultation = (consultationId: number) =>
+  http.get<import('../types/consultationPreparation').ConsultationPreparation>(
+    `/consultations/${consultationId}/preparation`,
+  ).then((response) => response.data);
+
+export const confirmConsultation = (consultationId: number, body: import('../types/consultationPreparation').ConfirmPreparation) =>
+  http.post<HandoffDetail>(`/consultations/${consultationId}/preparation/confirm`, body)
+    .then((response) => response.data);
