@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test, { type TestContext } from 'node:test'
 import { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { JSDOM } from 'jsdom'
-import { act } from 'react'
+import { act, StrictMode } from 'react'
+import { AuthContext } from '../src/contexts/auth-context'
+import { forgetSummarySession, summarySession } from '../src/utils/summaryAttempts'
 import { api } from '../src/services/http'
 import { ConsultationSummaryPage } from '../src/pages/handoff/ConsultationSummaryPage'
 import { createSummaryReview } from '../src/utils/summaryReview'
@@ -151,7 +153,7 @@ test('pulsar guardar dos veces comparte la escritura y cancelar una carga no gua
 const dom = new JSDOM('<!doctype html><body></body>', { url: 'http://localhost/' })
 Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true })
 const { createRoot } = await import('react-dom/client')
-const { MemoryRouter } = await import('react-router-dom')
+const { MemoryRouter, BrowserRouter, Routes, Route, Link } = await import('react-router-dom')
 const ok = (config: InternalAxiosRequestConfig, data: unknown) => ({ config, data, status: 200, statusText: 'OK', headers: {} })
 async function mount(t: TestContext) {
   const container = document.createElement('div')
@@ -206,4 +208,128 @@ test('la pantalla vuelve a editar tras un 409 y cancelar no guarda', async (t) =
   assert.equal([...container.querySelectorAll('button')].some((b) => b.textContent === 'Validar y guardar'), false)
   await click(container, 'Cancelar')
   assert.equal(posts, 1)
+})
+
+
+async function historyStep(action: () => void) {
+  await act(async () => {
+    const changed = new Promise<void>((resolve) => window.addEventListener('popstate', () => resolve(), { once: true }))
+    action()
+    await changed
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  })
+}
+
+test('POST guardado y respuesta perdida: Atrás, reapertura y enlaces recuperan el resumen original', async (t) => {
+  const previous = api.defaults.adapter
+  t.after(() => { api.defaults.adapter = previous })
+  window.localStorage.clear()
+  window.history.replaceState(null, '', '/appointments')
+  const bodies: ConfirmPreparation[] = []
+  const stored = new Map<string, HandoffDetail>()
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'get') return ok(config, preparation)
+    const body: ConfirmPreparation = JSON.parse(config.data)
+    bodies.push(body)
+    if (!stored.has(body.requestId)) stored.set(body.requestId, saved)
+    if (bodies.length === 1) throw new AxiosError('Respuesta perdida', 'ERR_NETWORK', config)
+    return ok(config, stored.get(body.requestId))
+  }
+  const user = { id: 77, name: 'Ficticio', email: 'ficticio@example.invalid', role: 'USER', createdAt: '' }
+  const container = document.createElement('div')
+  document.body.append(container)
+  const root = createRoot(container)
+  t.after(async () => {
+    await act(async () => root.unmount())
+    forgetSummarySession(summarySession(user.id))
+    window.localStorage.clear()
+    container.remove()
+  })
+  await act(async () => root.render(
+    <StrictMode>
+      <AuthContext.Provider value={{ user, isAuthenticated: true, isLoading: false, restoreError: null,
+        retryRestore: async () => {}, login: async () => true, register: async () => true, logout: async () => {}, loginWithGoogle: async () => true, updateUser: () => {} }}>
+        <BrowserRouter>
+          <Link to="/appointments">Ir a citas</Link>
+          <Routes>
+            <Route path="/appointments" element={<Link to="/summary">Abrir cita</Link>} />
+            <Route path="/summary" element={<ConsultationSummaryPage subjectId={2} consultationId={5} />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthContext.Provider>
+    </StrictMode>,
+  ))
+  const follow = async (text: string) => {
+    const link = [...container.querySelectorAll('a')].find((link) => link.textContent === text)
+    assert.ok(link, text)
+    await act(async () => link.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })))
+  }
+  await follow('Abrir cita')
+  await click(container, 'Revisar resumen')
+  const saveButton = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Validar y guardar')!
+  await act(async () => { saveButton.click(); saveButton.click() })
+  assert.equal(bodies.length, 1)
+  assert.equal(stored.size, 1)
+  const close = new dom.window.Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(close)
+  assert.equal(close.defaultPrevented, true)
+  assert.equal(window.localStorage.getItem('yuyay.summary-history-check-required'), '1')
+  assert.deepEqual(Object.keys(window.localStorage), ['yuyay.summary-history-check-required'])
+  await historyStep(() => window.history.back())
+  assert.equal(window.location.pathname, '/appointments')
+  await follow('Abrir cita')
+  assert.match(container.textContent ?? '', /No sabemos si se guardó/)
+  assert.equal(container.querySelector('textarea'), null)
+  await follow('Ir a citas')
+  await follow('Abrir cita')
+  assert.match(container.textContent ?? '', /No sabemos si se guardó/)
+  await click(container, 'Reintentar el mismo guardado')
+  assert.equal(stored.size, 1)
+  assert.equal(bodies.length, 2)
+  assert.deepEqual(bodies[0], bodies[1])
+  assert.match(container.textContent ?? '', /Resumen guardado|Pregunta guardada/)
+  assert.equal(window.localStorage.getItem('yuyay.summary-history-check-required'), null)
+  const after = new dom.window.Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(after)
+  assert.equal(after.defaultPrevented, false)
+  await follow('Ir a citas')
+  assert.equal(window.location.pathname, '/appointments')
+})
+
+test('tras recarga o reinicio la marca sin datos médicos exige comprobar el historial', async (t) => {
+  const previous = api.defaults.adapter
+  t.after(() => { api.defaults.adapter = previous; window.localStorage.clear() })
+  window.localStorage.setItem('yuyay.summary-history-check-required', '1')
+  let reads = 0
+  api.defaults.adapter = async (config) => { reads++; assert.equal(config.method, 'get'); return ok(config, preparation) }
+  const container = await mount(t)
+  assert.match(container.textContent ?? '', /Tras recargar o cerrar/)
+  assert.equal(reads, 0)
+  assert.equal(container.querySelector('textarea'), null)
+  assert.equal(container.querySelector('a')?.getAttribute('href'), '/people/2?tab=handoffs')
+  assert.equal(window.localStorage.getItem('yuyay.summary-history-check-required'), '1')
+  await click(container, 'Ya comprobé el historial; iniciar una revisión nueva')
+  assert.equal(reads, 1)
+  assert.ok(container.querySelector('textarea'))
+  await click(container, 'Cancelar')
+})
+
+test('perder autorización elimina el contenido revisado y permite salir sin declarar cancelado el POST', async (t) => {
+  const previous = api.defaults.adapter
+  t.after(() => { api.defaults.adapter = previous; window.localStorage.clear() })
+  window.localStorage.clear()
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'get') return ok(config, preparation)
+    throw new AxiosError('Forbidden', '', config, undefined, { ...ok(config, {}), status: 403 })
+  }
+  const container = await mount(t)
+  await click(container, 'Revisar resumen')
+  await click(container, 'Validar y guardar')
+  assert.match(container.textContent ?? '', /No tienes autorización/)
+  assert.doesNotMatch(container.textContent ?? '', /Detalle revisado|Nota revisada|Control ficticio/)
+  assert.equal(window.localStorage.getItem('yuyay.summary-history-check-required'), null)
+  const close = new dom.window.Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(close)
+  assert.equal(close.defaultPrevented, false)
+  await click(container, 'Cancelar')
 })
