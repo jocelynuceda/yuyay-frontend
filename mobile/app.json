@@ -55,7 +55,8 @@
           "microphonePermission": "Yuyay usa el micrófono para grabar notas de voz sobre la persona a tu cuidado."
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

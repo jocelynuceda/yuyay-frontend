@@ -3,7 +3,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +27,7 @@ import {
   getPendingInvitations,
 } from '../services/api';
 import { ApiError } from '../services/http';
+import { dropRemindersWithoutAccess, localRemindersAvailable } from '../services/localReminders';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
 import { appointmentOrder, careRoleLabel, formatTime, todayIso } from '../utils/format';
@@ -72,6 +73,13 @@ export function HomeScreen({ navigation }: Props) {
     () => Promise.all(subjectIds.map((id) => getConsultations(id).catch(() => []))).then((lists) => lists.flat()),
     [subjectIds],
   );
+  // Si la cuenta perdió el acceso a una persona, sus avisos locales se cancelan
+  const userId = user?.id;
+  const loadedSubjectIds = subjects.data ? subjectIds.join(',') : null;
+  useEffect(() => {
+    if (!localRemindersAvailable || userId === undefined || loadedSubjectIds === null) return;
+    void dropRemindersWithoutAccess(userId, loadedSubjectIds ? loadedSubjectIds.split(',').map(Number) : []).catch(() => undefined);
+  }, [userId, loadedSubjectIds]);
   useRefreshOnFocus(() => {
     subjects.reload();
     invitations.reload();
