@@ -28,8 +28,9 @@ export default function LoginPage() {
   const onSubmit = handleSubmit(async ({ email, password }) => {
     setServerError(null)
     try {
-      await submitAuth(email, password)
-      void navigate(getPostLoginTarget(location.state), { replace: true })
+      if (await submitAuth(email, password)) {
+        void navigate(getPostLoginTarget(location.state), { replace: true })
+      }
     } catch (error) {
       setServerError(applyServerErrors(error, setError, ['email', 'password']))
     }

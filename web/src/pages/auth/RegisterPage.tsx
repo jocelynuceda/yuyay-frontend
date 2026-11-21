@@ -37,8 +37,9 @@ export default function RegisterPage() {
   const onSubmit = handleSubmit(async ({ name, email, password }) => {
     setServerError(null)
     try {
-      await submitAuth(name, email, password)
-      void navigate(getPostLoginTarget(location.state), { replace: true })
+      if (await submitAuth(name, email, password)) {
+        void navigate(getPostLoginTarget(location.state), { replace: true })
+      }
     } catch (error) {
       setServerError(applyServerErrors(error, setError, ['name', 'email', 'password']))
     }

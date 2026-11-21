@@ -54,7 +54,7 @@ test('Cada respuesta del backend tiene un mensaje claro', () => {
 
 test('completeGoogleSignIn ingresa, informa errores y reintenta una vez tras aceptar los términos', async () => {
   const calls: (string | undefined)[][] = []
-  const ok = async (idToken: string, version?: string) => { calls.push([idToken, version]) }
+  const ok = async (idToken: string, version?: string) => { calls.push([idToken, version]); return true }
   assert.deepEqual(await completeGoogleSignIn('tok', ok), { status: 'signed-in' })
   assert.deepEqual(calls, [['tok', undefined]])
 
@@ -68,6 +68,7 @@ test('completeGoogleSignIn ingresa, informa errores y reintenta una vez tras ace
   const newAccount = async (_: string, version?: string) => {
     sent.push(version)
     if (!version) throw httpError(428, { currentVersion: '2026-11' })
+    return true
   }
   const asked: (string | null)[] = []
   const accept = async (current: string | null) => { asked.push(current); return current }
@@ -82,6 +83,15 @@ test('completeGoogleSignIn ingresa, informa errores y reintenta una vez tras ace
 
   // Sin modal de términos todavía, se explica por qué no se creó la cuenta
   assert.deepEqual(await completeGoogleSignIn('tok', newAccount), { status: 'error', message: GOOGLE_TERMS_REQUIRED })
+})
+
+test('Una autenticación descartada cancela Google tanto al ingresar como al reintentar con términos', async () => {
+  assert.deepEqual(await completeGoogleSignIn('tok', async () => false), { status: 'cancelled' })
+  const superseded = async (_: string, version?: string) => {
+    if (!version) throw httpError(428, { currentVersion: '1.0' })
+    return false
+  }
+  assert.deepEqual(await completeGoogleSignIn('tok', superseded, async () => '1.0'), { status: 'cancelled' })
 })
 
 let ctx: ReturnType<typeof useAuth>
