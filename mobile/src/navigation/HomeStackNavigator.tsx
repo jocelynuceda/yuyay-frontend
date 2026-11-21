@@ -7,6 +7,7 @@ import { ConsultationsScreen } from '../screens/ConsultationsScreen';
 import { DelegationsScreen } from '../screens/DelegationsScreen';
 import { DocumentsScreen } from '../screens/DocumentsScreen';
 import { EditEntryScreen } from '../screens/EditEntryScreen';
+import { AuthorizationScreen } from '../screens/AuthorizationScreen';
 import { EditSubjectScreen } from '../screens/EditSubjectScreen';
 import { EntryHistoryScreen } from '../screens/EntryHistoryScreen';
 import { HandoffsScreen } from '../screens/HandoffsScreen';
@@ -62,6 +63,11 @@ export function HomeStackNavigator() {
         name="EditSubject"
         component={EditSubjectScreen}
         options={{ title: 'Editar datos', presentation: 'modal' }}
+      />
+      <Stack.Screen
+        name="AuthorizationDeclaration"
+        component={AuthorizationScreen}
+        options={{ title: 'Declaración de autorización', presentation: 'modal' }}
       />
       <Stack.Screen
         name="NewEntry"

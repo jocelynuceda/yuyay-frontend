@@ -20,6 +20,7 @@ import { useAvatar } from '../hooks/useAvatar';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import {
+  getAuthorizationDeclarations,
   getCareRelationships,
   getCareSubject,
   getCareSubjects,
@@ -28,6 +29,7 @@ import {
 } from '../services/api';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
+import { declarationLabel } from '../utils/authorization';
 import { categoryMeta, EXAM_CATEGORY, fallbackCategory } from '../utils/categories';
 import { ageFrom, careRoleLabel, formatDate } from '../utils/format';
 
@@ -127,12 +129,19 @@ function SubjectProfile({
   // Se traen todos los registros una vez: los contadores y el filtro por categoría se calculan aquí
   const entries = useFetch(() => getHealthEntries(subjectId), [subjectId]);
   const relationships = useFetch(() => getCareRelationships(subjectId), [subjectId]);
+  // Solo el cuidador principal puede ver la declaración de autorización
+  const isPrincipalRole = subject.data?.myRole === 'PRINCIPAL';
+  const declarations = useFetch(
+    () => (isPrincipalRole ? getAuthorizationDeclarations(subjectId) : Promise.resolve(null)),
+    [subjectId, isPrincipalRole],
+  );
   const avatar = useAvatar({ type: 'subject', id: subjectId, age: ageFrom(subject.data?.birthDate), gender: subject.data?.gender });
   const [pickingAvatar, setPickingAvatar] = useState(false);
   useRefreshOnFocus(() => {
     entries.reload();
     subject.reload();
     relationships.reload();
+    declarations.reload();
   });
 
   if (subject.loading && !subject.data) return <LoadingView />;
@@ -215,6 +224,27 @@ function SubjectProfile({
             <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.softText} />
             <Text style={styles.notesText}>{s.notes}</Text>
           </View>
+        ) : null}
+        {isPrincipal && declarations.data ? (
+          <Pressable
+            onPress={() =>
+              navigation.navigate('AuthorizationDeclaration', {
+                subjectId,
+                previousDeclarationId: declarations.data?.[0]?.id ?? null,
+              })
+            }
+            style={({ pressed }) => [styles.authorization, pressed && { opacity: 0.6 }]}
+            accessibilityRole="button"
+            accessibilityHint={declarations.data[0] ? 'Cambiar la declaración' : 'Registrar la declaración'}
+          >
+            <Ionicons name="shield-checkmark-outline" size={16} color={colors.softText} />
+            <Text style={styles.authorizationText}>
+              {declarations.data[0]
+                ? `Declaraste «${declarationLabel(declarations.data[0].text)}» el ${formatDate(declarations.data[0].declaredAt)} (no verificada)`
+                : 'Sin declaración de autorización registrada'}
+            </Text>
+            <Text style={styles.editDataText}>{declarations.data[0] ? 'Cambiar' : 'Registrar'}</Text>
+          </Pressable>
         ) : null}
         <Pressable
           onPress={() => navigation.navigate('EditSubject', { subject: s })}
@@ -333,6 +363,8 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   },
   notesText: { flex: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.ink },
   editData: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 12, marginLeft: 6 },
+  authorization: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 12, marginHorizontal: 6 },
+  authorizationText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.softText },
   editDataText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary },
   cta: { marginTop: 14 },
   quick: { gap: 10, paddingTop: 16, paddingBottom: 2 },

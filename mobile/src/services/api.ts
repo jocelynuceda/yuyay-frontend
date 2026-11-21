@@ -8,6 +8,9 @@ import type {
   Attachment,
   AttachmentAccess,
   AuthResponse,
+  CareAuthorizationDeclaration,
+  CareAuthorizationDeclarationRequest,
+  CareAuthorizationPolicy,
   CareRelationship,
   CareSubject,
   Consultation,
@@ -59,8 +62,34 @@ export const getCareSubjects = () => http.get<CareSubject[]>('/care-subjects').t
 
 export const getCareSubject = (id: number) => http.get<CareSubject>(`/care-subjects/${id}`).then((r) => r.data);
 
-export const createCareSubject = (data: { name: string; birthDate?: string; gender: Gender | null; notes?: string }) =>
-  http.post<CareSubject>('/care-subjects', clean(data)).then((r) => r.data);
+/**
+ * Alta con la declaración de autorización. `requestId` se mantiene al reintentar la misma alta,
+ * así el backend devuelve el mismo perfil en vez de duplicarlo.
+ */
+export const createCareSubject = (data: {
+  name: string;
+  birthDate?: string;
+  gender: Gender | null;
+  notes?: string;
+  declaration: CareAuthorizationDeclarationRequest;
+  requestId: string;
+}) => http.post<CareSubject>('/care-subjects', clean(data)).then((r) => r.data);
+
+/** Textos y opciones vigentes de la declaración, con su versión. */
+export const getAuthorizationPolicy = () =>
+  http.get<CareAuthorizationPolicy>('/care-subjects/authorization-policy').then((r) => r.data);
+
+/** Historial de declaraciones, la más reciente primero. Solo el cuidador principal. */
+export const getAuthorizationDeclarations = (subjectId: number) =>
+  http.get<CareAuthorizationDeclaration[]>(`/care-subjects/${subjectId}/authorization-declarations`).then((r) => r.data);
+
+export const declareAuthorization = (
+  subjectId: number,
+  data: CareAuthorizationDeclarationRequest & { previousDeclarationId: number | null },
+) =>
+  http
+    .post<CareAuthorizationDeclaration>(`/care-subjects/${subjectId}/authorization-declarations`, data)
+    .then((r) => r.data);
 
 /** PATCH reemplaza los tres datos: lo que llega en null queda vacío. */
 export const updateCareSubject = (id: number, data: { name: string; birthDate: string | null; gender: Gender | null; notes: string | null }) =>

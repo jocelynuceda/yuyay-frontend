@@ -9,10 +9,20 @@ import {
   emptyCareSubject,
   type CareSubjectFormValues,
 } from '../../schemas/careSubject'
-import { createCareSubject, updateCareSubject } from '../../services/api/careSubjects'
+import { LoadError } from '../../components/layout/LoadError'
+import { useFetch } from '../../hooks/useFetch'
+import { createCareSubject, getAuthorizationPolicy, updateCareSubject } from '../../services/api/careSubjects'
 import type { CareSubject } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
+import {
+  buildDeclaration,
+  createRequestIdTracker,
+  emptyAuthorizationChoice,
+  isConflict,
+  type AuthorizationChoice,
+} from '../../utils/authorization'
 import { yesterdayIso, MIN_YEAR } from '../../schemas/common'
+import { AuthorizationDeclarationField } from './AuthorizationDeclarationField'
 import { a11yProps } from './fieldProps'
 import { Field, FormActions, FormShell, GenderField, ServerError } from './fields'
 
@@ -30,6 +40,12 @@ export function CareSubjectForm({
   onCancel?: () => void
 }) {
   const [serverError, setServerError] = useState<string | null>(null)
+  const creating = !subject
+  // Al crear, la persona declara cómo está autorizada (backend #69). Editar no la vuelve a pedir.
+  const policy = useFetch((signal) => (creating ? getAuthorizationPolicy(signal) : Promise.resolve(null)), [creating])
+  const [choice, setChoice] = useState<AuthorizationChoice>(emptyAuthorizationChoice)
+  const [choiceError, setChoiceError] = useState<string | null>(null)
+  const [requestIdFor] = useState(() => createRequestIdTracker())
   const {
     register,
     handleSubmit,
@@ -49,14 +65,46 @@ export function CareSubjectForm({
     return () => cancelAnimationFrame(frame)
   }, [inModal, setFocus])
 
-  const onSubmit = handleSubmit(async (values) => {
+  const declarationFor = (current: AuthorizationChoice) => {
+    if (!policy.data) {
+      setChoiceError('Todavía se está cargando la declaración. Inténtalo en un momento.')
+      return null
+    }
+    const result = buildDeclaration(policy.data, current)
+    setChoiceError(result.ok ? null : result.error)
+    return result.ok ? result.declaration : null
+  }
+
+  const submit = handleSubmit(async (values) => {
     setServerError(null)
+    if (subject) {
+      try {
+        onSaved(await updateCareSubject(subject.id, values))
+      } catch (error) {
+        setServerError(applyServerErrors(error, setError, careSubjectFields))
+      }
+      return
+    }
+    const declaration = declarationFor(choice)
+    if (!declaration) return
     try {
-      onSaved(subject ? await updateCareSubject(subject.id, values) : await createCareSubject(values))
+      const body = { ...values, declaration }
+      onSaved(await createCareSubject({ ...body, requestId: requestIdFor(body) }))
     } catch (error) {
       setServerError(applyServerErrors(error, setError, careSubjectFields))
+      if (isConflict(error)) {
+        // Puede haber cambiado el texto: se vuelve a cargar y se pide confirmar de nuevo
+        setChoice((current) => ({ ...current, confirmed: false }))
+        policy.reload()
+      }
     }
   })
+
+  const onSubmit: typeof submit = (event) => {
+    // Avisa de la declaración aunque falte otro campo, para corregir todo de una vez
+    if (creating) declarationFor(choice)
+    return submit(event)
+  }
 
   return (
     <FormShell
@@ -85,6 +133,24 @@ export function CareSubjectForm({
       >
         <textarea rows={3} maxLength={500} {...a11yProps('subject-notes', errors.notes, 'hint')} {...register('notes')} />
       </Field>
+
+      {creating ? (
+        policy.error ? (
+          <LoadError message={policy.error} status={policy.errorStatus} onRetry={policy.reload} />
+        ) : policy.data ? (
+          <AuthorizationDeclarationField
+            policy={policy.data}
+            value={choice}
+            onChange={(next) => {
+              setChoice(next)
+              setChoiceError(null)
+            }}
+            error={choiceError}
+          />
+        ) : (
+          <p className="text-sm text-muted">Cargando la declaración de autorización…</p>
+        )
+      ) : null}
 
       <FormActions
         submitting={isSubmitting}

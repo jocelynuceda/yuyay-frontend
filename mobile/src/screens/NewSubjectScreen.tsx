@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { AuthorizationPicker } from '../components/AuthorizationPicker';
 import { DateField, parseDateParts } from '../components/DateField';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
@@ -10,11 +11,18 @@ import { GenderChips } from '../components/FormKit';
 import { LionAvatar, lionForAge, lionVariantFor } from '../components/LionAvatar';
 import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
-import { createCareSubject } from '../services/api';
+import { createCareSubject, getAuthorizationPolicy } from '../services/api';
+import { useFetch } from '../hooks/useFetch';
 import { useToast } from '../hooks/useToast';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { Gender, HomeStackParamList } from '../types';
+import {
+  buildDeclaration,
+  createRequestIdTracker,
+  emptyAuthorizationChoice,
+  type AuthorizationChoice,
+} from '../utils/authorization';
 import { ageFrom } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewSubject'>;
@@ -34,23 +42,38 @@ export function NewSubjectScreen({ navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const [submitted, setSubmitted] = useState(false);
+  // Declaración de autorización (backend #69): el texto y su versión vienen del servidor
+  const policy = useFetch(getAuthorizationPolicy);
+  const [choice, setChoice] = useState<AuthorizationChoice>(emptyAuthorizationChoice);
+  const [choiceError, setChoiceError] = useState<string | null>(null);
+  const [requestIdFor] = useState(() => createRequestIdTracker());
 
   const date = parseDateParts(dateParts, DATE_RULES);
   const age = date.iso ? ageFrom(date.iso) : null;
 
   async function handleSave() {
     setSubmitted(true);
-    if (!name.trim() || date.error) return;
+    const result = policy.data ? buildDeclaration(policy.data, choice) : null;
+    setChoiceError(
+      result ? (result.ok ? null : result.error) : 'Todavía se está cargando la declaración. Inténtalo en un momento.',
+    );
+    if (!name.trim() || date.error || !result?.ok) return;
     setSaving(true);
     setError(null);
     try {
-      const subject = await createCareSubject({ name: name.trim(), birthDate: date.iso, gender, notes: notes.trim() });
+      const body = { name: name.trim(), birthDate: date.iso, gender, notes: notes.trim(), declaration: result.declaration };
+      const subject = await createCareSubject({ ...body, requestId: requestIdFor(body) });
       toast(`Se agregó a ${subject.name}.`);
       navigation.replace('SubjectDetail', { subjectId: subject.id, name: subject.name });
     } catch (e) {
       if (e instanceof ApiError) {
         setError(e.message);
         setFieldErrors(e.fieldErrors);
+        if (e.status === 409) {
+          // Puede haber cambiado el texto: se vuelve a cargar y se pide confirmar de nuevo
+          setChoice((current) => ({ ...current, confirmed: false }));
+          policy.reload();
+        }
       } else {
         setError('No pudimos guardar a la persona.');
       }
@@ -118,6 +141,30 @@ export function NewSubjectScreen({ navigation }: Props) {
           style={styles.notes}
         />
         <Text style={styles.counter}>{notes.length}/500</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>¿Para quién es este perfil?</Text>
+        {policy.data ? (
+          <AuthorizationPicker
+            policy={policy.data}
+            value={choice}
+            onChange={(next) => {
+              setChoice(next);
+              setChoiceError(null);
+            }}
+            error={submitted ? choiceError : null}
+          />
+        ) : policy.error ? (
+          <>
+            <StatusMessage message={policy.error} />
+            <Button mode="text" onPress={policy.reload}>
+              Reintentar
+            </Button>
+          </>
+        ) : (
+          <Text style={styles.counter}>Cargando…</Text>
+        )}
       </View>
 
       <View style={styles.info}>

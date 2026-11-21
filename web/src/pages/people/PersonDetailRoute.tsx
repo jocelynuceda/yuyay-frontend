@@ -26,6 +26,7 @@ import { EntriesPanel } from '../entries/EntriesPanel'
 import { CareSubjectForm } from '../forms/CareSubjectForm'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
 import NotFoundPage from '../NotFoundPage'
+import { AuthorizationStatus } from './AuthorizationStatus'
 import { PersonRouteFrame } from './PersonRouteFrame'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
@@ -142,6 +143,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
                 .join(', ')}
             </p>
           ) : null}
+          {isPrincipal ? <AuthorizationStatus subjectId={subjectId} /> : null}
         </div>
         <nav aria-label="Accesos rápidos" className="flex flex-wrap gap-2">
           <Link to={`/people/${subjectId}/handoff/new`} className={linkButtonClass}>
