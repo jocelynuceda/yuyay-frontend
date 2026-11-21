@@ -3,6 +3,8 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { AccountTerms } from '../components/AccountTerms';
+import { useAccountTerms } from '../hooks/useAccountTerms';
 import { AppearancePicker } from '../components/AppearancePicker';
 import { AvatarPicker } from '../components/AvatarPicker';
 import { FormField } from '../components/FormField';
@@ -25,6 +27,7 @@ export function ProfileScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { user, logout, updateUser } = useAuth();
+  const terms = useAccountTerms();
   const toast = useToast();
   // Editar el nombre de la cuenta, como en el perfil de la web
   const [editingName, setEditingName] = useState(false);
@@ -188,6 +191,7 @@ export function ProfileScreen({ navigation }: Props) {
         <Ionicons name="key-outline" size={20} color={colors.primary} />
         <Text style={[styles.logoutText, { color: colors.primary }]}>Tengo un código de acceso</Text>
       </Pressable>
+      <AccountTerms terms={terms} />
       <Pressable onPress={logout} hitSlop={8} accessibilityRole="button" style={styles.logout}>
         <Ionicons name="log-out-outline" size={20} color={colors.danger} />
         <Text style={styles.logoutText}>Cerrar sesión</Text>

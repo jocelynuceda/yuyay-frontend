@@ -1,5 +1,7 @@
 import axios from 'axios'
+import { needsTermsReview } from '../hooks/useAccountTerms'
 import { getHttpErrorMessage } from '../services/http'
+import type { TermsAcceptance } from '../types/auth'
 
 /**
  * ID de cliente web de Google (no es un secreto). Si falta, el botón de Google no se muestra y el
@@ -17,38 +19,31 @@ export const GOOGLE_UNAVAILABLE = 'El ingreso con Google todavía no está dispo
 export const GOOGLE_TERMS_REQUIRED =
   'Aún no tienes una cuenta en Yuyay. Para crearla con Google debes aceptar los términos y la política de privacidad.'
 
-/** El backend pide aceptar los términos (cuenta nueva). Devuelve la versión vigente si la envía. */
-export function googleTermsRequired(error: unknown): { currentVersion: string | null } | null {
-  if (!axios.isAxiosError(error) || error.response?.status !== 428) return null
-  const version: unknown = error.response.data?.currentVersion
-  return { currentVersion: typeof version === 'string' && version.trim() ? version : null }
-}
-
 /** Mensaje claro para cada fallo del ingreso con Google. */
 export function googleErrorMessage(error: unknown): string {
+  if (needsTermsReview(error)) return GOOGLE_TERMS_REQUIRED
   if (axios.isAxiosError(error) && error.response) {
+    const code: unknown = error.response.data?.code
+    if (code === 'GOOGLE_EMAIL_CONFLICT') return getHttpErrorMessage(error)
     switch (error.response.status) {
-      case 400:
       case 401:
         return GOOGLE_INVALID_TOKEN
       case 404:
       case 405:
       case 501:
+      case 503:
         return GOOGLE_UNAVAILABLE
       case 409:
         return GOOGLE_PASSWORD_ACCOUNT
-      case 428:
-        return GOOGLE_TERMS_REQUIRED
     }
   }
   return getHttpErrorMessage(error)
 }
 
 /**
- * Pide los términos a la persona y devuelve la versión aceptada, o null si cancela.
- * Lo entrega el modal de términos; mientras no exista, el alta con Google muestra el aviso.
+ * Pide los términos a la persona y devuelve la aceptación, o null si cancela.
  */
-export type RequestTermsAcceptance = (currentVersion: string | null) => Promise<string | null>
+export type RequestTermsAcceptance = () => Promise<TermsAcceptance | null>
 
 export type GoogleSignInResult =
   | { status: 'signed-in' }
@@ -56,29 +51,25 @@ export type GoogleSignInResult =
   | { status: 'error'; message: string }
 
 /**
- * Completa el ingreso con la credencial de Google. Si la cuenta es nueva y el backend exige los
- * términos, los pide y reintenta una sola vez con la versión aceptada.
+ * Para una cuenta nueva pide revisar el documento. Una segunda revisión cubre el caso
+ * en que la versión cambie durante el primer intento de aceptación.
  */
 export async function completeGoogleSignIn(
   credential: string | undefined,
-  signIn: (idToken: string, acceptedTermsVersion?: string) => Promise<void>,
+  signIn: (idToken: string, acceptance?: TermsAcceptance) => Promise<void>,
   requestTerms?: RequestTermsAcceptance,
 ): Promise<GoogleSignInResult> {
   if (!credential) return { status: 'error', message: GOOGLE_INVALID_TOKEN }
-  try {
-    await signIn(credential)
-    return { status: 'signed-in' }
-  } catch (error) {
-    const terms = googleTermsRequired(error)
-    if (!terms || !requestTerms) return { status: 'error', message: googleErrorMessage(error) }
-
-    const accepted = await requestTerms(terms.currentVersion)
-    if (!accepted) return { status: 'cancelled' }
+  let acceptance: TermsAcceptance | undefined
+  for (let reviews = 0; ; reviews += 1) {
     try {
-      await signIn(credential, accepted)
+      await signIn(credential, acceptance)
       return { status: 'signed-in' }
-    } catch (retryError) {
-      return { status: 'error', message: googleErrorMessage(retryError) }
+    } catch (error) {
+      if (!requestTerms || reviews >= 2 || !needsTermsReview(error)) return { status: 'error', message: googleErrorMessage(error) }
+      const accepted = await requestTerms()
+      if (!accepted) return { status: 'cancelled' }
+      acceptance = accepted
     }
   }
 }

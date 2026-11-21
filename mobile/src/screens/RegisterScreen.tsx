@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { AuthLayout } from '../components/AuthLayout';
+import { AccountTerms } from '../components/AccountTerms';
 import { FormField, passwordInputProps } from '../components/FormField';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
+import { needsTermsReview, useAccountTerms } from '../hooks/useAccountTerms';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { AuthStackParamList } from '../types';
@@ -28,6 +30,8 @@ export function RegisterScreen({ navigation }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
+  const terms = useAccountTerms();
 
   const checks = passwordChecks(password);
   const passwordOk = checks.every((c) => c.ok);
@@ -41,15 +45,24 @@ export function RegisterScreen({ navigation }: Props) {
       : undefined;
 
   async function handleSubmit() {
+    if (loading) return;
     setSubmitted(true);
     if (!canSubmit) return;
-    setLoading(true);
     setError(null);
+    setTermsError(null);
+    if (!terms.acceptance) {
+      setTermsError('Lee y acepta los términos de uso y el aviso de privacidad para crear tu cuenta.');
+      return;
+    }
+    setLoading(true);
     setFieldErrors({});
     try {
-      await register(name.trim(), email.trim(), password);
+      await register(name.trim(), email.trim(), password, terms.acceptance);
     } catch (e) {
-      if (e instanceof ApiError) {
+      if (needsTermsReview(e)) {
+        setTermsError('Revisa el documento vigente y confirma tu aceptación para continuar.');
+        terms.review();
+      } else if (e instanceof ApiError) {
         setFieldErrors(e.fieldErrors);
         setError(e.status === 409 ? 'Ya existe una cuenta con ese correo.' : e.message);
       } else {
@@ -138,6 +151,7 @@ export function RegisterScreen({ navigation }: Props) {
         error={confirmMessage}
         onSubmitEditing={handleSubmit}
       />
+      <AccountTerms terms={terms} requireAcceptance disabled={loading} validationError={terms.acceptance ? null : termsError} />
       <Button
         mode="contained"
         onPress={handleSubmit}

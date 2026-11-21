@@ -1,5 +1,11 @@
 import { getRefreshToken, publicApi } from '../http'
 import type { AuthResponse, GoogleAuthRequest, LoginRequest, RegisterRequest } from '../../types'
+import type { TermsDocument } from '../../types/auth'
+
+export async function getTerms(signal?: AbortSignal): Promise<TermsDocument> {
+  const { data } = await publicApi.get<TermsDocument>('/auth/terms', { signal })
+  return data
+}
 
 export async function login(request: LoginRequest): Promise<AuthResponse> {
   const { data } = await publicApi.post<AuthResponse>('/auth/login', request)

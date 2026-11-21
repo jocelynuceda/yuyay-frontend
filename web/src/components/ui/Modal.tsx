@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react'
 import { focusRing } from '../../utils/styles'
 import { cx } from './cx'
 import { Icon } from './Icon'
@@ -13,13 +13,14 @@ export interface ModalProps {
   /** Si es false, Escape, el fondo y el botón "Cerrar" no cierran (por ejemplo mientras se guarda). */
   dismissible?: boolean
   className?: string
+  returnFocusRef?: RefObject<HTMLElement | null>
 }
 
 /**
  * Diálogo modal sobre <dialog> nativo: showModal() atrapa el foco, Escape llama a onClose
  * y al cerrar el foco vuelve al elemento que lo tenía antes de abrir.
  */
-export function Modal({ open, onClose, title, children, describedBy, dismissible = true, className }: ModalProps) {
+export function Modal({ open, onClose, title, children, describedBy, dismissible = true, className, returnFocusRef }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
@@ -27,6 +28,7 @@ export function Modal({ open, onClose, title, children, describedBy, dismissible
     const dialog = ref.current
     if (!dialog || !open) return
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const target = returnFocusRef?.current ?? previous
     if (!dialog.open) {
       if (typeof dialog.showModal === 'function') dialog.showModal()
       else dialog.setAttribute('open', '')
@@ -34,9 +36,9 @@ export function Modal({ open, onClose, title, children, describedBy, dismissible
     return () => {
       if (typeof dialog.close === 'function') dialog.close()
       else dialog.removeAttribute('open')
-      previous?.focus()
+      target?.focus()
     }
-  }, [open])
+  }, [open, returnFocusRef])
 
   return (
     <dialog

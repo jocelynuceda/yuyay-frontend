@@ -59,6 +59,21 @@ test('auth requests and 401 responses arriving after logout never invoke refresh
   assert.equal(refreshes, 0);
 });
 
+test('auth errors preserve the code for reviewing an updated terms document', async () => {
+  const http = createApiClient('http://localhost', {
+    generation: 1, accessToken: null, refresh: async () => {},
+  });
+  http.defaults.adapter = async (config) => {
+    throw new AxiosError('El documento cambió', 'ERR_BAD_REQUEST', config, undefined, {
+      status: 400, statusText: 'Bad Request', data: { message: 'Revisa el texto vigente', code: 'TERMS_VERSION_OUTDATED' },
+      headers: {}, config,
+    });
+  };
+  await assert.rejects(http.post('/auth/register'), (error) =>
+    error instanceof ApiError && error.status === 400 && error.code === 'TERMS_VERSION_OUTDATED'
+      && error.message === 'Revisa el texto vigente');
+});
+
 function failure(config: InternalAxiosRequestConfig, status?: number) {
   if (status === undefined) return new AxiosError('Network Error', 'ERR_NETWORK', config);
   return new AxiosError('Error', 'ERR_BAD_RESPONSE', config, undefined,
