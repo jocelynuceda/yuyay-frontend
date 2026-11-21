@@ -44,6 +44,7 @@ export function PeopleGrid({
 }) {
   const { data, error, errorStatus, loading, reload } = useFetch((signal) => listCareSubjects(signal), [])
   const [adding, setAdding] = useState(false)
+  const [creationLocked, setCreationLocked] = useState(false)
   const toast = useToast()
 
   const query = normalize(params.q.trim())
@@ -66,12 +67,18 @@ export function PeopleGrid({
         </button>
       </header>
 
-      <Modal open={adding} onClose={() => setAdding(false)} title="Agregar persona">
+      <Modal open={adding} onClose={() => setAdding(false)} title="Agregar persona" dismissible={!creationLocked}>
         {adding ? (
           <CareSubjectForm
             inModal
-            onCancel={() => setAdding(false)}
+            onCreationLockChange={setCreationLocked}
+            onCancel={() => {
+              if (creationLocked) reload()
+              setCreationLocked(false)
+              setAdding(false)
+            }}
             onSaved={(subject) => {
+              setCreationLocked(false)
               setAdding(false)
               toast.success(`Se agregó a ${subject.name}.`)
               reload()

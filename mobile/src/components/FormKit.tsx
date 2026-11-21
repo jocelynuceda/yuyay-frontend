@@ -50,10 +50,12 @@ export function ChoiceChips<T extends string | number>({
   options,
   selected,
   onToggle,
+  disabled = false,
 }: {
   options: { value: T; label: string }[];
   selected: T[];
   onToggle: (value: T) => void;
+  disabled?: boolean;
 }) {
   const styles = useStyles();
   return (
@@ -64,9 +66,10 @@ export function ChoiceChips<T extends string | number>({
           <Pressable
             key={o.value}
             onPress={() => onToggle(o.value)}
+            disabled={disabled}
             style={[styles.chip, active && styles.chipActive]}
             accessibilityRole="button"
-            accessibilityState={{ selected: active }}
+            accessibilityState={{ selected: active, disabled }}
           >
             <Text style={[styles.chipText, active && styles.chipTextActive]}>{o.label}</Text>
           </Pressable>
@@ -88,8 +91,8 @@ const genderOptions: { value: Gender; label: string }[] = [
  * cuando llega vacío, así que para dejar de declararlo está "Prefiero no decir".
  * Con mujer el avatar es leona y con hombre, león.
  */
-export function GenderChips({ value, onChange }: { value: Gender | null; onChange: (value: Gender) => void }) {
-  return <ChoiceChips options={genderOptions} selected={value ? [value] : []} onToggle={onChange} />;
+export function GenderChips({ value, onChange, disabled }: { value: Gender | null; onChange: (value: Gender) => void; disabled?: boolean }) {
+  return <ChoiceChips options={genderOptions} selected={value ? [value] : []} onToggle={onChange} disabled={disabled} />;
 }
 
 /** Texto largo con contador de caracteres. */

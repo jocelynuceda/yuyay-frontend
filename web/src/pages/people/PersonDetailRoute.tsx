@@ -26,6 +26,7 @@ import { EntriesPanel } from '../entries/EntriesPanel'
 import { CareSubjectForm } from '../forms/CareSubjectForm'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
 import NotFoundPage from '../NotFoundPage'
+import { CareAuthorizationStatus } from './CareAuthorizationStatus'
 import { PersonRouteFrame } from './PersonRouteFrame'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
@@ -165,6 +166,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
           ) : null}
         </nav>
       </header>
+      {isPrincipal && <CareAuthorizationStatus subjectId={subjectId} />}
       <span {...anchorProps} />
 
       <Modal open={editing} onClose={() => setEditing(false)} title="Editar persona">
