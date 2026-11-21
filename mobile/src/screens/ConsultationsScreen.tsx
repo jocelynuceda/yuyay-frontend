@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
@@ -62,29 +62,38 @@ export function ConsultationsScreen({ route, navigation }: Props) {
       subtitle={[formatDate(c.date), c.time && formatTime(c.time), c.notes].filter(Boolean).join(' · ')}
       onPress={isPrincipal ? () => navigation.navigate('NewConsultation', { subjectId, consultation: c }) : undefined}
       footer={
-        upcomingItem ? (
-          <>
-            <AddToCalendar consultation={c} subjectName={subjectName} />
-            {reminders.available && reminderTriggerDate(c) ? (
-              <LocalReminderToggle
-                active={reminders.active.has(c.id)}
-                busy={reminders.busy === c.id}
-                denied={reminders.denied === c.id}
-                onChange={(value) => void reminders.toggle(c, value)}
-              />
-            ) : null}
-          </>
-        ) : (
+        <View>
+          {upcomingItem ? (
+            <>
+              <AddToCalendar consultation={c} subjectName={subjectName} />
+              {reminders.available && reminderTriggerDate(c) ? (
+                <LocalReminderToggle
+                  active={reminders.active.has(c.id)}
+                  busy={reminders.busy === c.id}
+                  denied={reminders.denied === c.id}
+                  onChange={(value) => void reminders.toggle(c, value)}
+                />
+              ) : null}
+            </>
+          ) : (
+            <Pressable
+              onPress={() =>
+                navigation.navigate('ConsultationChanges', { subjectId, consultationId: c.id, since: c.date })
+              }
+              hitSlop={6}
+              accessibilityRole="button"
+            >
+              <Text style={styles.changes}>Ver cambios desde esta cita</Text>
+            </Pressable>
+          )}
           <Pressable
-            onPress={() =>
-              navigation.navigate('ConsultationChanges', { subjectId, consultationId: c.id, since: c.date })
-            }
+            onPress={() => navigation.navigate('NewHandoff', { subjectId, isPrincipal, consultationId: c.id })}
             hitSlop={6}
             accessibilityRole="button"
           >
-            <Text style={styles.changes}>Ver cambios desde esta cita</Text>
+            <Text style={styles.changes}>Preparar resumen</Text>
           </Pressable>
-        )
+        </View>
       }
       right={
         isPrincipal ? (

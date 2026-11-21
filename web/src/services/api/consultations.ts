@@ -1,10 +1,12 @@
 import { api } from '../http'
+import type { ConsultationPreparation, ConfirmPreparation } from '../../types/consultationPreparation'
 import type {
   Consultation,
   ConsultationDetail,
   ConsultationRequest,
   ConsultationUpdate,
   HealthEntryVersion,
+  HandoffDetail,
 } from '../../types'
 
 const base = (careSubjectId: number) => `/care-subjects/${careSubjectId}/consultations`
@@ -35,5 +37,19 @@ export async function listChangesSinceConsultation(careSubjectId: number, sinceC
     params: { sinceConsultationId },
     signal,
   })
+  return data
+}
+
+export async function prepareConsultation(consultationId: number, signal?: AbortSignal) {
+  const { data } = await api.get<ConsultationPreparation>(
+    `/consultations/${consultationId}/preparation`, { signal },
+  )
+  return data
+}
+
+export async function confirmConsultation(consultationId: number, body: ConfirmPreparation) {
+  const { data } = await api.post<HandoffDetail>(
+    `/consultations/${consultationId}/preparation/confirm`, body,
+  )
   return data
 }

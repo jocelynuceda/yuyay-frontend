@@ -79,7 +79,12 @@
     @apply font-display;
   }
 
-  /* Foco movido por código (títulos y contenido al cambiar de página): sin anillo con el mouse */
+  /* El título anuncia la ruta al lector de pantalla; no es un control interactivo. */
+  [data-route-focus-target]:focus {
+    outline: none;
+  }
+
+  /* El salto al contenido conserva su indicador de foco cuando se usa el teclado. */
   [tabindex='-1']:focus:not(:focus-visible) {
     outline: none;
   }

@@ -49,7 +49,7 @@ export default function LoginPage() {
         </>
       }
     >
-      <FormShell title="Iniciar sesión" onSubmit={onSubmit}>
+      <FormShell title="Iniciar sesión" onSubmit={onSubmit} compact>
         <ServerError message={serverError} />
         <GoogleSignIn
           mode="login"

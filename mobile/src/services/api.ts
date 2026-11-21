@@ -1,3 +1,4 @@
+import type { ConsultationPreparation, ConfirmPreparation } from '../types/consultationPreparation';
 import { Platform } from 'react-native';
 import { API_URL, CLIENT_HEADERS, http, session } from './http';
 import { attachmentUploadOptions } from './attachmentUpload';
@@ -243,3 +244,12 @@ export async function getAttachmentSource(subjectId: number, attachmentId: numbe
 
 export const retryOcr = (subjectId: number, attachmentId: number) =>
   http.post<Attachment>(`/care-subjects/${subjectId}/attachments/${attachmentId}/ocr-retry`).then((r) => r.data);
+
+export const prepareConsultation = (consultationId: number) =>
+  http.get<ConsultationPreparation>(
+    `/consultations/${consultationId}/preparation`,
+  ).then((response) => response.data);
+
+export const confirmConsultation = (consultationId: number, body: ConfirmPreparation) =>
+  http.post<HandoffDetail>(`/consultations/${consultationId}/preparation/confirm`, body)
+    .then((response) => response.data);
