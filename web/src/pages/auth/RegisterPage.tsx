@@ -46,8 +46,9 @@ export default function RegisterPage() {
       return
     }
     try {
-      await submitAuth({ name, email, password, ...terms.acceptance })
-      void navigate(getPostLoginTarget(location.state), { replace: true })
+      if (await submitAuth({ name, email, password, ...terms.acceptance })) {
+        void navigate(getPostLoginTarget(location.state), { replace: true })
+      }
     } catch (error) {
       if (needsTermsReview(error)) {
         setTermsError('Revisa el documento vigente y confirma tu aceptación para continuar.')

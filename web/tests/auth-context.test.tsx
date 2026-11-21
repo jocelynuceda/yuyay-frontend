@@ -143,7 +143,7 @@ test('D. Login: isLoading no se activa mientras se envía y un error llega al fo
   const { b, root } = await mount(() => {})
   t.after(async () => { await act(async () => root.unmount()) })
   b.state.loginOk = false
-  let pending!: Promise<void>
+  let pending!: Promise<boolean>
   await act(async () => { pending = ctx.login('a@b.c', 'x'); void pending.catch(() => {}); await wait(2) })
   assert.equal(ctx.isLoading, false, 'isLoading se activó durante el envío del login')
   await act(async () => { await assert.rejects(pending) })

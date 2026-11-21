@@ -9,10 +9,11 @@ export interface AuthContextValue {
   isLoading: boolean
   restoreError: string | null
   retryRestore: () => Promise<void>
-  login: (email: string, password: string) => Promise<void>
-  register: (request: RegisterRequest) => Promise<void>
+  /** true si estableció la sesión; false si otro intento o el logout lo reemplazó. */
+  login: (email: string, password: string) => Promise<boolean>
+  register: (request: RegisterRequest) => Promise<boolean>
   /** Sirve para ingresar y para crear la cuenta; el backend decide si la persona ya existe. */
-  loginWithGoogle: (idToken: string, acceptance?: TermsAcceptance) => Promise<void>
+  loginWithGoogle: (idToken: string, acceptance?: TermsAcceptance) => Promise<boolean>
   logout: () => Promise<void>
   updateUser: (changes: Partial<User>) => void
 }

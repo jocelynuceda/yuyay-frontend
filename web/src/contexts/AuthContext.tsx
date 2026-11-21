@@ -78,12 +78,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authenticate = useCallback(async (request: () => Promise<AuthResponse>) => {
     const currentOperation = ++operation.current
     setIsLoading(false)
-    // Un login obsoleto no debe guardar tokens; los errores le llegan al formulario.
-    const data = await request()
-    if (!mounted.current || operation.current !== currentOperation) return
+    const isCurrent = () => mounted.current && operation.current === currentOperation
+    let data: AuthResponse
+    try {
+      data = await request()
+    } catch (error) {
+      if (!isCurrent()) return false
+      throw error
+    }
+    if (!isCurrent()) return false
     setTokens(data)
     setUser(data.user)
     setRestoreError(null)
+    return true
   }, [])
 
   const login = useCallback((email: string, password: string) =>

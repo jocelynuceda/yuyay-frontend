@@ -56,15 +56,14 @@ export type GoogleSignInResult =
  */
 export async function completeGoogleSignIn(
   credential: string | undefined,
-  signIn: (idToken: string, acceptance?: TermsAcceptance) => Promise<void>,
+  signIn: (idToken: string, acceptance?: TermsAcceptance) => Promise<boolean>,
   requestTerms?: RequestTermsAcceptance,
 ): Promise<GoogleSignInResult> {
   if (!credential) return { status: 'error', message: GOOGLE_INVALID_TOKEN }
   let acceptance: TermsAcceptance | undefined
   for (let reviews = 0; ; reviews += 1) {
     try {
-      await signIn(credential, acceptance)
-      return { status: 'signed-in' }
+      return { status: await signIn(credential, acceptance) ? 'signed-in' : 'cancelled' }
     } catch (error) {
       if (!requestTerms || reviews >= 2 || !needsTermsReview(error, 428)) return { status: 'error', message: googleErrorMessage(error) }
       const accepted = await requestTerms()
