@@ -5,7 +5,8 @@ type SubjectRef = { id: number; name: string; myRole: CareRole };
 export type NotificationTarget =
   | { screen: 'Home' }
   | { screen: 'SubjectDetail'; params: { subjectId: number; name: string } }
-  | { screen: 'Caregivers'; params: { subjectId: number; isPrincipal: boolean } };
+  | { screen: 'Caregivers'; params: { subjectId: number; isPrincipal: boolean } }
+  | { screen: 'Consultations'; params: { subjectId: number; subjectName: string; isPrincipal: boolean } };
 
 /**
  * A dónde lleva un aviso al tocarlo; las mismas reglas que la web (notificationLink.ts).
@@ -25,6 +26,12 @@ export function notificationTarget(
   if (!subject) return null;
   if (notification.type === 'CAREGIVER_JOINED') {
     return { screen: 'Caregivers', params: { subjectId: subject.id, isPrincipal: subject.myRole === 'PRINCIPAL' } };
+  }
+  if (notification.type === 'APPOINTMENT_REMINDER') {
+    return {
+      screen: 'Consultations',
+      params: { subjectId: subject.id, subjectName: subject.name, isPrincipal: subject.myRole === 'PRINCIPAL' },
+    };
   }
   return { screen: 'SubjectDetail', params: { subjectId: subject.id, name: subject.name } };
 }
