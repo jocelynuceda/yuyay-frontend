@@ -19,7 +19,7 @@ interface Dependencies {
   errorMessage: (error: unknown) => string
 }
 
-/** Conserva el cuerpo de una escritura incierta. SÃ³lo una revisiÃ³n nueva crea otra clave. */
+/** Conserva el cuerpo de una escritura incierta. Sólo una revisión nueva crea otra clave. */
 export function createSummaryReview(deps: Dependencies) {
   let state: SummaryReviewState = {
     phase: 'loading', preparation: null, selected: [], reason: '', questions: '', message: null, saved: null,
@@ -44,7 +44,7 @@ export function createSummaryReview(deps: Dependencies) {
         phase: 'editing', preparation,
         selected: conflict ? state.selected.filter((id) => ids.includes(id)) : ids,
         reason: conflict ? state.reason : preparation.reason,
-        message: conflict ? 'La informaciÃ³n cambiÃ³. Revisa los registros actualizados antes de validar y guardar.' : null,
+        message: conflict ? 'La información cambió. Revisa los registros actualizados antes de validar y guardar.' : null,
       })
     } catch (error) {
       if (current !== generation) return
@@ -66,11 +66,11 @@ export function createSummaryReview(deps: Dependencies) {
   function review() {
     if (state.phase !== 'editing' || !state.preparation) return
     if (!state.reason.trim() || state.reason.length > 10000 || state.questions.length > 10000) {
-      update({ message: 'Escribe el motivo y usa como mÃ¡ximo 10000 caracteres en cada campo.' })
+      update({ message: 'Escribe el motivo y usa como máximo 10000 caracteres en cada campo.' })
       return
     }
     if (state.selected.length > 500) {
-      update({ message: 'Selecciona como mÃ¡ximo 500 registros.' })
+      update({ message: 'Selecciona como máximo 500 registros.' })
       return
     }
     update({ phase: 'review', message: null })
@@ -108,7 +108,7 @@ export function createSummaryReview(deps: Dependencies) {
         pending = null
         update({ phase: 'editing', message: deps.errorMessage(error) })
       } else {
-        update({ phase: 'uncertain', message: 'No sabemos si se guardÃ³. Reintenta para recuperar el mismo resumen. ' + deps.errorMessage(error) })
+        update({ phase: 'uncertain', message: 'No sabemos si se guardó. Reintenta para recuperar el mismo resumen. ' + deps.errorMessage(error) })
       }
     }
   }
