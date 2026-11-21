@@ -371,4 +371,4 @@ export interface AttachmentAccess {
   expiresAt: string
 }
 
-export type { User, LoginRequest, RegisterRequest, AuthResponse } from './auth'
+export type { User, LoginRequest, RegisterRequest, GoogleAuthRequest, AuthResponse } from './auth'

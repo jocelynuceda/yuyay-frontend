@@ -10,6 +10,7 @@ import { linkClass } from '../../utils/styles'
 import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
+import { GoogleSignIn } from './GoogleSignIn'
 import { PasswordChecklist, PasswordInput } from './PasswordFields'
 
 export default function RegisterPage() {
@@ -36,8 +37,9 @@ export default function RegisterPage() {
   const onSubmit = handleSubmit(async ({ name, email, password }) => {
     setServerError(null)
     try {
-      await submitAuth(name, email, password)
-      void navigate(getPostLoginTarget(location.state), { replace: true })
+      if (await submitAuth(name, email, password)) {
+        void navigate(getPostLoginTarget(location.state), { replace: true })
+      }
     } catch (error) {
       setServerError(applyServerErrors(error, setError, ['name', 'email', 'password']))
     }
@@ -58,6 +60,12 @@ export default function RegisterPage() {
     >
       <FormShell title="Crear una cuenta" onSubmit={onSubmit}>
         <ServerError message={serverError} />
+        <GoogleSignIn
+          mode="register"
+          onStart={() => setServerError(null)}
+          onSignedIn={() => void navigate(getPostLoginTarget(location.state), { replace: true })}
+          onError={setServerError}
+        />
         <Field id="auth-name" label="Nombre" error={errors.name}>
           <input {...register('name')} {...a11yProps('auth-name', errors.name)} autoComplete="name" />
         </Field>

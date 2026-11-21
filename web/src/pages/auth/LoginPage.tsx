@@ -10,6 +10,7 @@ import { linkClass } from '../../utils/styles'
 import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
+import { GoogleSignIn } from './GoogleSignIn'
 import { PasswordInput } from './PasswordFields'
 
 export default function LoginPage() {
@@ -27,8 +28,9 @@ export default function LoginPage() {
   const onSubmit = handleSubmit(async ({ email, password }) => {
     setServerError(null)
     try {
-      await submitAuth(email, password)
-      void navigate(getPostLoginTarget(location.state), { replace: true })
+      if (await submitAuth(email, password)) {
+        void navigate(getPostLoginTarget(location.state), { replace: true })
+      }
     } catch (error) {
       setServerError(applyServerErrors(error, setError, ['email', 'password']))
     }
@@ -49,6 +51,12 @@ export default function LoginPage() {
     >
       <FormShell title="Iniciar sesión" onSubmit={onSubmit}>
         <ServerError message={serverError} />
+        <GoogleSignIn
+          mode="login"
+          onStart={() => setServerError(null)}
+          onSignedIn={() => void navigate(getPostLoginTarget(location.state), { replace: true })}
+          onError={setServerError}
+        />
         <Field id="auth-email" label="Correo electrónico" error={errors.email}>
           <input {...register('email')} {...a11yProps('auth-email', errors.email)} type="email" autoComplete="email" />
         </Field>
