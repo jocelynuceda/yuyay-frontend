@@ -1,16 +1,19 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
 import { SubmitButton } from '../components/FormKit';
 import { IconButton, ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
+import { ReminderToggle } from '../components/ReminderToggle';
 import { StatusMessage } from '../components/StatusMessage';
+import { useAuth } from '../hooks/useAuth';
 import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { deleteConsultation, getConsultations } from '../services/api';
+import { disableReminder, reconcileReminders } from '../services/reminders';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { Consultation, HomeStackParamList } from '../types';
 import { appointmentOrder, formatDate, formatTime, todayIso } from '../utils/format';
@@ -25,6 +28,15 @@ export function ConsultationsScreen({ route, navigation }: Props) {
   const runAction = useConfirmedAction(setError);
   const consultations = useFetch(() => getConsultations(subjectId), [subjectId]);
   useRefreshOnFocus(consultations.reload);
+  const { user } = useAuth();
+  const userId = user?.id;
+
+  // Cada lectura del servidor pone al día los avisos de este celular (citas editadas o borradas en otro cliente)
+  useEffect(() => {
+    if (userId !== undefined && consultations.data) {
+      void reconcileReminders(userId, new Map([[subjectId, consultations.data]]));
+    }
+  }, [userId, subjectId, consultations.data]);
 
   if (consultations.loading && !consultations.data) return <LoadingView />;
 
@@ -41,7 +53,10 @@ export function ConsultationsScreen({ route, navigation }: Props) {
   const handleDelete = (c: Consultation) =>
     runAction({
       confirm: ['Borrar cita', `"${c.reason}" del ${formatDate(c.date)}.`, 'Borrar'],
-      action: () => deleteConsultation(c.id),
+      action: async () => {
+        await deleteConsultation(c.id);
+        if (userId !== undefined) await disableReminder(userId, c.id).catch(() => undefined);
+      },
       success: 'Cita borrada.',
       fallback: 'No pudimos borrar la cita.',
       onDone: consultations.reload,
@@ -59,7 +74,10 @@ export function ConsultationsScreen({ route, navigation }: Props) {
       footer={
         <View>
         {upcomingItem ? (
-          <AddToCalendar consultation={c} subjectName={subjectName} />
+          <>
+            <AddToCalendar consultation={c} subjectName={subjectName} />
+            <ReminderToggle consultation={c} />
+          </>
         ) : (
           <Pressable
             onPress={() =>

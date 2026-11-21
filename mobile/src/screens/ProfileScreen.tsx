@@ -7,6 +7,7 @@ import { AccountTerms } from '../components/AccountTerms';
 import { useAccountTerms } from '../hooks/useAccountTerms';
 import { AppearancePicker } from '../components/AppearancePicker';
 import { AvatarPicker } from '../components/AvatarPicker';
+import { BiometricToggle } from '../components/BiometricToggle';
 import { FormField } from '../components/FormField';
 import { GenderChips, SubmitButton } from '../components/FormKit';
 import { ProfileCard } from '../components/ProfileCard';
@@ -182,6 +183,7 @@ export function ProfileScreen({ navigation }: Props) {
       <AppearancePicker />
 
       <Text style={styles.groupLabel}>Cuenta</Text>
+      <BiometricToggle />
       <Pressable
         onPress={() => rootNavigation.navigate('Delegate')}
         hitSlop={8}
