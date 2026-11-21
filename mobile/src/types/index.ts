@@ -60,6 +60,8 @@ export interface InviteCaregiverInput {
 
 export interface HandoffItem {
   healthEntryId: number;
+  healthEntryVersionId: number;
+  changeType: ChangeType;
   categoryCode: string;
   versionNumber: number;
   title: string;
@@ -321,7 +323,7 @@ export type HomeStackParamList = {
   Caregivers: { subjectId: number; isPrincipal: boolean };
   InviteCaregiver: { subjectId: number };
   Handoffs: { subjectId: number; isPrincipal: boolean };
-  NewHandoff: { subjectId: number; isPrincipal: boolean };
+  NewHandoff: { subjectId: number; isPrincipal: boolean; consultationId?: number };
   HandoffView: { handoffId: number; isPrincipal: boolean };
   Delegations: { subjectId: number; isPrincipal: boolean };
   NewDelegation: { subjectId: number };

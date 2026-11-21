@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { LoadError } from '../../components/layout/LoadError'
 import { useFetch } from '../../hooks/useFetch'
 import { deleteConsultation, listChangesSinceConsultation, listConsultations } from '../../services/api/consultations'
@@ -77,6 +78,10 @@ export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { su
           {c.date === todayIso() ? ' · Hoy' : ''}
         </p>
         <p className="font-semibold">{c.reason}</p>
+        <Link to={`/people/${subjectId}/consultations/${c.id}/summary`}
+          className={`mt-2 inline-block rounded-sm text-sm font-semibold text-primary underline ${focusRing}`}>
+          Preparar resumen
+        </Link>
         {c.notes ? <p className="mt-1 whitespace-pre-line text-sm text-muted">{c.notes}</p> : null}
         {!isUpcoming && shownFrom?.id !== c.id ? (
           <button

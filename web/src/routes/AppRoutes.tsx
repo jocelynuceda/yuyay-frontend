@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { forgetSummarySession, summarySession } from '../utils/summaryAttempts'
 import NotFoundPage from '../pages/NotFoundPage'
 import { getPostLoginTarget } from '../utils/redirect'
 import PrivateRoute from './PrivateRoute'
@@ -18,6 +19,7 @@ const PeopleRoute = lazy(() => import('../pages/people/PeopleRoute'))
 const PersonDetailRoute = lazy(() => import('../pages/people/PersonDetailRoute'))
 const EntryDetailRoute = lazy(() => import('../pages/entries/EntryDetailRoute'))
 const DocumentReviewRoute = lazy(() => import('../pages/documents/DocumentReviewRoute'))
+const ConsultationSummaryRoute = lazy(() => import('../pages/handoff/ConsultationSummaryPage'))
 const NewHandoffRoute = lazy(() => import('../pages/handoff/NewHandoffRoute'))
 const DelegateAccessPage = lazy(() => import('../pages/public/DelegateAccessPage')
   .then(({ DelegateAccessPage }) => ({ default: DelegateAccessPage })))
@@ -50,6 +52,13 @@ function LegacyRedirect({ to }: { to: string }) {
 }
 
 export default function AppRoutes() {
+  const { user } = useAuth()
+  const previousUser = useRef(user?.id)
+  useEffect(() => {
+    if (previousUser.current !== undefined && previousUser.current !== user?.id) forgetSummarySession(summarySession(previousUser.current))
+    previousUser.current = user?.id
+  }, [user])
+
   return (
     <Suspense fallback={<RouteLoading />}>
       <Routes>
@@ -71,6 +80,7 @@ export default function AppRoutes() {
               <Route path="/people/:id" element={<PersonDetailRoute />} />
               <Route path="/people/:id/entries/:entryId" element={<EntryDetailRoute />} />
               <Route path="/people/:id/documents/:attachmentId" element={<DocumentReviewRoute />} />
+              <Route path="/people/:id/consultations/:consultationId/summary" element={<ConsultationSummaryRoute />} />
               <Route path="/people/:id/handoff/new" element={<NewHandoffRoute />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
