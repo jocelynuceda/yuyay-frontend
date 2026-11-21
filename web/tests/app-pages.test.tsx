@@ -700,6 +700,7 @@ test('getNotificationLink: el aviso de invitación solo enlaza si queda pendient
   assert.deepEqual(getNotificationLink({ type: 'CAREGIVER_JOINED', careSubjectId: 2 }, ready), { to: '/people/2?tab=caregivers', label: 'Ver cuidadores' })
   assert.deepEqual(getNotificationLink({ type: 'CAREGIVER_JOINED', careSubjectId: 2 }, { status: 'error', bySubject: new Map() }), { to: '/people/2?tab=caregivers', label: 'Ver cuidadores' }, 'no depende de la lista de pendientes')
   assert.deepEqual(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: 1 }, ready), { to: '/people/1', label: 'Ver persona' })
+  assert.deepEqual(getNotificationLink({ type: 'APPOINTMENT_REMINDER', careSubjectId: 1 }, ready), { to: '/people/1?tab=appointments', label: 'Ver consultas' })
   assert.equal(getNotificationLink({ type: 'ENTRY_CHANGED', careSubjectId: null }, ready), null)
   for (const status of ['loading', 'error'] as const) {
     const unknown = { status, bySubject: new Map<number, number>() }
