@@ -34,6 +34,7 @@ export function createSummaryReview(deps: Dependencies) {
   }
 
   async function load(conflict = preserveDraft) {
+    if (pending || state.phase === 'saved') return
     const current = ++generation
     update({ phase: 'loading' })
     try {

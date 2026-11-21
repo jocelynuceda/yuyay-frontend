@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { forgetSummarySession, summarySession } from '../utils/summaryAttempts'
 import NotFoundPage from '../pages/NotFoundPage'
 import { getPostLoginTarget } from '../utils/redirect'
 import PrivateRoute from './PrivateRoute'
@@ -51,6 +52,13 @@ function LegacyRedirect({ to }: { to: string }) {
 }
 
 export default function AppRoutes() {
+  const { user } = useAuth()
+  const previousUser = useRef(user?.id)
+  useEffect(() => {
+    if (previousUser.current !== undefined && previousUser.current !== user?.id) forgetSummarySession(summarySession(previousUser.current))
+    previousUser.current = user?.id
+  }, [user])
+
   return (
     <Suspense fallback={<RouteLoading />}>
       <Routes>

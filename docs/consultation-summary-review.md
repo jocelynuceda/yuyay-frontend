@@ -26,11 +26,21 @@ La creación manual conserva su endpoint anterior.
 que siguen existiendo y exige otra revisión antes de usar la nueva versión.
 
 Red, timeout y respuestas inciertas bloquean las modificaciones del intento.
-Reintentar envía exactamente el mismo cuerpo y requestId. El estado de la
-operación se mantiene en memoria mientras se conserve la pantalla. No se
-persisten datos clínicos en el almacenamiento del dispositivo o del navegador.
-Cerrar la app o recargar el navegador pierde ese estado; al volver se debe
-consultar el historial de resúmenes antes de iniciar otra confirmación.
+Reintentar envía exactamente el mismo cuerpo y requestId. En web, el intento permanece en memoria de la sesión autenticada, asociado a
+persona y cita. Atrás y los enlaces pueden salir de la vista; al volver, el mismo
+modelo recupera el POST pendiente o su resultado. No se vuelve a preparar ni se
+genera otra clave. La cuenta cambia de ámbito al cerrar sesión, eliminando los
+datos privados anteriores. En móvil se mantiene la protección de navegación existente.
+
+Antes de enviar se escribe únicamente una marca genérica con valor 1 en
+localStorage (yuyay.summary-history-check-required). No contiene identidad,
+cita, requestId, token, selección ni texto médico. Esta marca sobrevive a recargas,
+cierres de pestaña y reinicios del navegador para advertir que debe comprobarse
+el historial antes de iniciar una revisión nueva. No permite recuperar el cuerpo
+original tras perder la memoria del documento. Si el almacenamiento está
+bloqueado, se exige esa comprobación de forma conservadora. El navegador recibe
+un aviso beforeunload mientras exista un guardado pendiente; puede ignorarlo
+según sus políticas, por lo que la marca y el aviso posterior son necesarios.
 
 Después del guardado se muestra la respuesta HandoffDetail completa.
 Web ofrece volver al historial y generar un enlace mediante el formulario
@@ -76,3 +86,17 @@ Esa pérdida se simula; las peticiones y la persistencia del servidor son reales
 Se conserva React Navigation en el móvil existente. No se añaden dependencias
 nativas ni se migra el sistema de rutas. El requestId usa UUID v4, con crypto
 cuando está disponible y generación aleatoria local en el runtime nativo.
+
+
+## Coordinación del PR #62
+
+Revisión del 21-nov-2026: #62 continúa abierto, head 1265b51.
+No se integra anticipadamente su rama. Sigue pendiente resolver al fusionarlo
+en main la zona footer de mobile/src/screens/ConsultationsScreen.tsx.
+Debe conservar tanto Preparar resumen como LocalReminderToggle y sus imports.
+El PR #64 sigue dependiendo del contrato de backend #80, todavía abierto.
+
+Las nuevas regresiones web usan BrowserRouter, historia de JSDOM y StrictMode.
+Cubren respuesta perdida tras un guardado, Atrás, enlaces internos, reapertura,
+reintento con clave y cuerpo idénticos, doble clic, recuperación del resultado,
+marca de reinicio, cancelación, 409 y pérdida de autorización.

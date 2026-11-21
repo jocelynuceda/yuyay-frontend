@@ -1,6 +1,8 @@
 import axios from 'axios'
-import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AuthContext } from '../../contexts/auth-context'
+import { acquireSummaryAttempt, releaseSummaryAttempt, summarySession, requiresSummaryHistoryCheck, acknowledgeSummaryHistory } from '../../utils/summaryAttempts'
 import { Button } from '../../components/ui/Button'
 import { prepareConsultation, confirmConsultation } from '../../services/api/consultations'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -26,7 +28,12 @@ export default function ConsultationSummaryRoute() {
 
 export function ConsultationSummaryPage({ subjectId, consultationId }: { subjectId: number; consultationId: number }) {
   const navigate = useNavigate()
-  const model = useMemo(() => createSummaryReview({
+  const user = useContext(AuthContext)?.user
+  const [standaloneSession] = useState(() => ({}))
+  const session = user ? summarySession(user.id) : standaloneSession
+  const key = `${subjectId}/${consultationId}`
+  const [historyRequired, setHistoryRequired] = useState(requiresSummaryHistoryCheck)
+  const model = useMemo(() => acquireSummaryAttempt(session, key, () => createSummaryReview({
     prepare: async () => {
       const data = await prepareConsultation(consultationId)
       if (data.careSubjectId !== subjectId) throw new Error('La cita no pertenece a esta persona.')
@@ -44,14 +51,36 @@ export function ConsultationSummaryPage({ subjectId, consultationId }: { subject
       }
       return getErrorMessage(error)
     },
-  }), [subjectId, consultationId])
+  })), [session, key, subjectId, consultationId])
   const state = useSyncExternalStore(model.subscribe, model.getSnapshot)
   useEffect(() => {
-    void model.load()
-    return model.dispose
-  }, [model])
+    acquireSummaryAttempt(session, key, () => model)
+    if (!historyRequired && model.getSnapshot().phase === 'loading') void model.load()
+    const warnOnClose = (event: BeforeUnloadEvent) => {
+      const phase = model.getSnapshot().phase
+      if (phase === 'saving' || phase === 'uncertain') {
+        event.preventDefault()
+        event.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', warnOnClose)
+    return () => {
+      window.removeEventListener('beforeunload', warnOnClose)
+      releaseSummaryAttempt(session, key, model)
+    }
+  }, [model, session, key, historyRequired])
 
   const returnTo = `/people/${subjectId}?tab=appointments`
+  if (historyRequired) {
+    return (
+      <section className="grid gap-4 rounded-3xl bg-card p-6">
+        <h1 className="text-2xl font-semibold">Comprueba los resúmenes guardados</h1>
+        <p role="alert">Una confirmación anterior puede haberse guardado. Tras recargar o cerrar la página no podemos recuperar su solicitud con seguridad. Comprueba el historial antes de iniciar otro resumen.</p>
+        <Link to={`/people/${subjectId}?tab=handoffs`} className="text-primary underline">Consultar el historial</Link>
+        <Button onClick={() => { acknowledgeSummaryHistory(); setHistoryRequired(false) }}>Ya comprobé el historial; iniciar una revisión nueva</Button>
+      </section>
+    )
+  }
   if (state.phase === 'saved' && state.saved) {
     return (
       <section className="grid gap-5">
@@ -70,6 +99,7 @@ export function ConsultationSummaryPage({ subjectId, consultationId }: { subject
   return (
     <section className="grid gap-5 rounded-3xl bg-card p-5 sm:p-8">
       <h1 className="text-2xl font-semibold">Preparar resumen de la cita</h1>
+      {(state.phase === 'saving' || uncertain) && <p role="status">El guardado puede haberse realizado. Si sales con Atrás o un enlace, al volver recuperarás este mismo intento. Evita recargar o cerrar la página y usa el reintento para comprobar el resultado.</p>}
       {state.message && <p role="alert" className="rounded-xl bg-danger-bg p-4 text-danger">{state.message}</p>}
       {state.phase === 'loading' && <p role="status">Cargando propuesta…</p>}
       {state.preparation && (
