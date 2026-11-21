@@ -37,3 +37,17 @@ export async function listChangesSinceConsultation(careSubjectId: number, sinceC
   })
   return data
 }
+
+export async function prepareConsultation(consultationId: number, signal?: AbortSignal) {
+  const { data } = await api.get<import('../../types/consultationPreparation').ConsultationPreparation>(
+    `/consultations/${consultationId}/preparation`, { signal },
+  )
+  return data
+}
+
+export async function confirmConsultation(consultationId: number, body: import('../../types/consultationPreparation').ConfirmPreparation) {
+  const { data } = await api.post<import('../../types').HandoffDetail>(
+    `/consultations/${consultationId}/preparation/confirm`, body,
+  )
+  return data
+}
