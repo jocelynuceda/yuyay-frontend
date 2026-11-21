@@ -5,11 +5,13 @@ import { CLIENT_HEADER } from '../utils/clientHeader.ts';
 export class ApiError extends Error {
   status: number;
   fieldErrors: Record<string, string>;
+  code?: string;
 
-  constructor(status: number, message: string, fieldErrors: Record<string, string> = {}) {
+  constructor(status: number, message: string, fieldErrors: Record<string, string> = {}, code?: string) {
     super(message);
     this.status = status;
     this.fieldErrors = fieldErrors;
+    this.code = code;
   }
 }
 
@@ -22,9 +24,9 @@ export function toApiError(error: unknown): ApiError {
   }
   const { status, data } = error.response as { status: number; data?: ApiErrorBody };
   const fieldErrors = Object.fromEntries((data?.fieldErrors ?? []).map((f) => [f.field, f.message]));
-  if (status >= 500) return new ApiError(status, 'El servidor tuvo un problema. Inténtalo de nuevo.');
-  if (status === 403) return new ApiError(status, 'No tienes permiso para hacer esto.');
-  return new ApiError(status, data?.message || 'Algo salió mal. Inténtalo de nuevo.', fieldErrors);
+  if (status >= 500) return new ApiError(status, 'El servidor tuvo un problema. Inténtalo de nuevo.', {}, data?.code);
+  if (status === 403) return new ApiError(status, 'No tienes permiso para hacer esto.', {}, data?.code);
+  return new ApiError(status, data?.message || 'Algo salió mal. Inténtalo de nuevo.', fieldErrors, data?.code);
 }
 
 /** Códigos que indican un fallo pasajero del servidor o de un proxy. */

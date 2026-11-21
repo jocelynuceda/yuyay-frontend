@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import { API_URL, CLIENT_HEADERS, http, session } from './http';
 import { attachmentUploadOptions } from './attachmentUpload';
 import { collectPages, type Page } from './pagination';
+import type { TermsAcceptance } from '../types/terms';
 import type {
   Gender,
   AccessLog,
@@ -43,8 +44,8 @@ const MAX_PAGE_SIZE = 100;
 export const login = (email: string, password: string) =>
   http.post<AuthResponse>('/auth/login', { email, password }).then((r) => r.data);
 
-export const register = (name: string, email: string, password: string) =>
-  http.post<AuthResponse>('/auth/register', { name, email, password }).then((r) => r.data);
+export const register = (name: string, email: string, password: string, acceptance: TermsAcceptance) =>
+  http.post<AuthResponse>('/auth/register', { name, email, password, ...acceptance }).then((r) => r.data);
 
 export const forgotPassword = (email: string) => http.post('/auth/forgot-password', { email });
 

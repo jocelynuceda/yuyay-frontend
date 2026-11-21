@@ -59,6 +59,26 @@ test('auth requests and 401 responses arriving after logout never invoke refresh
   assert.equal(refreshes, 0);
 });
 
+test('email and Google errors preserve the code for reviewing an updated terms document', async () => {
+  const http = createApiClient('http://localhost', {
+    generation: 1, accessToken: null, refresh: async () => {},
+  });
+  http.defaults.adapter = async (config) => {
+    const status = config.url === '/auth/google' ? 428 : 400;
+    throw new AxiosError('El documento cambió', 'ERR_BAD_REQUEST', config, undefined, {
+      status,
+      statusText: status === 428 ? 'Precondition Required' : 'Bad Request',
+      data: { message: 'Revisa el texto vigente', code: 'TERMS_VERSION_OUTDATED', currentVersion: '1.0' },
+      headers: {}, config,
+    });
+  };
+  for (const [path, status] of [['/auth/register', 400], ['/auth/google', 428]] as const) {
+    await assert.rejects(http.post(path), (error) =>
+      error instanceof ApiError && error.status === status && error.code === 'TERMS_VERSION_OUTDATED'
+        && error.message === 'Revisa el texto vigente');
+  }
+});
+
 function failure(config: InternalAxiosRequestConfig, status?: number) {
   if (status === undefined) return new AxiosError('Network Error', 'ERR_NETWORK', config);
   return new AxiosError('Error', 'ERR_BAD_RESPONSE', config, undefined,

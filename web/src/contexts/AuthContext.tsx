@@ -10,6 +10,7 @@ import {
   setTokens,
 } from '../services/http'
 import type { AuthResponse, User } from '../types'
+import type { RegisterRequest, TermsAcceptance } from '../types/auth'
 import { AuthContext } from './auth-context'
 import type { AuthContextValue } from './auth-context'
 
@@ -77,19 +78,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authenticate = useCallback(async (request: () => Promise<AuthResponse>) => {
     const currentOperation = ++operation.current
     setIsLoading(false)
-    // Un login obsoleto no debe guardar tokens; los errores le llegan al formulario.
-    const data = await request()
-    if (!mounted.current || operation.current !== currentOperation) return
+    const isCurrent = () => mounted.current && operation.current === currentOperation
+    let data: AuthResponse
+    try {
+      data = await request()
+    } catch (error) {
+      if (!isCurrent()) return false
+      throw error
+    }
+    if (!isCurrent()) return false
     setTokens(data)
     setUser(data.user)
     setRestoreError(null)
+    return true
   }, [])
 
   const login = useCallback((email: string, password: string) =>
     authenticate(() => authService.login({ email, password })), [authenticate])
 
-  const register = useCallback((name: string, email: string, password: string) =>
-    authenticate(() => authService.register({ name, email, password })), [authenticate])
+  const register = useCallback((request: RegisterRequest) =>
+    authenticate(() => authService.register(request)), [authenticate])
+
+  const loginWithGoogle = useCallback((idToken: string, acceptance?: TermsAcceptance) =>
+    authenticate(() => authService.loginWithGoogle({
+      idToken,
+      acceptedTermsVersion: acceptance?.termsVersion,
+    })), [authenticate])
 
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken()
@@ -117,9 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retryRestore,
     login,
     register,
+    loginWithGoogle,
     logout,
     updateUser,
-  }), [user, isLoading, restoreError, retryRestore, login, register, logout, updateUser])
+  }), [user, isLoading, restoreError, retryRestore, login, register, loginWithGoogle, logout, updateUser])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -59,6 +59,8 @@ function backend() {
     ],
     consultationUpdates: [] as Record<string, unknown>[],
     registers: [] as Record<string, unknown>[],
+    termsVersion: '1.0',
+    nextTermsVersion: null as string | null,
     resets: [] as Record<string, unknown>[],
     uploads: [] as { form: unknown; timeout: unknown }[],
     createdEntries: [] as Record<string, unknown>[],
@@ -114,8 +116,20 @@ function backend() {
     await new Promise((r) => setTimeout(r, 1))
     if (url === '/auth/login' || url === '/auth/refresh') return ok(config, auth())
     if (url === '/auth/logout') return ok(config, '', 204)
+    if (url === '/auth/terms') return ok(config, {
+      version: db.termsVersion,
+      text: `TÉRMINOS DE USO Y AVISO DE PRIVACIDAD DE YUYAY\nVersión ${db.termsVersion}\n\nDocumento de prueba.`,
+    })
     if (url === '/auth/register') {
       db.registers.push(body)
+      if (db.nextTermsVersion) {
+        db.termsVersion = db.nextTermsVersion
+        db.nextTermsVersion = null
+      }
+      if (body.termsVersion !== db.termsVersion) {
+        const error = fail(config, 400)
+        throw Object.assign(error, { response: { ...error.response, data: { code: 'TERMS_VERSION_OUTDATED' } } })
+      }
       return ok(config, auth(), 201)
     }
     if (url === '/auth/forgot-password') return ok(config, '', 204)
@@ -486,7 +500,7 @@ test('Enlace antiguo /invitaciones/:id redirige a /invitations/:id', async (t) =
 
 const inputById = (id: string) => document.getElementById(id) as HTMLInputElement
 
-test('Registro: pide confirmar la contraseña, muestra requisitos y no envía la confirmación', async (t) => {
+test('Registro: conserva el formulario al leer términos y exige aceptar la versión antes de enviarlo', async (t) => {
   const { b, unmount } = await mountApp('/register', { loggedIn: false })
   t.after(unmount)
   await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
@@ -506,8 +520,57 @@ test('Registro: pide confirmar la contraseña, muestra requisitos y no envía la
 
   await type(inputById('auth-confirm'), 'Clave123')
   await click(byText('button', 'Registrarme'), 'Registrarme')
+  await waitFor(() => /Lee y acepta los términos/.test(text()), 'error de aceptación')
+  assert.equal(b.db.registers.length, 0)
+
+  const trigger = byText('button', /^Leer los términos/)
+  await click(trigger, 'Leer los términos')
+  await waitFor(() => !!byText('dialog[open] div[tabindex="0"]', /Documento de prueba/), 'texto del documento')
+  assert.match(document.querySelector('dialog[open]')?.className ?? '', /bg-white.*text-black/)
+  await act(async () => {
+    document.querySelector<HTMLButtonElement>('dialog[open] button[aria-label="Cerrar"]')?.focus()
+    document.querySelector('dialog[open]')?.dispatchEvent(new window.Event('cancel', { cancelable: true }))
+  })
+  assert.equal(document.querySelector('dialog[open]'), null)
+  assert.equal(document.activeElement, trigger)
+  assert.equal(inputById('auth-name').value, 'Ana')
+  assert.equal(inputById('auth-confirm').value, 'Clave123')
+  assert.equal(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked, false)
+  assert.equal(b.db.registers.length, 0)
+  await click(document.querySelector('input[type="checkbox"]'), 'Aceptar términos')
+  await click(byText('button', 'Registrarme'), 'Registrarme')
   await waitFor(() => b.db.registers.length === 1, 'registro enviado')
-  assert.deepEqual(b.db.registers[0], { name: 'Ana', email: 'ana@example.test', password: 'Clave123' })
+  assert.deepEqual(b.db.registers[0], {
+    name: 'Ana', email: 'ana@example.test', password: 'Clave123', termsAccepted: true, termsVersion: '1.0',
+  })
+})
+
+test('Registro: una versión vencida abre el texto vigente y vuelve a pedir aceptación', async (t) => {
+  const { b, unmount } = await mountApp('/register', { loggedIn: false, seed: (db) => { db.nextTermsVersion = '2.0' } })
+  t.after(unmount)
+  await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
+  await type(inputById('auth-name'), 'Ana')
+  await type(inputById('auth-email'), 'ana@example.test')
+  await type(inputById('auth-password'), 'Clave123')
+  await type(inputById('auth-confirm'), 'Clave123')
+  const trigger = byText('button', /^Leer los términos/)
+  await click(trigger, 'Leer los términos')
+  await waitFor(() => /Versión 1\.0/.test(text()), 'primera versión')
+  await click(document.querySelector('dialog[open] button[aria-label="Cerrar"]'), 'Cerrar documento')
+  await click(document.querySelector('input[type="checkbox"]'), 'Aceptar términos')
+  await click(byText('button', 'Registrarme'), 'Registrarme')
+  await waitFor(() => /Versión 2\.0/.test(document.querySelector('dialog[open]')?.textContent ?? ''), 'modal con versión vigente')
+  assert.equal(document.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked, false)
+  await click(document.querySelector('dialog[open] button[aria-label="Cerrar"]'), 'Cerrar documento actualizado')
+  assert.equal(document.activeElement, trigger)
+  assert.equal(inputById('auth-name').value, 'Ana')
+  assert.equal(inputById('auth-password').value, 'Clave123')
+  await click(byText('button', 'Registrarme'), 'Registrarme sin confirmar')
+  assert.equal(b.db.registers.length, 1)
+  await click(document.querySelector('input[type="checkbox"]'), 'Aceptar versión 2.0')
+  await click(byText('button', 'Registrarme'), 'Registrarme con nueva versión')
+  await waitFor(() => b.db.registers.length === 2, 'segundo intento enviado')
+  assert.equal(b.db.registers[1].termsVersion, '2.0')
 })
 
 test('Recuperar contraseña: desde el login pide el código, cambia la contraseña y entra', async (t) => {
@@ -604,6 +667,17 @@ test('Avisos: filtro en la URL, marcar como leído actualiza la lista y el conta
   await waitFor(() => b.calls.some((c) => /^PATCH \/notifications\/\d+\/read$/.test(c)), 'PATCH de leído')
   await waitFor(() => !!document.querySelector('a[href="/notifications"][aria-label*="2"]'), 'contador baja a 2')
   await waitFor(() => /marcado como leído/.test(text()), 'toast de confirmación')
+})
+
+test('Perfil: consulta el documento vigente de la cuenta sin pedir otra aceptación', async (t) => {
+  const { b, unmount } = await mountApp('/profile', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => !!byText('button', /^Leer los términos/), 'enlace a los términos en el perfil')
+  const trigger = byText('button', /^Leer los términos/)
+  await click(trigger, 'Leer los términos desde el perfil')
+  await waitFor(() => /Versión 1\.0/.test(document.querySelector('dialog[open]')?.textContent ?? ''), 'documento disponible en el perfil')
+  assert.equal(document.querySelector('input[type="checkbox"]'), null)
+  assert.equal(b.db.registers.length, 0)
 })
 
 test('Perfil: editar el nombre lo guarda y actualiza el header', async (t) => {

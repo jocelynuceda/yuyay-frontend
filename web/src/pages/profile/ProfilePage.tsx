@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { LoadError } from '../../components/layout/LoadError'
+import { AccountTerms } from '../../components/AccountTerms'
 import { AvatarPicker, MyAvatar } from '../../components/ui/AvatarPicker'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -11,6 +12,7 @@ import { Input } from '../../components/ui/Input'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../hooks/useAuth'
+import { useAccountTerms } from '../../hooks/useAccountTerms'
 import { useFetch } from '../../hooks/useFetch'
 import { useLogout } from '../../hooks/useLogout'
 import { useTheme } from '../../hooks/useTheme'
@@ -128,6 +130,7 @@ function ProfileForm({ profile, onSaved }: { profile: UserProfile; onSaved: (pro
 
 export default function ProfilePage() {
   const { updateUser } = useAuth()
+  const terms = useAccountTerms()
   const logout = useLogout()
   const { data, error, loading, reload } = useFetch((signal) => getMe(signal), [])
   const [saved, setSaved] = useState<UserProfile | null>(null)
@@ -196,6 +199,9 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+      <div className="max-w-2xl">
+        <AccountTerms terms={terms} />
+      </div>
     </main>
   )
 }
