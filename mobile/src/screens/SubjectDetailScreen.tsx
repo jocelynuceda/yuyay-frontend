@@ -14,6 +14,7 @@ import {
 import { HealthEntryCard } from '../components/HealthEntryCard';
 import { LoadingView } from '../components/LoadingView';
 import { AvatarPicker } from '../components/AvatarPicker';
+import { CareAuthorizationStatus } from '../components/CareAuthorizationStatus';
 import { PillAction, ProfileCard } from '../components/ProfileCard';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAvatar } from '../hooks/useAvatar';
@@ -99,7 +100,7 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
           <View key={p.id} style={{ width, height: pageHeight }}>
             {/* Solo se cargan el perfil visible y sus vecinos */}
             {Math.abs(i - visibleIndex) <= 1 ? (
-              <SubjectProfile subjectId={p.id} navigation={navigation} onSwipeLock={setSwipeLocked} />
+              <SubjectProfile subjectId={p.id} navigation={navigation} active={p.id === visibleId} onSwipeLock={setSwipeLocked} />
             ) : null}
           </View>
         ))}
@@ -111,10 +112,12 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
 function SubjectProfile({
   subjectId,
   navigation,
+  active = true,
   onSwipeLock,
 }: {
   subjectId: number;
   navigation: Props['navigation'];
+  active?: boolean;
   onSwipeLock?: (locked: boolean) => void;
 }) {
   const styles = useStyles();
@@ -233,6 +236,7 @@ function SubjectProfile({
           />
         </View>
       </ProfileCard>
+      {isPrincipal && active && <CareAuthorizationStatus subjectId={subjectId} />}
 
       <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quick}>
         {quickActions.map((a) => (

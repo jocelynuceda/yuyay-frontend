@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { usePreventRemove } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { Button } from 'react-native-paper';
+import { CareAuthorizationFields } from '../components/CareAuthorizationFields';
 import { DateField, parseDateParts } from '../components/DateField';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
@@ -10,17 +12,26 @@ import { GenderChips } from '../components/FormKit';
 import { LionAvatar, lionForAge, lionVariantFor } from '../components/LionAvatar';
 import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
-import { createCareSubject } from '../services/api';
+import { createCareSubject, type CareSubjectCreationFields } from '../services/api';
+import { useCareAuthorization } from '../hooks/useCareAuthorization';
 import { useToast } from '../hooks/useToast';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { Gender, HomeStackParamList } from '../types';
+import type { CareSubject, Gender, HomeStackParamList } from '../types';
+import type { CareSubjectCreation } from '../types/careAuthorization';
+import { creationOutcomeUncertain, prepareCareSubjectCreation, type CreationAttempt } from '../utils/careAuthorization';
 import { ageFrom } from '../utils/format';
+import { confirmAction } from '../utils/confirm';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewSubject'>;
 
 // La fecha de nacimiento debe ser anterior a hoy (el backend valida @Past)
 const DATE_RULES = { strictPast: true };
+
+// Identificador opaco de la petición, sin dependencia nativa.
+function newRequestId() {
+  return [Date.now(), Math.random(), Math.random()].map((part) => part.toString(36).replace('.', '')).join('-');
+}
 
 export function NewSubjectScreen({ navigation }: Props) {
   const styles = useStyles();
@@ -32,29 +43,71 @@ export function NewSubjectScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const posting = useRef(false);
+  const attempt = useRef<CreationAttempt<CareSubjectCreationFields> | null>(null);
+  const [mustCheck, setMustCheck] = useState(false);
+  const [created, setCreated] = useState<CareSubject | null>(null);
+  const authorization = useCareAuthorization();
   const toast = useToast();
   const [submitted, setSubmitted] = useState(false);
 
   const date = parseDateParts(dateParts, DATE_RULES);
   const age = date.iso ? ageFrom(date.iso) : null;
 
-  async function handleSave() {
+  usePreventRemove(saving || mustCheck, ({ data }) => {
+    if (posting.current) return;
+    void confirmAction(
+      '¿Salir del formulario?',
+      'La persona puede haberse guardado. Revisa la lista de personas antes de intentar agregarla de nuevo.',
+      'Salir',
+    ).then((leave) => {
+      if (leave && !posting.current) navigation.dispatch(data.action);
+    });
+  });
+
+  useEffect(() => {
+    if (created && !saving) navigation.replace('SubjectDetail', { subjectId: created.id, name: created.name });
+  }, [created, navigation, saving]);
+
+  function handleSave() {
+    if (mustCheck && attempt.current) {
+      void submitCreation(attempt.current.request);
+      return;
+    }
     setSubmitted(true);
-    if (!name.trim() || date.error) return;
+    if (!authorization.declaration || !name.trim() || date.error) return;
+    const data = { name: name.trim(), birthDate: date.iso, gender, notes: notes.trim() };
+    void submitCreation(prepareCareSubjectCreation(attempt.current, authorization.declaration, data, newRequestId));
+  }
+
+  async function submitCreation(request: CareSubjectCreation<CareSubjectCreationFields>) {
+    if (posting.current) return;
+    posting.current = true;
     setSaving(true);
     setError(null);
+    setFieldErrors({});
     try {
-      const subject = await createCareSubject({ name: name.trim(), birthDate: date.iso, gender, notes: notes.trim() });
+      const subject = await createCareSubject(request);
+      attempt.current = null;
+      setMustCheck(false);
       toast(`Se agregó a ${subject.name}.`);
-      navigation.replace('SubjectDetail', { subjectId: subject.id, name: subject.name });
+      setCreated(subject);
     } catch (e) {
-      if (e instanceof ApiError) {
+      const status = e instanceof ApiError ? e.status : undefined;
+      const uncertain = creationOutcomeUncertain(status, attempt.current?.uncertain);
+      attempt.current = { request, uncertain };
+      setMustCheck(uncertain);
+      if (status === 409) authorization.review();
+      if (uncertain) {
+        setError('No pudimos confirmar si la persona se guardó. Comprueba el guardado para continuar.');
+      } else if (e instanceof ApiError) {
         setError(e.message);
         setFieldErrors(e.fieldErrors);
       } else {
         setError('No pudimos guardar a la persona.');
       }
     } finally {
+      posting.current = false;
       setSaving(false);
     }
   }
@@ -79,6 +132,7 @@ export function NewSubjectScreen({ navigation }: Props) {
       </View>
 
       <StatusMessage message={error} />
+      <CareAuthorizationFields authorization={authorization} disabled={saving || mustCheck} />
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Datos básicos</Text>
@@ -87,11 +141,13 @@ export function NewSubjectScreen({ navigation }: Props) {
           icon="account-outline"
           value={name}
           onChangeText={setName}
+          disabled={saving || mustCheck}
           maxLength={120}
           error={(submitted && !name.trim() ? 'Ingresa su nombre.' : undefined) ?? fieldErrors.name}
         />
         <DateField
           label="Fecha de nacimiento (opcional)"
+          disabled={saving || mustCheck}
           rules={DATE_RULES}
           onChange={(p) => {
             setDateParts(p);
@@ -103,13 +159,14 @@ export function NewSubjectScreen({ navigation }: Props) {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Género (opcional)</Text>
-        <GenderChips value={gender} onChange={setGender} />
+        <GenderChips value={gender} onChange={setGender} disabled={saving || mustCheck} />
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Notas (opcional)</Text>
         <TextInput
           value={notes}
+          editable={!saving && !mustCheck}
           onChangeText={setNotes}
           placeholder="Algo que todos los cuidadores deban saber: cómo prefiere que le hablen, a quién llamar…"
           placeholderTextColor={colors.placeholder}
@@ -120,22 +177,22 @@ export function NewSubjectScreen({ navigation }: Props) {
         <Text style={styles.counter}>{notes.length}/500</Text>
       </View>
 
-      <View style={styles.info}>
+      {authorization.declaration && <View style={styles.info}>
         <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
         <Text style={styles.infoText}>Serás su cuidador principal y podrás invitar a otros cuidadores.</Text>
-      </View>
+      </View>}
 
       <Button
         mode="contained"
         icon="check"
         onPress={handleSave}
         loading={saving}
-        disabled={saving}
+        disabled={saving || (!mustCheck && !authorization.declaration)}
         contentStyle={styles.buttonContent}
         labelStyle={styles.buttonLabel}
         style={styles.button}
       >
-        Agregar persona
+        {mustCheck ? 'Comprobar guardado' : 'Agregar persona'}
       </Button>
     </FormScroll>
   );

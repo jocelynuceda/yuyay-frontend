@@ -15,12 +15,14 @@ export function DateField({
   error,
   initial,
   rules,
+  disabled = false,
 }: {
   label: string;
   onChange: (parts: Parts) => void;
   error?: string;
   initial?: Parts;
   rules?: DateRules;
+  disabled?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -60,6 +62,7 @@ export function DateField({
             <TextInput
               ref={f.ref}
               value={parts[f.key]}
+              editable={!disabled}
               onChangeText={(t) => update(f.key, t, f.max, f.next)}
               placeholder={f.placeholder}
               placeholderTextColor={colors.placeholder}

@@ -31,6 +31,7 @@ import type {
   Notification,
   User,
 } from '../types';
+import type { CareAuthorizationDeclaration, CareAuthorizationPolicy, CareSubjectCreation } from '../types/careAuthorization';
 
 /** Quita los campos vacíos para que el backend reciba null. */
 function clean<T extends object>(obj: T): T {
@@ -60,8 +61,21 @@ export const getCareSubjects = () => http.get<CareSubject[]>('/care-subjects').t
 
 export const getCareSubject = (id: number) => http.get<CareSubject>(`/care-subjects/${id}`).then((r) => r.data);
 
-export const createCareSubject = (data: { name: string; birthDate?: string; gender: Gender | null; notes?: string }) =>
-  http.post<CareSubject>('/care-subjects', clean(data)).then((r) => r.data);
+export const getCareAuthorizationPolicy = () =>
+  http.get<CareAuthorizationPolicy>('/care-subjects/authorization-policy').then((r) => r.data);
+
+export const getCareAuthorizationHistory = (id: number) =>
+  http.get<CareAuthorizationDeclaration[]>(`/care-subjects/${id}/authorization-declarations`).then((r) => r.data);
+
+export interface CareSubjectCreationFields {
+  name: string;
+  birthDate?: string;
+  gender: Gender | null;
+  notes?: string;
+}
+
+export const createCareSubject = ({ data, requestId, declaration }: CareSubjectCreation<CareSubjectCreationFields>) =>
+  http.post<CareSubject>('/care-subjects', { ...clean(data), requestId, declaration }).then((r) => r.data);
 
 /** PATCH reemplaza los tres datos: lo que llega en null queda vacío. */
 export const updateCareSubject = (id: number, data: { name: string; birthDate: string | null; gender: Gender | null; notes: string | null }) =>

@@ -47,11 +47,13 @@ export function ServerError({ message }: { message: string | null }) {
 
 export function FormActions({
   submitting,
+  submitDisabled = false,
   submitLabel,
   submittingLabel = 'Guardando…',
   onCancel,
 }: {
   submitting: boolean
+  submitDisabled?: boolean
   submitLabel: string
   submittingLabel?: string
   onCancel?: () => void
@@ -70,7 +72,7 @@ export function FormActions({
       ) : null}
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || submitDisabled}
         aria-busy={submitting}
         className={`rounded-full bg-primary px-6 py-2.5 font-semibold text-white shadow-[var(--shadow-soft)] disabled:opacity-60 ${focusRing}`}
       >
