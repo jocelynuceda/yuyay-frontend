@@ -44,6 +44,13 @@ const MAX_PAGE_SIZE = 100;
 export const login = (email: string, password: string) =>
   http.post<AuthResponse>('/auth/login', { email, password }).then((r) => r.data);
 
+/**
+ * Ingreso o alta con el ID token de Google. La versión de los términos solo se envía al crear una
+ * cuenta nueva (después de un 428).
+ */
+export const loginWithGoogle = (idToken: string, acceptedTermsVersion?: string) =>
+  http.post<AuthResponse>('/auth/google', { idToken, acceptedTermsVersion }).then((r) => r.data);
+
 export const register = (name: string, email: string, password: string, acceptance: TermsAcceptance) =>
   http.post<AuthResponse>('/auth/register', { name, email, password, ...acceptance }).then((r) => r.data);
 

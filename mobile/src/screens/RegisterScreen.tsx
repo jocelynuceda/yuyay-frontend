@@ -6,6 +6,7 @@ import { Button, TextInput } from 'react-native-paper';
 import { AuthLayout } from '../components/AuthLayout';
 import { AccountTerms } from '../components/AccountTerms';
 import { FormField, passwordInputProps } from '../components/FormField';
+import { GoogleSignInSection } from '../components/GoogleSignInSection';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { needsTermsReview, useAccountTerms } from '../hooks/useAccountTerms';
@@ -88,6 +89,7 @@ export function RegisterScreen({ navigation }: Props) {
         </Text>
       }
     >
+      <GoogleSignInSection disabled={loading} />
       <StatusMessage message={error} />
       <FormField
         label="Nombre"

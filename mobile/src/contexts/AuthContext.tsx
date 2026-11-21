@@ -13,6 +13,8 @@ export interface AuthContextValue {
   retrySession: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, acceptance: TermsAcceptance) => Promise<void>;
+  /** Ingresa o crea la cuenta con Google; el backend decide si la persona ya existe. */
+  loginWithGoogle: (idToken: string, acceptedTermsVersion?: string) => Promise<void>;
   logout: () => Promise<void>;
   /** Actualiza el usuario en memoria después de editar el perfil. */
   updateUser: (user: User) => void;
@@ -82,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateUser: setUser,
     login: (email, password) => startSession(() => api.login(email, password)),
     register: (name, email, password, acceptance) => startSession(() => api.register(name, email, password, acceptance)),
+    loginWithGoogle: (idToken, acceptedTermsVersion) => startSession(() => api.loginWithGoogle(idToken, acceptedTermsVersion)),
     logout: async () => {
       const removal = session.logout();
       const expected = session.generation;
