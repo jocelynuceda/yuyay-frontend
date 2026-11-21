@@ -35,6 +35,7 @@ export function RouteFocus() {
       const lost = focused !== null && !focused.isConnected && document.activeElement === document.body
       if (moveFocus && heading !== focused && (focused === null || lost)) {
         heading.setAttribute('tabindex', '-1')
+        heading.setAttribute('data-route-focus-target', '')
         heading.focus()
         focused = heading
       }
