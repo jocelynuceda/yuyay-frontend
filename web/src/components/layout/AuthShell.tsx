@@ -17,8 +17,8 @@ function Sparkle({ className }: { className?: string }) {
 /** Marco de las pantallas de acceso, como en la app: cabecera con degradado, saludo y el formulario debajo. */
 export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle: string; children: ReactNode; footer?: ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-lg px-4 py-8 sm:py-12">
-      <section className="relative overflow-hidden rounded-[2rem] bg-linear-to-br from-hero-from via-hero-via to-hero-to px-6 pt-6 pb-16 text-on-hero sm:px-8">
+    <main className="mx-auto w-full max-w-lg px-4 py-4 sm:py-6">
+      <section className="relative overflow-hidden rounded-[2rem] bg-linear-to-br from-hero-from via-hero-via to-hero-to px-6 pt-5 pb-12 text-on-hero sm:px-8">
         <Sparkle className="absolute top-20 right-10 h-5 w-5 text-white/70" />
         <Sparkle className="absolute right-36 bottom-20 h-3 w-3 text-cream" />
         <div aria-hidden="true" className="absolute -top-16 -left-10 h-48 w-48 rounded-full bg-white/25 blur-2xl" />
@@ -26,11 +26,11 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
           <Logo onHero />
           <ThemeToggle />
         </div>
-        <h1 className="relative mt-8 text-3xl font-semibold sm:text-4xl">{title}</h1>
+        <h1 className="relative mt-4 text-3xl font-semibold sm:text-4xl">{title}</h1>
         <p className="relative mt-2 text-on-hero-soft">{subtitle}</p>
       </section>
-      <div className="relative -mt-10 px-2 sm:px-4">{children}</div>
-      {footer ? <div className="mt-6 text-center text-sm">{footer}</div> : null}
+      <div className="relative -mt-8 px-2 sm:px-4">{children}</div>
+      {footer ? <div className="mt-4 text-center text-sm">{footer}</div> : null}
     </main>
   )
 }

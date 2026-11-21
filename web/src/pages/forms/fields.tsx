@@ -124,12 +124,14 @@ export function FormShell({
   title,
   description,
   bare = false,
+  compact = false,
   onSubmit,
   children,
 }: {
   title: string
   description?: string
   bare?: boolean
+  compact?: boolean
   onSubmit: FormEventHandler<HTMLFormElement>
   children: ReactNode
 }) {
@@ -143,7 +145,7 @@ export function FormShell({
     )
   }
   return (
-    <form onSubmit={onSubmit} noValidate aria-labelledby={titleId} className="grid gap-5 rounded-3xl border border-border bg-card p-6 shadow-[var(--shadow-soft)] sm:p-8">
+    <form onSubmit={onSubmit} noValidate aria-labelledby={titleId} className={`grid rounded-3xl border border-border bg-card shadow-[var(--shadow-soft)] ${compact ? 'gap-4 p-5 sm:p-6' : 'gap-5 p-6 sm:p-8'}`}>
       <div>
         <h2 id={titleId} className="text-xl font-semibold">
           {title}
