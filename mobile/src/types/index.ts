@@ -101,6 +101,7 @@ export interface HandoffSession {
   firstOpenedAt: string | null;
   revokedAt: string | null;
   createdAt: string;
+  accessCodeRequired?: boolean;
 }
 
 export interface HandoffSessionCreated {
@@ -108,6 +109,7 @@ export interface HandoffSessionCreated {
   token: string;
   expiresAt: string;
   sessionWindowMinutes: number;
+  accessCodeRequired?: boolean;
 }
 
 export interface Delegation {
