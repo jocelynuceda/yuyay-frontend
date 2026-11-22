@@ -17,6 +17,7 @@ const ProfilePage = lazy(() => import('../pages/profile/ProfilePage'))
 const InvitationPage = lazy(() => import('../pages/invitations/InvitationPage'))
 const PeopleRoute = lazy(() => import('../pages/people/PeopleRoute'))
 const PersonDetailRoute = lazy(() => import('../pages/people/PersonDetailRoute'))
+const EntriesRoute = lazy(() => import('../pages/entries/EntriesRoute'))
 const EntryDetailRoute = lazy(() => import('../pages/entries/EntryDetailRoute'))
 const DocumentReviewRoute = lazy(() => import('../pages/documents/DocumentReviewRoute'))
 const ConsultationSummaryRoute = lazy(() => import('../pages/handoff/ConsultationSummaryPage'))
@@ -78,6 +79,7 @@ export default function AppRoutes() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/people" element={<PeopleRoute />} />
               <Route path="/people/:id" element={<PersonDetailRoute />} />
+              <Route path="/people/:id/entries" element={<EntriesRoute />} />
               <Route path="/people/:id/entries/:entryId" element={<EntryDetailRoute />} />
               <Route path="/people/:id/documents/:attachmentId" element={<DocumentReviewRoute />} />
               <Route path="/people/:id/consultations/:consultationId/summary" element={<ConsultationSummaryRoute />} />
