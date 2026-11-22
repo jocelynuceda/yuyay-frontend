@@ -90,6 +90,48 @@
   }
 }
 
+/* Opt-in: colorea únicamente el fondo y conserva los estados y el foco del control. */
+@layer components {
+  .control-interactive {
+    --control-hover: color-mix(in srgb, var(--color-card) 88%, var(--color-primary));
+    --control-pressed: color-mix(in srgb, var(--color-card) 78%, var(--color-primary));
+    transition: background-color 140ms ease-out;
+  }
+
+  .control-interactive:where(.bg-primary) {
+    --control-hover: color-mix(in srgb, var(--color-primary) 90%, black);
+    --control-pressed: color-mix(in srgb, var(--color-primary) 80%, black);
+  }
+
+  .control-interactive:where(.bg-danger) {
+    --control-hover: color-mix(in srgb, var(--color-danger) 90%, black);
+    --control-pressed: color-mix(in srgb, var(--color-danger) 80%, black);
+  }
+
+  .control-interactive:where(.control-ghost) {
+    --control-hover: var(--color-primary-tint);
+    --control-pressed: var(--color-accent-tint);
+  }
+}
+
+@layer utilities {
+  @media (hover: hover) and (pointer: fine) {
+    .control-interactive:hover:where(:not(:disabled):not([aria-disabled='true'])) {
+      background-color: var(--control-hover);
+    }
+  }
+
+  .control-interactive:active:where(:not(:disabled):not([aria-disabled='true'])) {
+    background-color: var(--control-pressed);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .control-interactive {
+      transition: none;
+    }
+  }
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
