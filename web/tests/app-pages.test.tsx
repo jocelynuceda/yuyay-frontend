@@ -435,8 +435,7 @@ test('Documentos: guarda todo el texto largo corregido con Confirmado y explica 
   assert.equal(details.value, longText)
   assert.equal(details.hasAttribute('maxlength'), false)
   assert.equal(details.closest('details'), null, 'el texto editable está visible')
-  assert.match(text(), /se incluirá cuando selecciones este registro para un resumen/)
-  assert.match(text(), /Esta opción indica tu confianza/)
+  assert.match(text(), /Se guardará este registro\./)
   assert.equal(document.querySelector<HTMLInputElement>('input[value="UNCERTAIN"]')!.checked, true)
   const reviewed = longText.replace('Panitidina', 'Ranitidina revisada')
   await act(async () => {
