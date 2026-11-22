@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { HandoffAccessCode } from '../../components/security/HandoffAccessCode'
 import { LoadError } from '../../components/layout/LoadError'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -199,6 +200,7 @@ function HandoffDetails({
 function HandoffLinks({ handoffId }: { handoffId: number }) {
   const sessions = useFetch((signal) => listHandoffSessions(handoffId, signal), [handoffId])
   const [creatingLink, setCreatingLink] = useState(false)
+  const [codeSessionId, setCodeSessionId] = useState<number | null>(null)
   const [revoking, setRevoking] = useState<HandoffSession | null>(null)
   const { notify, anchorProps } = useSuccessNotice()
 
@@ -217,6 +219,16 @@ function HandoffLinks({ handoffId }: { handoffId: number }) {
                   <span className="font-semibold">{state}</span> · creado el {formatDateTime(session.createdAt)} · vence el{' '}
                   {formatDateTime(session.expiresAt)}
                 </span>
+                {session.accessCodeRequired !== true ? <p className="w-full text-sm text-muted">Enlace anterior sin código de acceso adicional.</p> : null}
+                {(state === 'Sin abrir' || state === 'Abierto') && session.accessCodeRequired === true ? (
+                  <Button variant="secondary" size="sm" aria-expanded={codeSessionId === session.id}
+                    onClick={() => setCodeSessionId(codeSessionId === session.id ? null : session.id)}>
+                    {codeSessionId === session.id ? 'Ocultar código' : 'Ver código de acceso'}
+                  </Button>
+                ) : null}
+                {codeSessionId === session.id && session.accessCodeRequired === true && (state === 'Sin abrir' || state === 'Abierto') && !sessions.error ? (
+                  <div className="w-full"><HandoffAccessCode sessionId={session.id} /></div>
+                ) : null}
                 {state === 'Sin abrir' || state === 'Abierto' ? (
                   <Button
                     variant="secondary"
@@ -253,6 +265,7 @@ function HandoffLinks({ handoffId }: { handoffId: number }) {
         onConfirm={async () => {
           if (!revoking) return
           await revokeHandoffSession(revoking.id)
+          setCodeSessionId(null)
           setRevoking(null)
           notify('Enlace revocado.')
           sessions.reload()

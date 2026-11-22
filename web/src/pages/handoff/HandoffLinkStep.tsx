@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
 import { emptyHandoffSession, handoffSessionSchema, type HandoffSessionFormValues } from '../../schemas/handoff'
-import { createHandoffSession } from '../../services/api/handoffs'
+import { HandoffAccessCode } from '../../components/security/HandoffAccessCode'
+import { createHandoffSession, revokeHandoffSession } from '../../services/api/handoffs'
 import type { HandoffDetail, HandoffSessionCreated } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
 import { formatDateTime } from '../../utils/format'
@@ -43,7 +44,15 @@ export function CreateHandoffLink({ handoffId, onCreated }: { handoffId: number;
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
     try {
-      setSession(await createHandoffSession(handoffId, values))
+      const created = await createHandoffSession(handoffId, values)
+      if (created.accessCodeRequired !== true) {
+        // Un servidor anterior puede ignorar requireAccessCode: nunca ofrecer ese enlace como protegido.
+        try { await revokeHandoffSession(created.id) } catch { /* No se muestra ni se copia el token. */ }
+        setServerError('El servidor todavía no permite crear enlaces protegidos con código. No compartas este enlace. Inténtalo cuando el servicio esté actualizado.')
+        onCreated?.()
+        return
+      }
+      setSession(created)
       onCreated?.()
     } catch (error) {
       setServerError(applyServerErrors(error, setError, ['expiresInHours', 'sessionWindowMinutes']))
@@ -55,7 +64,7 @@ export function CreateHandoffLink({ handoffId, onCreated }: { handoffId: number;
   return (
     <FormShell
       title="Crear enlace para el médico"
-      description="El médico lo abre sin cuenta. Le pedirá su nombre y rol, y queda en la bitácora."
+      description="El médico lo abre sin cuenta. Le pedirá su nombre, rol y un código de acceso. La consulta queda en la bitácora."
       onSubmit={onSubmit}
     >
       <ServerError message={serverError} />
@@ -110,8 +119,9 @@ function ShareLink({ session }: { session: HandoffSessionCreated }) {
         Enlace listo
       </h2>
       <p className="text-muted">
-        Envíalo solo al médico: quien tenga el enlace puede ver el resumen. Vence el {formatDateTime(session.expiresAt)}
+        Envía el enlace solo al médico y comparte el código por separado. Vence el {formatDateTime(session.expiresAt)}
       </p>
+      <HandoffAccessCode sessionId={session.id} />
       <div className="flex flex-wrap gap-2">
         <input
           readOnly
