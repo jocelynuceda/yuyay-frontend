@@ -21,7 +21,7 @@ export interface PaginationProps {
 }
 
 const navButton = cx(
-  'inline-flex items-center gap-1 rounded-xl border border-line bg-card px-3 py-2 text-sm font-semibold disabled:opacity-40',
+  'control-interactive inline-flex items-center gap-1 rounded-xl border border-line bg-card px-3 py-2 text-sm font-semibold disabled:opacity-40',
   focusRing,
 )
 
@@ -84,7 +84,7 @@ export function Pagination({
                       aria-current={item === page ? 'page' : undefined}
                       onClick={() => onPageChange(item)}
                       className={cx(
-                        'h-10 min-w-10 rounded-xl px-2 text-sm font-semibold',
+                        'control-interactive h-10 min-w-10 rounded-xl px-2 text-sm font-semibold',
                         item === page ? 'bg-primary text-white' : 'border border-line bg-card',
                         focusRing,
                       )}

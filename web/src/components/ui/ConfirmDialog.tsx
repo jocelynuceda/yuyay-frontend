@@ -82,7 +82,7 @@ export function ConfirmDialog({
           autoFocus
           onClick={onCancel}
           disabled={working}
-          className={`rounded-xl border border-line px-5 py-2.5 font-semibold ${focusRing}`}
+          className={`control-interactive rounded-xl border border-line px-5 py-2.5 font-semibold ${focusRing}`}
         >
           {cancelLabel}
         </button>
@@ -90,7 +90,7 @@ export function ConfirmDialog({
           type="button"
           onClick={confirm}
           disabled={working}
-          className={`rounded-xl bg-danger px-5 py-2.5 font-semibold text-white disabled:opacity-60 ${focusRing}`}
+          className={`control-interactive rounded-xl bg-danger px-5 py-2.5 font-semibold text-white disabled:opacity-60 ${focusRing}`}
         >
           {working ? workingLabel : confirmLabel}
         </button>

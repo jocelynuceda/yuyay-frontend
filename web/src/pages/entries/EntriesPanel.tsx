@@ -54,7 +54,7 @@ function EntriesResults({
           <button
             type="button"
             onClick={() => onNewEntry(category)}
-            className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
+            className={`control-interactive rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
           >
             Nuevo registro
           </button>
