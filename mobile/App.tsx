@@ -11,6 +11,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { BiometricLock } from './src/components/BiometricLock';
 import { LoadingView } from './src/components/LoadingView';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import { AuthProvider } from './src/contexts/AuthContext';
@@ -50,6 +51,7 @@ function ThemedApp() {
               <NavigationContainer theme={theme.navigationTheme} linking={linking}>
                 <RootNavigator />
               </NavigationContainer>
+              <BiometricLock />
             </ToastProvider>
           </AuthProvider>
         ) : (

@@ -33,6 +33,8 @@ export const linking: LinkingOptions<RootStackParamList> = {
 function MainScreen() {
   const { status, recoveryError, retrySession, logout } = useAuth();
   if (status === 'loading') return <LoadingView label="Abriendo Yuyay…" />;
+  // El desbloqueo con biometría se muestra encima (BiometricLock)
+  if (status === 'locked') return <LoadingView label="" />;
   if (status === 'recoverable' || status === 'logout-failed') return (
     <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 16 }}>
       <StatusMessage message={recoveryError ?? 'No pudimos recuperar tu sesión.'} />
