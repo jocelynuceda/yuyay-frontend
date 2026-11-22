@@ -91,6 +91,7 @@ export interface HandoffInput {
   reason: string;
   questions?: string;
   healthEntryIds: number[];
+  expectedVersionIds?: Record<string, number>;
 }
 
 export interface HandoffSession {

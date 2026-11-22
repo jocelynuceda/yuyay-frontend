@@ -15,6 +15,8 @@ import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
+import { formatDate } from '../utils/format';
+import { manualHandoffInput } from '../utils/manualHandoff';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewHandoff'>;
 
@@ -37,11 +39,12 @@ function ManualHandoffScreen({ route, navigation }: Props) {
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
 
   if (entries.loading && !entries.data) return <LoadingView />;
 
   const all = entries.data ?? [];
-  const selected = picked ?? new Set(all.map((e) => e.id));
+  const selected = new Set(all.filter((entry) => picked === null || picked.has(entry.id)).map((entry) => entry.id));
 
   function toggle(ids: number[]) {
     const next = new Set(selected);
@@ -55,18 +58,20 @@ function ManualHandoffScreen({ route, navigation }: Props) {
 
   async function handleSave() {
     setSubmitted(true);
-    if (!reason.trim() || selected.size === 0) return;
+    if (!reason.trim() || selected.size === 0 || saving || entries.loading || entries.error || categories.loading || categories.error || conflict) return;
     setSaving(true);
     setError(null);
     try {
-      const handoff = await createHandoff(subjectId, {
-        reason: reason.trim(),
-        questions: questions.trim(),
-        healthEntryIds: [...selected],
-      });
+      const handoff = await createHandoff(subjectId, manualHandoffInput(all, selected, reason, questions));
       navigation.replace('HandoffView', { handoffId: handoff.id, isPrincipal });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No pudimos crear el resumen.');
+      if (e instanceof ApiError && e.status === 409) {
+        setPicked(new Set(selected));
+        setConflict(true);
+        setError('Los registros cambiaron. Recarga y revisa su contenido antes de crear el resumen.');
+      } else {
+        setError(e instanceof ApiError ? e.message : 'No pudimos crear el resumen.');
+      }
     } finally {
       setSaving(false);
     }
@@ -74,7 +79,7 @@ function ManualHandoffScreen({ route, navigation }: Props) {
 
   return (
     <FormScroll contentContainerStyle={formStyles.container}>
-      <StatusMessage message={error ?? entries.error} />
+      <StatusMessage message={entries.error ?? categories.error ?? error} />
 
       <FormCard title="Motivo">
         <FormField
@@ -136,6 +141,10 @@ function ManualHandoffScreen({ route, navigation }: Props) {
                             {[e.latestVersion.dose, e.latestVersion.frequency].filter(Boolean).join(' · ')}
                           </Text>
                         ) : null}
+                        <Text style={styles.itemMeta}>{e.latestVersion.confidenceLevel === 'CONFIRMED' ? 'Confirmado' : 'Por confirmar'}</Text>
+                        {e.latestVersion.occurredOn ? <Text style={styles.itemMeta}>{formatDate(e.latestVersion.occurredOn)}</Text> : null}
+                        {e.latestVersion.details ? <Text style={styles.itemMeta}>{e.latestVersion.details}</Text> : null}
+                        {e.latestVersion.notes ? <Text style={styles.itemMeta}>{e.latestVersion.notes}</Text> : null}
                       </View>
                     </Pressable>
                   );
@@ -147,7 +156,17 @@ function ManualHandoffScreen({ route, navigation }: Props) {
         {pickError ? <Text style={[formStyles.error, { color: colors.danger }]}>{pickError}</Text> : null}
       </FormCard>
 
-      <SubmitButton label="Crear resumen" onPress={handleSave} loading={saving} />
+      {conflict || entries.error || categories.error ? (
+        <SubmitButton label="Recargar para revisar" loading={entries.loading || categories.loading} onPress={() => {
+          setPicked(new Set(selected));
+          setConflict(false);
+          setError('Revisa los registros actualizados. Se conservaron el motivo, las preguntas y tus elecciones.');
+          entries.reload();
+          categories.reload();
+        }} />
+      ) : (
+        <SubmitButton label="Crear resumen" onPress={handleSave} loading={saving || entries.loading || categories.loading} />
+      )}
     </FormScroll>
   );
 }

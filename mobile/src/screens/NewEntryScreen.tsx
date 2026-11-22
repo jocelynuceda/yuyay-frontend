@@ -157,7 +157,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
         onChangeText={setDetails}
         multiline
         numberOfLines={3}
-        maxLength={2000}
+        hint={route.params.ocrDraft ? 'Revisa el texto completo antes de guardar. Estos detalles podrán incluirse en el resumen para la consulta.' : undefined}
         error={fieldErrors.details}
       />
       <FormField

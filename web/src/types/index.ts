@@ -244,6 +244,8 @@ export interface HandoffItem {
   confidenceLevel: ConfidenceLevel
   notes: string | null
   declaredAt: string
+  /** Original vinculado a la versión incluida; requiere un enlace de resumen vigente. */
+  hasSourceAttachment?: boolean
 }
 
 export interface HandoffDetail extends Handoff {
@@ -254,6 +256,7 @@ export interface HandoffRequest {
   reason: string
   questions: string | null
   healthEntryIds: number[]
+  expectedVersionIds?: Record<string, number>
 }
 
 export interface HandoffSessionRequest {

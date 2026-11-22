@@ -25,9 +25,10 @@ test('Fecha de un registro: hoy o antes, desde 1900', () => {
   assert.equal(message(healthEntrySchema.safeParse({ ...entry, occurredOn: '1899-12-31' })), 'El año debe ser 1900 o posterior.')
 })
 
-test('Límites de texto de la app móvil: detalles 2000, notas 500', () => {
+test('Texto OCR completo sin límite artificial en detalles; notas de hasta 500 caracteres', () => {
   assert.equal(healthEntrySchema.safeParse({ ...entry, details: 'x'.repeat(2000), notes: 'x'.repeat(500) }).success, true)
-  assert.equal(message(healthEntrySchema.safeParse({ ...entry, details: 'x'.repeat(2001) })), 'Máximo 2000 caracteres.')
+  const longText = 'Texto OCR completo. '.repeat(500).trim()
+  assert.equal(healthEntrySchema.parse({ ...entry, details: longText }).details, longText)
   assert.equal(message(healthEntrySchema.safeParse({ ...entry, notes: 'x'.repeat(501) })), 'Máximo 500 caracteres.')
 })
 
