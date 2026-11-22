@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
 import { emptyHandoffSession, handoffSessionSchema, type HandoffSessionFormValues } from '../../schemas/handoff'
@@ -9,11 +10,11 @@ import type { HandoffDetail, HandoffSessionCreated } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
 import { formatDateTime } from '../../utils/format'
 import { handoffLink } from '../../utils/links'
-import { focusRing } from '../../utils/styles'
+import { focusRing, linkButtonClass, linkSecondaryClass } from '../../utils/styles'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
 
-/** Después de crear el resumen: generar el enlace temporal y copiarlo para enviarlo al médico. */
+/** Después de guardar, cada acción continúa en su propia página. */
 export function HandoffLinkStep({ handoff, subjectName }: { handoff: HandoffDetail; subjectName?: string }) {
   return (
     <div className="grid gap-6">
@@ -21,7 +22,11 @@ export function HandoffLinkStep({ handoff, subjectName }: { handoff: HandoffDeta
         Resumen creado{subjectName ? ` para ${subjectName}` : ''} con {handoff.items.length} registro
         {handoff.items.length === 1 ? '' : 's'}.
       </p>
-      <CreateHandoffLink handoffId={handoff.id} />
+      <div className="flex flex-wrap gap-3">
+        <Link to={`/people/${handoff.careSubjectId}/handoffs/${handoff.id}`} className={linkSecondaryClass}>Ver resumen</Link>
+        <Link to={`/people/${handoff.careSubjectId}/handoffs/${handoff.id}/share`} className={linkButtonClass}>Generar enlace y código</Link>
+        <Link to={`/people/${handoff.careSubjectId}?tab=handoffs`} className={linkSecondaryClass}>Regresar</Link>
+      </div>
     </div>
   )
 }

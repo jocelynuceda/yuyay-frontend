@@ -7,11 +7,14 @@ import test, { type TestContext } from 'node:test'
 import { act, type ReactNode } from 'react'
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
 const { createRoot } = await import('react-dom/client')
-const { MemoryRouter } = await import('react-router-dom')
+const { MemoryRouter, Route, Routes, useLocation } = await import('react-router-dom')
 const { HandoffAccessCode } = await import('../src/components/security/HandoffAccessCode')
 const { CreateHandoffLink } = await import('../src/pages/handoff/HandoffLinkStep')
 const { HandoffPublicPage } = await import('../src/pages/public/HandoffPublicPage')
 const { HandoffsPanel } = await import('../src/pages/care/HandoffsPanel')
+const { HandoffWorkspacePage } = await import('../src/pages/handoff/HandoffWorkspacePage')
+const { default: HandoffWorkspaceRoute } = await import('../src/pages/handoff/HandoffWorkspaceRoute')
+const { AuthContext } = await import('../src/contexts/auth-context')
 const { ToastProvider } = await import('../src/contexts/ToastContext')
 const { accessCodeDeadline } = await import('../src/services/security/handoffAccess')
 const { api, publicApi } = await import('../src/services/http')
@@ -24,10 +27,10 @@ function mockApi(t: TestContext, fn: AxiosAdapter) {
   api.defaults.adapter = fn; publicApi.defaults.adapter = fn
   t.after(() => { api.defaults.adapter = old; publicApi.defaults.adapter = oldPublic })
 }
-async function mount(t: TestContext, node: ReactNode) {
+async function mount(t: TestContext, node: ReactNode, path = '/') {
   const container = document.createElement('div'); document.body.append(container)
   const root = createRoot(container)
-  const render = async (next: ReactNode) => { await act(async () => root.render(<MemoryRouter>{next}</MemoryRouter>)) }
+  const render = async (next: ReactNode) => { await act(async () => root.render(<MemoryRouter initialEntries={[path]}>{next}</MemoryRouter>)) }
   t.after(async () => { await act(async () => root.unmount()); container.remove() })
   await render(node)
   return { container, render }
@@ -36,6 +39,33 @@ async function click(container: HTMLElement, text: string) {
   const button = [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)
   assert.ok(button, text)
   await act(async () => { button.click() })
+}
+async function follow(container: HTMLElement, text: string) {
+  const link = [...container.querySelectorAll('a')].find((item) => accessibleText(item) === text)
+  assert.ok(link, text)
+  await act(async () => { link.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })) })
+}
+function accessibleText(element: HTMLElement) {
+  const copy = element.cloneNode(true) as HTMLElement
+  copy.querySelectorAll('[aria-hidden="true"]').forEach((node) => node.remove())
+  return copy.textContent?.trim()
+}
+function LocationMarker() {
+  const location = useLocation()
+  return <output data-testid="location">{location.pathname}{location.search}</output>
+}
+
+function WorkspaceRoutes() {
+  return <AuthContext.Provider value={{ user: { id: 8, name: 'Cuidador de prueba', email: 'cuidador@example.invalid', role: 'USER', createdAt: serverTime },
+    isAuthenticated: true, isLoading: false, restoreError: null, retryRestore: async () => {},
+    login: async () => true, register: async () => true, loginWithGoogle: async () => true, logout: async () => {}, updateUser: () => {} }}>
+    <ToastProvider><LocationMarker /><Routes>
+      <Route path="/people/:id" element={<HandoffsPanel subjectId={4} isPrincipal={false} userId={8} />} />
+      <Route path="/people/:id/handoffs/:handoffId" element={<HandoffWorkspaceRoute />} />
+      <Route path="/people/:id/handoffs/:handoffId/share" element={<HandoffWorkspaceRoute mode="share" />} />
+      <Route path="/people/:id/handoffs/:handoffId/sessions/:sessionId" element={<HandoffWorkspaceRoute mode="code" />} />
+    </Routes></ToastProvider>
+  </AuthContext.Provider>
 }
 async function fill(container: HTMLElement, selector: string, text: string) {
   const input = container.querySelector<HTMLInputElement>(selector)!
@@ -269,12 +299,14 @@ test('respuesta vencida por jitter se oculta y espera el nuevo período sin bucl
   assert.equal(visibleCode(container)?.textContent, '000 789')
 })
 
-test('historial autorizado reabre el código; enlaces legados se identifican sin panel', async (t) => {
+test('lista, detalle, generación y código existente son páginas separadas con Regresar y legado sin panel', async (t) => {
   fakeClock(t)
+  t.mock.method(window, 'scrollTo', () => {})
   let codeReads = 0
   mockApi(t, async (config) => {
-    if (config.url === '/care-subjects/4/handoffs') return ok(config, [{ id: 2, reason: 'Control de prueba', createdByUserId: 8, createdAt: serverTime }])
-    if (config.url === '/handoffs/2') return ok(config, { id: 2, items: [] })
+    if (config.url === '/care-subjects/4') return ok(config, { id: 4, name: 'Persona de prueba', myRole: 'CAREGIVER', birthDate: null, notes: null, createdAt: serverTime })
+    if (config.url === '/care-subjects/4/handoffs') return ok(config, [{ id: 2, careSubjectId: 4, reason: 'Control de prueba', createdByUserId: 8, createdAt: serverTime }])
+    if (config.url === '/handoffs/2') return ok(config, { id: 2, careSubjectId: 4, createdByUserId: 8, reason: 'Control de prueba', questions: null, createdAt: serverTime, items: [] })
     if (config.url === '/handoffs/2/sessions') return ok(config, [
       { id: 7, handoffId: 2, accessCodeRequired: true, expiresAt: '2099-01-01T00:00:00Z', firstOpenedAt: null, revokedAt: null, createdAt: serverTime, sessionWindowMinutes: 30 },
       { id: 8, handoffId: 2, accessCodeRequired: false, expiresAt: '2099-01-01T00:00:00Z', firstOpenedAt: null, revokedAt: null, createdAt: serverTime, sessionWindowMinutes: 30 },
@@ -283,14 +315,97 @@ test('historial autorizado reabre el código; enlaces legados se identifican sin
     assert.equal(config.url, '/handoff-sessions/7/access-code')
     return ok(config, code)
   })
-  const { container } = await mount(t, <ToastProvider><HandoffsPanel subjectId={4} isPrincipal={false} userId={8} /></ToastProvider>)
-  await click(container, 'Ver resumen')
+  const { container } = await mount(t, <WorkspaceRoutes />, '/people/4?tab=handoffs')
+  const path = () => container.querySelector('[data-testid="location"]')?.textContent
+  assert.equal(container.querySelector('form'), null)
+  await follow(container, 'Ver resumen')
+  assert.equal(path(), '/people/4/handoffs/2')
   assert.match(container.textContent!, /Enlace anterior sin código/)
-  assert.equal([...container.querySelectorAll('button')].filter((b) => b.textContent === 'Ver código de acceso').length, 1)
+  assert.equal([...container.querySelectorAll('a')].filter((link) => link.textContent === 'Ver código de acceso').length, 1)
   assert.equal(codeReads, 0)
-  await click(container, 'Ver código de acceso')
+  assert.equal(container.querySelector('form'), null)
+  await follow(container, 'Generar enlace y código')
+  assert.equal(path(), '/people/4/handoffs/2/share')
+  assert.ok(container.querySelector('form'))
+  assert.doesNotMatch(container.textContent!, /Enlace anterior sin código/)
+  await follow(container, 'Regresar al resumen')
+  assert.equal(path(), '/people/4/handoffs/2')
+  await follow(container, 'Ver código de acceso')
+  assert.equal(path(), '/people/4/handoffs/2/sessions/7')
   assert.equal(codeReads, 1)
   assert.ok(visibleCode(container))
-  await click(container, 'Ocultar código')
+  assert.doesNotMatch(container.textContent!, /Enlace anterior sin código/)
+  await follow(container, 'Regresar al resumen')
+  assert.equal(path(), '/people/4/handoffs/2')
   assert.equal(visibleCode(container), null)
+  await follow(container, 'Regresar a resúmenes')
+  assert.equal(path(), '/people/4?tab=handoffs')
+  assert.doesNotMatch(container.textContent!, /Enlace anterior sin código/)
+  assert.equal(codeReads, 1)
+})
+
+test('la página de código verifica pertenencia, protección y vigencia antes de solicitar dígitos', async (t) => {
+  const base = { id: 7, handoffId: 2, accessCodeRequired: true, expiresAt: '2099-01-01T00:00:00Z',
+    firstOpenedAt: null as string | null, revokedAt: null as string | null, createdAt: serverTime, sessionWindowMinutes: 30 }
+  let selected = base
+  const requests: string[] = []
+  mockApi(t, async (config) => {
+    requests.push(config.url!)
+    if (config.url === '/handoffs/2') return ok(config, { id: 2, careSubjectId: 4, createdByUserId: 8, reason: 'Control', createdAt: serverTime, questions: null, items: [] })
+    assert.equal(config.url, '/handoffs/2/sessions', 'no debe pedir código para una sesión ajena, antigua o no vigente')
+    return ok(config, [selected])
+  })
+  for (const [session, message] of [
+    [{ ...base, handoffId: 99 }, /no pertenece al resumen seleccionado/],
+    [{ ...base, id: 8 }, /no pertenece al resumen seleccionado/],
+    [{ ...base, accessCodeRequired: false }, /no requiere código de acceso adicional/],
+    [{ ...base, expiresAt: '2000-01-01T00:00:00Z' }, /ya no está disponible/],
+    [{ ...base, revokedAt: serverTime }, /ya no está disponible/],
+  ] as const) {
+    selected = session
+    const { container } = await mount(t, <HandoffWorkspacePage subjectId={4} handoffId={2} isPrincipal={false} userId={8} mode="code" sessionId={7} />)
+    assert.match(container.textContent!, message)
+    assert.equal(visibleCode(container), null)
+  }
+  assert.equal(requests.length, 10)
+})
+
+test('un rechazo del backend al consultar sesiones impide obtener el código aunque el usuario sea creador', async (t) => {
+  const urls: string[] = []
+  mockApi(t, async (config) => {
+    urls.push(config.url!)
+    if (config.url === '/handoffs/2') return ok(config, { id: 2, careSubjectId: 4, createdByUserId: 8, reason: 'Control', createdAt: serverTime, questions: null, items: [] })
+    assert.equal(config.url, '/handoffs/2/sessions')
+    throw new AxiosError('Forbidden', 'ERR_BAD_REQUEST', config, undefined, { ...ok(config, { message: 'La relación de cuidado ya no está activa.' }), status: 403 })
+  })
+  const { container } = await mount(t, <HandoffWorkspacePage subjectId={4} handoffId={2} isPrincipal={false} userId={8} mode="code" sessionId={7} />)
+  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /relación de cuidado ya no está activa/)
+  assert.equal(visibleCode(container), null)
+  assert.deepEqual(urls, ['/handoffs/2', '/handoffs/2/sessions'])
+})
+
+test('una ruta inválida conserva Regresar y no solicita datos privados', async (t) => {
+  t.mock.method(window, 'scrollTo', () => {})
+  let requests = 0
+  mockApi(t, async () => { requests++; throw new Error('No debe consultar la API para identificadores inválidos') })
+  const { container } = await mount(t, <WorkspaceRoutes />, '/people/4/handoffs/2/sessions/no-valido')
+  assert.equal(requests, 0)
+  assert.equal(visibleCode(container), null)
+  assert.equal([...container.querySelectorAll('a')].find((link) => accessibleText(link) === 'Regresar al resumen')?.getAttribute('href'), '/people/4/handoffs/2')
+})
+
+test('el wrapper no consulta el resumen cuando la API rechaza el acceso a la persona', async (t) => {
+  t.mock.method(window, 'scrollTo', () => {})
+  const urls: string[] = []
+  mockApi(t, async (config) => {
+    urls.push(config.url!)
+    assert.equal(config.url, '/care-subjects/4')
+    throw new AxiosError('Forbidden', 'ERR_BAD_REQUEST', config, undefined, { ...ok(config, { message: 'Ya no tienes acceso a esta persona.' }), status: 403 })
+  })
+  const { container } = await mount(t, <WorkspaceRoutes />, '/people/4/handoffs/2/share')
+  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /Ya no tienes acceso/)
+  assert.equal(container.querySelector('form'), null)
+  assert.equal(visibleCode(container), null)
+  assert.deepEqual(urls, ['/care-subjects/4'])
+  assert.ok([...container.querySelectorAll('a')].find((link) => accessibleText(link) === 'Regresar al resumen'))
 })

@@ -188,7 +188,9 @@ test('la pantalla precarga, excluye registros, muestra el resultado y no compart
   await click(container, 'Validar y guardar')
   assert.deepEqual(writes[0].entries, [])
   assert.match(container.textContent ?? '', /Resumen guardado|Pregunta guardada/)
-  assert.equal(container.querySelector('a')?.getAttribute('href'), '/people/2?tab=handoffs')
+  assert.equal(container.querySelector('a[href="/people/2/handoffs/9"]')?.textContent, 'Ver resumen')
+  assert.equal(container.querySelector('a[href="/people/2/handoffs/9/share"]')?.textContent, 'Generar enlace y código')
+  assert.equal(container.querySelector('a[href="/people/2?tab=handoffs"]')?.textContent, 'Regresar')
   assert.equal(writes.length, 1)
 })
 test('la pantalla vuelve a editar tras un 409 y cancelar no guarda', async (t) => {

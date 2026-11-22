@@ -6,6 +6,7 @@ import { act, type ReactNode } from 'react'
 import { ToastProvider } from '../src/contexts/ToastContext'
 import { ConsultationsPanel } from '../src/pages/care/ConsultationsPanel'
 import { HandoffsPanel } from '../src/pages/care/HandoffsPanel'
+import { HandoffWorkspacePage } from '../src/pages/handoff/HandoffWorkspacePage'
 import { todayIso } from '../src/schemas/common'
 import { api } from '../src/services/http'
 import type { Handoff, HandoffDetail, Page } from '../src/types'
@@ -63,20 +64,12 @@ const detail: HandoffDetail = {
   }],
 }
 
-test('El historial de arreglos se ordena y abre el detalle privado bajo demanda', async (t) => {
+test('El historial se ordena y ofrece páginas de detalle sin desplegar datos ni enlaces en la lista', async (t) => {
   const requests: InternalAxiosRequestConfig[] = []
-  let finishDetail = () => {}
   mockApi(t, async (config) => {
     requests.push(config)
-    if (config.url === '/care-subjects/4/handoffs') return ok(config, [older, handoff])
-    if (config.url === '/handoffs/2') {
-      throw new AxiosError('Not found', 'ERR_BAD_REQUEST', config, undefined, {
-        ...ok(config, { message: 'Resumen no encontrado.' }), status: 404, statusText: 'Not Found',
-      })
-    }
-    assert.equal(config.url, '/handoffs/1')
-    if (requests.length === 2) await new Promise<void>((resolve) => { finishDetail = resolve })
-    return ok(config, detail)
+    assert.equal(config.url, '/care-subjects/4/handoffs')
+    return ok(config, [older, handoff])
   })
   const { container } = await mount(t, <HandoffsPanel subjectId={4} isPrincipal={false} userId={99} />)
 
@@ -84,19 +77,10 @@ test('El historial de arreglos se ordena y abre el detalle privado bajo demanda'
   assert.equal(requests.length, 1)
   assert.equal(container.querySelector('a')?.getAttribute('href'), '/people/4/handoff/new')
   assert.equal(container.querySelector('a[href^="/handoff/"]'), null)
-
-  await click(container, 'Ver resumen')
-  assert.match(container.querySelector('[role="status"]')?.textContent ?? '', /Cargando resumen/)
-  await click(container, 'Ocultar resumen')
-  assert.equal(requests[1]?.signal?.aborted, true)
-  await act(async () => finishDetail())
+  assert.equal(container.querySelector('a[href="/people/4/handoffs/1"]')?.textContent?.trim(), 'Ver resumen')
+  assert.equal(container.querySelector('a[href="/people/4/handoffs/2"]')?.textContent?.trim(), 'Ver resumen')
+  assert.equal(container.querySelector('[aria-expanded]'), null)
   assert.doesNotMatch(container.textContent ?? '', /Hemograma|cancelada/)
-  await click(container, 'Ver resumen')
-  assert.match(container.textContent ?? '', /¿Repetir el examen\?/)
-  assert.match(container.textContent ?? '', /Hemograma de octubre/)
-  await click(container, 'Ver resumen')
-  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /Resumen no encontrado/)
-  assert.doesNotMatch(container.textContent ?? '', /Hemograma de octubre|¿Repetir el examen\?/)
   assert.ok(requests.every(({ method }) => method === 'get'))
 })
 
@@ -157,7 +141,6 @@ test('Los enlaces del resumen solo se piden y se muestran a quien lo creó o al 
   const later = new Date(Date.now() + 24 * 3600_000).toISOString()
   mockApi(t, async (config) => {
     urls.push(config.url ?? '')
-    if (config.url === '/care-subjects/4/handoffs') return ok(config, [handoff])
     if (config.url === '/handoffs/1') return ok(config, detail)
     if (config.url === '/handoffs/1/sessions') {
       return ok(config, [{
@@ -168,21 +151,80 @@ test('Los enlaces del resumen solo se piden y se muestran a quien lo creó o al 
   })
 
   // Otro cuidador: no se piden los enlaces (el backend respondería 403) y no puede compartir
-  const other = await mount(t, <HandoffsPanel subjectId={4} isPrincipal={false} userId={99} />)
-  await click(other.container, 'Ver resumen')
+  const other = await mount(t, <HandoffWorkspacePage subjectId={4} handoffId={1} isPrincipal={false} userId={99} mode="detail" />)
   assert.ok(!urls.includes('/handoffs/1/sessions'))
   assert.match(other.container.textContent ?? '', /Solo quien creó este resumen o el cuidador principal/)
-  assert.doesNotMatch(other.container.textContent ?? '', /Compartir con el médico/)
+  assert.equal(other.container.querySelector('a[href="/people/4/handoffs/1/share"]'), null)
   assert.match(other.container.textContent ?? '', /Borrar resumen/)
 
   // Quien lo creó: ve sus enlaces; abierto hace 40 min con ventana de 30 ya cuenta como vencido
-  const creator = await mount(t, <HandoffsPanel subjectId={4} isPrincipal={false} userId={8} />)
-  await click(creator.container, 'Ver resumen')
+  const creator = await mount(t, <HandoffWorkspacePage subjectId={4} handoffId={1} isPrincipal={false} userId={8} mode="detail" />)
   assert.ok(urls.includes('/handoffs/1/sessions'))
   assert.match(creator.container.textContent ?? '', /Vencido/)
   assert.doesNotMatch(creator.container.textContent ?? '', /Abierto/)
   assert.equal(creator.container.querySelector('[aria-label^="Revocar"]'), null)
-  assert.match(creator.container.textContent ?? '', /Compartir con el médico/)
+  assert.ok(creator.container.querySelector('a[href="/people/4/handoffs/1/share"]'))
+  assert.equal(creator.container.querySelector('form'), null, 'crear enlace usa una página separada')
+
+  const principal = await mount(t, <HandoffWorkspacePage subjectId={4} handoffId={1} isPrincipal userId={99} mode="detail" />)
+  assert.ok(principal.container.querySelector('a[href="/people/4/handoffs/1/share"]'))
+  assert.equal(urls.filter((url) => url === '/handoffs/1/sessions').length, 2)
+})
+
+test('una URL directa de crear enlace o código conserva la comprobación de permisos', async (t) => {
+  const urls: string[] = []
+  mockApi(t, async (config) => {
+    urls.push(config.url!)
+    assert.equal(config.url, '/handoffs/1', 'un cuidador no autorizado no debe pedir sesiones ni códigos')
+    return ok(config, detail)
+  })
+  for (const mode of ['share', 'code'] as const) {
+    const { container } = await mount(t, <HandoffWorkspacePage subjectId={4} handoffId={1} isPrincipal={false} userId={99} mode={mode} sessionId={3} />)
+    assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /Solo quien creó este resumen o el cuidador principal/)
+    assert.equal(container.querySelector('form'), null)
+    assert.equal(container.querySelector('[aria-label^="Código de acceso:"]'), null)
+    assert.equal(container.querySelector('a')?.getAttribute('href'), '/people/4/handoffs/1')
+  }
+  assert.deepEqual(urls, ['/handoffs/1', '/handoffs/1'])
+})
+
+test('rechaza un resumen ajeno a la persona o con ID distinto antes de mostrar datos o pedir sesiones', async (t) => {
+  let returned = { ...detail, careSubjectId: 5 }
+  const urls: string[] = []
+  mockApi(t, async (config) => {
+    urls.push(config.url!)
+    assert.equal(config.url, '/handoffs/1')
+    return ok(config, returned)
+  })
+  for (const wrong of [{ ...detail, careSubjectId: 5 }, { ...detail, id: 2 }]) {
+    returned = wrong
+    const { container } = await mount(t, <HandoffWorkspacePage subjectId={4} handoffId={1} isPrincipal userId={8} mode="detail" />)
+    assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /no pertenece a la persona seleccionada/)
+    assert.doesNotMatch(container.textContent ?? '', /Control anual|Hemograma de octubre|¿Repetir el examen\?/)
+    assert.equal(container.querySelector('a[href$="/share"]'), null)
+  }
+  assert.equal(urls.length, 2)
+})
+
+test('cambiar de resumen cancela la carga vieja y no restaura su contenido al responder tarde', async (t) => {
+  let release: (() => void) | undefined
+  let signal: AbortSignal | undefined
+  mockApi(t, async (config) => {
+    if (config.url === '/handoffs/1') {
+      signal = config.signal as AbortSignal
+      await new Promise<void>((resolve) => { release = resolve })
+      return ok(config, detail)
+    }
+    assert.equal(config.url, '/handoffs/2')
+    return ok(config, { ...detail, id: 2, reason: 'Resumen nuevo', questions: null, items: [] })
+  })
+  const { container, render } = await mount(t, <HandoffWorkspacePage subjectId={4} handoffId={1} isPrincipal={false} userId={99} mode="detail" />)
+  assert.match(container.textContent ?? '', /Cargando resumen/)
+  await render(<HandoffWorkspacePage subjectId={4} handoffId={2} isPrincipal={false} userId={99} mode="detail" />)
+  assert.equal(signal?.aborted, true)
+  await act(async () => { release!() })
+  assert.match(container.textContent ?? '', /Resumen nuevo/)
+  assert.doesNotMatch(container.textContent ?? '', /Control anual|Hemograma de octubre|¿Repetir el examen\?/)
 })
 
 test('Las próximas consultas de un cuidador ofrecen Calendar con hora guardada o todo el día', async (t) => {
