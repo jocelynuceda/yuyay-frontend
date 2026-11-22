@@ -8,6 +8,9 @@ import type { TermsDocument } from '../types/terms';
 import { ApiError, createApiClient, toApiError } from './client';
 import { CLIENT_HEADER, clientHeaderValue } from '../utils/clientHeader.ts';
 import { createSession, NoSessionError } from './session';
+import { getRandomBytes } from 'expo-crypto';
+import { createVault } from '../utils/biometricVault';
+import { biometricKeyStore } from './biometric';
 
 function resolveApiUrl(): string {
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
@@ -52,18 +55,30 @@ export function getAccountTerms(): Promise<TermsDocument> {
 let onSessionExpired = () => {};
 let onRecoveryRequired = (_message: string) => {};
 
-export const session = createSession<AuthResponse>({
-  storage: {
-    get: async () => await secureStorage.get(REFRESH_KEY) ?? await secureStorage.get(LEGACY_REFRESH_KEY),
-    set: async (token) => {
-      await secureStorage.set(REFRESH_KEY, token);
-      await secureStorage.remove(LEGACY_REFRESH_KEY);
-    },
-    remove: async () => {
-      await secureStorage.remove(REFRESH_KEY);
-      await secureStorage.remove(LEGACY_REFRESH_KEY);
-    },
+const SEALED_KEY = `${REFRESH_KEY}.sealed`;
+const unlockKey = biometricKeyStore(`${REFRESH_KEY}.unlock`);
+
+/** El refresh token, en texto protegido por SecureStore o cifrado con la clave biométrica si se activó. */
+export const vault = createVault({
+  getPlain: async () => await secureStorage.get(REFRESH_KEY) ?? await secureStorage.get(LEGACY_REFRESH_KEY),
+  setPlain: async (token) => {
+    await secureStorage.set(REFRESH_KEY, token);
+    await secureStorage.remove(LEGACY_REFRESH_KEY);
   },
+  removePlain: async () => {
+    await secureStorage.remove(REFRESH_KEY);
+    await secureStorage.remove(LEGACY_REFRESH_KEY);
+  },
+  getSealed: () => Platform.OS === 'web' ? Promise.resolve(null) : secureStorage.get(SEALED_KEY),
+  setSealed: (sealed) => secureStorage.set(SEALED_KEY, sealed),
+  removeSealed: () => Platform.OS === 'web' ? Promise.resolve() : secureStorage.remove(SEALED_KEY),
+  readKey: unlockKey.read,
+  writeKey: unlockKey.write,
+  removeKey: () => Platform.OS === 'web' ? Promise.resolve() : unlockKey.remove(),
+}, getRandomBytes);
+
+export const session = createSession<AuthResponse>({
+  storage: vault.storage,
   renew: async (refreshToken) => {
     try {
       return (await auth.post<AuthResponse>('/refresh', { refreshToken })).data;

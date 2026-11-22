@@ -97,6 +97,14 @@ export function createSession<T extends Tokens>(options: SessionOptions<T>) {
       return save(tokens, reset());
     },
     refresh,
+    /** Ejecuta `operation` en la cola de escrituras con el refresh token vigente, sin cruzarse con una renovación. */
+    withToken<R>(operation: (token: string | null) => Promise<R>): Promise<R> {
+      const expected = generation;
+      return queue(async () => {
+        assertCurrent(expected);
+        return operation(rotatedToken ?? await options.storage.get());
+      });
+    },
     async logout() {
       const tokenInMemory = rotatedToken;
       reset();
