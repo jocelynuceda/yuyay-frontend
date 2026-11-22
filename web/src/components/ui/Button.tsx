@@ -6,7 +6,7 @@ import { Spinner } from './Spinner'
 const variants = {
   primary: 'bg-primary text-white shadow-[var(--shadow-soft)]',
   secondary: 'bg-card text-ink shadow-[var(--shadow-soft)]',
-  ghost: 'text-ink hover:bg-primary-tint',
+  ghost: 'control-ghost text-ink',
   danger: 'bg-danger text-white',
 } as const
 
@@ -39,7 +39,7 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-[filter,background-color] hover:brightness-105 disabled:opacity-60',
+        'control-interactive inline-flex items-center justify-center gap-2 rounded-full font-semibold disabled:opacity-60',
         variants[variant],
         sizes[size],
         focusRing,
