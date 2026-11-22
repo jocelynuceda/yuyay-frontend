@@ -1,15 +1,19 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useEffect } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
 import { ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
+import { ReminderToggle } from '../components/ReminderToggle';
 import { StatusMessage } from '../components/StatusMessage';
+import { useAuth } from '../hooks/useAuth';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getCareSubjects, getConsultations } from '../services/api';
+import { reconcileReminders } from '../services/reminders';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { HomeStackParamList } from '../types';
+import type { Consultation, HomeStackParamList } from '../types';
 import { appointmentOrder, formatTime, initialsOf, todayIso } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'UpcomingConsultations'>;
@@ -25,16 +29,28 @@ function daysUntil(date: string, today: string) {
   return `En ${days} días`;
 }
 
-/** Citas de hoy en adelante de todas las personas a cargo, la más cercana primero. */
+/**
+ * Citas de hoy en adelante de todas las personas a cargo, la más cercana primero.
+ * `loaded` guarda solo las listas que se pudieron leer, para reconciliar los avisos sin tocar las demás.
+ */
 async function loadUpcoming() {
   const subjects = await getCareSubjects();
-  const lists = await Promise.all(subjects.map((s) => getConsultations(s.id).catch(() => [])));
+  const loaded = new Map<number, Consultation[]>();
+  await Promise.all(
+    subjects.map((s) =>
+      getConsultations(s.id).then(
+        (list) => void loaded.set(s.id, list),
+        () => undefined,
+      ),
+    ),
+  );
   const today = todayIso();
-  return lists
+  const items = [...loaded.values()]
     .flat()
     .filter((c) => c.date >= today)
     .sort((a, b) => appointmentOrder(a).localeCompare(appointmentOrder(b)))
     .map((c) => ({ ...c, subject: subjects.find((s) => s.id === c.careSubjectId)! }));
+  return { items, loaded, subjectIds: new Set(subjects.map((s) => s.id)) };
 }
 
 export function UpcomingConsultationsScreen({ navigation }: Props) {
@@ -42,11 +58,18 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const upcoming = useFetch(loadUpcoming);
   useRefreshOnFocus(upcoming.reload);
+  const userId = useAuth().user?.id;
+
+  useEffect(() => {
+    if (userId !== undefined && upcoming.data) {
+      void reconcileReminders(userId, upcoming.data.loaded, upcoming.data.subjectIds);
+    }
+  }, [userId, upcoming.data]);
 
   if (upcoming.loading && !upcoming.data) return <LoadingView />;
 
   const today = todayIso();
-  const list = upcoming.data ?? [];
+  const list = upcoming.data?.items ?? [];
 
   return (
     <ScrollView
@@ -82,6 +105,7 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
                     <>
                       {c.notes ? <Text style={styles.notes}>{c.notes}</Text> : null}
                       <AddToCalendar consultation={c} subjectName={c.subject.name} />
+                      <ReminderToggle consultation={c} />
                     </>
                   }
                   onPress={() =>
