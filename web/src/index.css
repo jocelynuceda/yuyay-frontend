@@ -155,3 +155,87 @@
     animation: lion-breathe 3.2s ease-in-out infinite;
   }
 }
+
+/*
+ * Landing (pages/landing): bandas claras y oscuras como la presentación del proyecto. Una banda
+ * oscura redefine los colores del tema, así los componentes de siempre se leen bien encima.
+ */
+:root {
+  --landing-light: #EEECFA;
+  --landing-dark: #1E1D45;
+  --landing-lilac: #ABA6F2;
+}
+
+.dark {
+  --landing-light: #16152E;
+  --landing-dark: #0E0D24;
+  --landing-lilac: #34317A;
+}
+
+@layer components {
+  .band-light {
+    background-color: var(--landing-light);
+  }
+
+  .band-dark {
+    --color-ink: #EEEBFA;
+    --color-muted: #C3C0E6;
+    --color-card: #2A2858;
+    --color-primary: #ABA6F2;
+    --color-accent-text: #A9D3F0;
+    --color-soft-text: #D8D4FF;
+    --color-line: rgba(238, 235, 250, 0.16);
+    --color-border: rgba(238, 235, 250, 0.1);
+    --color-primary-tint: rgba(171, 166, 242, 0.18);
+    --color-white: #16152E;
+    background-color: var(--landing-dark);
+    color: var(--color-ink);
+  }
+
+  .band-lilac {
+    --color-ink: #1E2158;
+    --color-muted: #2E2C7E;
+    --color-primary: #1E2158;
+    --color-white: #EEEBFA;
+    background-color: var(--landing-lilac);
+    color: var(--color-ink);
+  }
+
+  .dark .band-lilac {
+    --color-ink: #EEEBFA;
+    --color-muted: #D8D4FF;
+    --color-primary: #EEEBFA;
+    --color-white: #16152E;
+  }
+
+  /* Trama de puntos de la presentación, hecha con CSS para que pese poco y siga el tema */
+  .landing-dots {
+    background-image: radial-gradient(currentColor 1.7px, transparent 2px);
+    background-size: 16px 16px;
+    mask-image: radial-gradient(closest-side, black 20%, transparent 100%);
+  }
+}
+
+/* Aparición suave al bajar. Sin JavaScript o con «reducir movimiento», todo se ve desde el inicio. */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal-ready .reveal {
+    opacity: 0;
+    transform: translateY(1.25rem);
+    transition: opacity 600ms ease-out, transform 600ms ease-out;
+  }
+
+  .reveal-ready .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  @keyframes landing-float {
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  .landing-float {
+    animation: landing-float 5s ease-in-out infinite;
+  }
+}

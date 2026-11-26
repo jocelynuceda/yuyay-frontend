@@ -707,6 +707,26 @@ test('Dashboard: saludo, próxima cita más cercana entre todas las personas e i
   assert.ok(document.querySelector('a[href="/invitations/7"]'), 'enlace a la invitación pendiente')
 })
 
+test('Inicio sin sesión: muestra la landing con accesos a crear cuenta e iniciar sesión', async (t) => {
+  const { unmount } = await mountApp('/', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!document.querySelector('h1'), 'título de la landing')
+  assert.equal(pathname(), '/', 'se queda en el inicio, sin redirigir al login')
+  assert.match(document.querySelector('h1')?.textContent ?? '', /memoria de salud/)
+  assert.ok(document.querySelector('header a[href="/register"]'), 'botón Crear cuenta en la barra')
+  assert.ok(document.querySelector('header a[href="/login"]'), 'Iniciar sesión en la barra')
+  for (const id of ['que-es', 'que-hace', 'por-que', 'equipo']) {
+    assert.ok(document.getElementById(id), `sección #${id}`)
+    assert.ok(document.querySelector(`a[href="#${id}"]`), `enlace a #${id}`)
+  }
+})
+
+test('Sin sesión, las demás rutas privadas siguen llevando al login', async (t) => {
+  const { unmount } = await mountApp('/people', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => pathname() === '/login', 'redirección a /login')
+})
+
 test('Layout: navegación con la ruta activa y contador de avisos sin leer', async (t) => {
   const { unmount } = await mountApp('/people', { loggedIn: true })
   t.after(unmount)
