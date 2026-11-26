@@ -121,9 +121,9 @@ export const acceptInvitation = (relationshipId: number) =>
 
 export const getHealthCategories = () => http.get<HealthCategory[]>('/health-categories').then((r) => r.data);
 
-export const getHealthEntriesPage = (subjectId: number, page = 0, category?: string) =>
+export const getHealthEntriesPage = (subjectId: number, page = 0, category?: string, size = 100) =>
   http.get<Page<HealthEntry> | HealthEntry[]>(`/care-subjects/${subjectId}/health-entries`, {
-    params: { page, size: 100, category, sort: 'createdAt,desc' },
+    params: { page, size, category, sort: 'createdAt,desc' },
   }).then((r) => r.data);
 
 export const getHealthEntries = (subjectId: number, category?: string) =>

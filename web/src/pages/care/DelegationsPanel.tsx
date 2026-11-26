@@ -19,7 +19,7 @@ function delegationStatus(d: Delegation) {
 /**
  * Accesos delegados de una persona: crear (solo principal), copiar el enlace y revocar con confirmación.
  */
-export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number; isPrincipal: boolean }) {
+export function DelegationsPanel({ subjectId, subjectName, isPrincipal }: { subjectId: number; subjectName: string; isPrincipal: boolean }) {
   const { data, error, errorStatus, reload } = useFetch((signal) => listDelegations(subjectId, signal), [subjectId])
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<DelegationCreated | null>(null)
@@ -54,6 +54,8 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
 
       {creating ? (
         <DelegationForm
+          key={subjectId}
+          subjectName={subjectName}
           subjectId={subjectId}
           onCancel={() => setCreating(false)}
           onSaved={(result) => {
