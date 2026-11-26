@@ -22,14 +22,16 @@ export function applyServerErrors<T extends FieldValues>(
   error: unknown,
   setError: UseFormSetError<T>,
   fields: readonly Path<T>[],
+  aliases: Readonly<Record<string, Path<T>>> = {},
 ): string | null {
   if (axios.isAxiosError<ErrorResponse>(error)) {
     const fieldErrors = error.response?.data?.fieldErrors ?? []
     let unmatched = false
     fieldErrors.forEach(({ field, message }, index) => {
       const name = field.split(/[.[]/)[0] as Path<T>
-      if (fields.includes(name)) {
-        setError(name, { type: 'server', message }, { shouldFocus: index === 0 })
+      const target = Object.hasOwn(aliases, name) ? aliases[name] : fields.find((field) => field === name)
+      if (target) {
+        setError(target, { type: 'server', message }, { shouldFocus: index === 0 })
       } else {
         unmatched = true
       }

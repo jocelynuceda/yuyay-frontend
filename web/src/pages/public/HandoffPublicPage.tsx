@@ -1,15 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState, type ReactNode } from 'react'
-import { useForm } from 'react-hook-form'
+import { useEffect, useState, type ReactNode } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
-import { openHandoffSession, openHandoffSource } from '../../services/api/handoffs'
+import { getHandoffAccessRequirements, openHandoffSession, openHandoffSource } from '../../services/api/handoffs'
 import { emptyOpenHandoff, openHandoffFields, openHandoffSchema, type OpenHandoffFormValues } from '../../schemas/handoff'
-import type { CategoryCode, HandoffItem, HandoffPublicView } from '../../types'
+import type { CategoryCode, HandoffItem, HandoffPublicView, OpenHandoffRequest } from '../../types'
 import { CATEGORY_CODES } from '../../types'
 import { applyServerErrors, getErrorMessage } from '../../utils/apiErrors'
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
-import { PublicShell } from './PublicShell'
+import { PublicShell, StatusPanel } from './PublicShell'
 
 /**
  * Vista para el médico (/handoff/:token). Pide nombre y rol del visitante,
@@ -20,32 +20,96 @@ export function HandoffPublicPage({ token }: { token: string }) {
 }
 
 function HandoffSessionContent({ token }: { token: string }) {
-  const [view, setView] = useState<HandoffPublicView | null>(null)
+  const [opened, setOpened] = useState<{ view: HandoffPublicView; deadline: number | null } | null>(null)
+  const [expired, setExpired] = useState(false)
+  const [codeRequired, setCodeRequired] = useState<boolean>()
+  const [requirementsError, setRequirementsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getHandoffAccessRequirements(token, controller.signal)
+      .then((required) => { if (!controller.signal.aborted) setCodeRequired(required) })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) setRequirementsError(getErrorMessage(error))
+      })
+    return () => controller.abort()
+  }, [token])
+
+  function acceptView(view: HandoffPublicView, startedAt: number) {
+    const now = performance.now()
+    const remaining = view.accessExpiresAt
+      ? Date.parse(view.accessExpiresAt) - (view.serverTime ? Date.parse(view.serverTime) : Date.now()) - (now - startedAt)
+      : null
+    if (remaining !== null && (!Number.isFinite(remaining) || remaining <= 0)) {
+      setExpired(true)
+      return
+    }
+    setExpired(false)
+    setOpened({ view, deadline: remaining === null ? null : now + remaining })
+  }
+
+  useEffect(() => {
+    if (opened?.deadline == null) return
+    const deadline = opened.deadline
+    const check = () => {
+      if (performance.now() >= deadline) { setOpened(null); setExpired(true) }
+    }
+    const timer = setTimeout(check, Math.max(0, deadline - performance.now()))
+    window.addEventListener('focus', check)
+    document.addEventListener('visibilitychange', check)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('focus', check)
+      document.removeEventListener('visibilitychange', check)
+    }
+  }, [opened])
 
   return (
     <PublicShell>
-      {view ? <HandoffSummary view={view} token={token} /> : <VisitorForm token={token} onOpened={setView} />}
+      {expired ? <p role="status" className="mb-4 rounded-xl bg-accent-tint p-4 text-accent-text">Terminó el tiempo de lectura de este resumen. Solicita un nuevo acceso a quien lo compartió.</p> : null}
+      {opened ? <HandoffSummary view={opened.view} token={token} /> : null}
+      {!opened && !expired && (requirementsError
+        ? <StatusPanel title="No pudimos abrir el enlace" message={requirementsError} tone="error" />
+        : codeRequired === undefined
+          ? <StatusPanel title="Comprobando enlace…" />
+          : <VisitorForm token={token} codeRequired={codeRequired} onOpened={acceptView} />)}
     </PublicShell>
   )
 }
 
-function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: HandoffPublicView) => void }) {
+async function openTimedHandoff(token: string, request: OpenHandoffRequest) {
+  const startedAt = performance.now()
+  return { view: await openHandoffSession(token, request), startedAt }
+}
+
+function VisitorForm({ token, codeRequired, onOpened }: {
+  token: string
+  codeRequired: boolean
+  onOpened: (view: HandoffPublicView, startedAt: number) => void
+}) {
   const [serverError, setServerError] = useState<string | null>(null)
   const {
     register,
     handleSubmit,
     setError,
+    setValue,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<OpenHandoffFormValues, unknown, z.output<typeof openHandoffSchema>>({
     resolver: zodResolver(openHandoffSchema),
     defaultValues: emptyOpenHandoff,
     mode: 'onTouched',
   })
+  const accessCode = useWatch({ control, name: 'accessCode' }) ?? ''
+  const codeComplete = accessCode.length === 6
+  const accessCodeField = register('accessCode')
 
   const onSubmit = handleSubmit(async (values) => {
+    if (codeRequired && !values.accessCode) return
     setServerError(null)
     try {
-      onOpened(await openHandoffSession(token, values))
+      const result = await openTimedHandoff(token, values)
+      onOpened(result.view, result.startedAt)
     } catch (error) {
       setServerError(applyServerErrors(error, setError, openHandoffFields))
     }
@@ -53,9 +117,9 @@ function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: Hand
 
   return (
     <section className="rounded-3xl bg-card p-6 shadow-sm sm:p-8">
-      <h1 className="text-3xl font-semibold">Resumen de salud para la consulta</h1>
+      <h1 className="text-3xl font-semibold">Abrir resumen compartido</h1>
       <p className="mt-3 text-lg text-muted">
-        Antes de ver la información, indique quién la consulta. Queda registrado para la familia.
+        No necesitas una cuenta de Yuyay para leerlo. Tu nombre y rol quedan en la bitácora.
       </p>
 
       {serverError ? (
@@ -65,10 +129,11 @@ function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: Hand
       ) : null}
 
       <form onSubmit={onSubmit} noValidate className="mt-6 grid gap-5">
-        <Field label="Su nombre" error={errors.visitorName?.message} id="visitorName">
+        <Field label="Tu nombre" error={errors.visitorName?.message} id="visitorName">
           <input
             id="visitorName"
             autoComplete="name"
+            placeholder="Dr. Pedro Ramos"
             maxLength={120}
             aria-invalid={!!errors.visitorName}
             aria-describedby={errors.visitorName ? 'visitorName-error' : undefined}
@@ -76,21 +141,54 @@ function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: Hand
             {...register('visitorName')}
           />
         </Field>
-        <Field label="Su rol" hint="Por ejemplo: médico de guardia, enfermera, cardiólogo." error={errors.visitorRole?.message} id="visitorRole">
+        <Field label="Tu rol" error={errors.visitorRole?.message} id="visitorRole">
           <input
             id="visitorRole"
             autoComplete="organization-title"
+            placeholder="Médico"
             maxLength={80}
             aria-invalid={!!errors.visitorRole}
-            aria-describedby={errors.visitorRole ? 'visitorRole-error' : 'visitorRole-hint'}
+            aria-describedby={errors.visitorRole ? 'visitorRole-error' : undefined}
             className={inputClass(!!errors.visitorRole)}
             {...register('visitorRole')}
           />
         </Field>
+        {codeRequired ? (
+          <Field label="Código de acceso" error={errors.accessCode?.message} id="accessCode">
+            <div className="relative w-full max-w-sm">
+              <div aria-hidden="true" className="grid grid-cols-6 gap-1.5 sm:gap-2">
+                {Array.from({ length: 6 }, (_, digit) => (
+                  <span key={digit} className={`grid h-12 place-items-center rounded-xl border text-xl tabular-nums sm:h-14 ${errors.accessCode ? 'border-danger' : 'border-line'} ${accessCode[digit] ? 'bg-primary-tint' : 'text-muted'}`}>
+                    {accessCode[digit] ?? '·'}
+                  </span>
+                ))}
+              </div>
+              <input
+                {...accessCodeField}
+                id="accessCode"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                aria-invalid={!!errors.accessCode}
+                aria-describedby={errors.accessCode ? 'accessCode-error' : codeComplete ? undefined : 'accessCode-hint'}
+                value={accessCode}
+                onChange={(event) => setValue('accessCode', event.target.value.replace(/[^0-9]/g, '').slice(0, 6), { shouldValidate: !!errors.accessCode })}
+                className={`absolute inset-0 w-full rounded-xl bg-transparent text-transparent caret-transparent ${focusRing}`}
+              />
+            </div>
+            <div aria-hidden={codeComplete} className={`grid transition-[grid-template-rows,opacity] duration-[240ms] ease-out motion-reduce:transition-none ${codeComplete ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`}>
+              <div className="min-h-0 overflow-hidden">
+                <p id="accessCode-hint" className="text-sm text-muted">
+                  Coloca el código de 6 dígitos de quien te compartió el resumen.
+                </p>
+              </div>
+            </div>
+          </Field>
+        ) : null}
         <button
           type="submit"
-          disabled={isSubmitting}
-          className={`rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-white transition disabled:opacity-60 ${focusRing}`}
+          disabled={isSubmitting || (codeRequired && !codeComplete)}
+          className={`rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-white transition disabled:opacity-60 sm:justify-self-end ${focusRing}`}
         >
           {isSubmitting ? 'Abriendo…' : 'Ver resumen'}
         </button>
@@ -133,7 +231,7 @@ function HandoffSummary({ view, token }: { view: HandoffPublicView; token: strin
           </h2>
           <ul className="mt-3 grid gap-3">
             {items.map((item) => (
-              <HandoffItemCard key={item.healthEntryVersionId} item={item} token={token} />
+              <HandoffItemCard key={item.healthEntryVersionId} item={item} token={token} accessGrant={view.accessGrant} />
             ))}
           </ul>
         </section>
@@ -142,14 +240,14 @@ function HandoffSummary({ view, token }: { view: HandoffPublicView; token: strin
   )
 }
 
-function HandoffItemCard({ item, token }: { item: HandoffItem; token: string }) {
+function HandoffItemCard({ item, token, accessGrant }: { item: HandoffItem; token: string; accessGrant?: string | null }) {
   const [opening, setOpening] = useState(false)
   const [error, setError] = useState<string | null>(null)
   async function openSource() {
     setOpening(true)
     setError(null)
     try {
-      if (!(await openHandoffSource(token, item.healthEntryVersionId))) {
+      if (!(await openHandoffSource(token, item.healthEntryVersionId, accessGrant))) {
         setError('Permita abrir una nueva pestaña para ver el documento original.')
       }
     } catch (cause) {

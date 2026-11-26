@@ -22,11 +22,13 @@ export function SubmitButton({
   icon = 'check',
   onPress,
   loading,
+  disabled,
 }: {
   label: string;
   icon?: string;
   onPress: () => void;
   loading?: boolean;
+  disabled?: boolean;
 }) {
   const styles = useStyles();
   return (
@@ -35,7 +37,7 @@ export function SubmitButton({
       icon={icon}
       onPress={onPress}
       loading={loading}
-      disabled={loading}
+      disabled={loading || disabled}
       contentStyle={styles.buttonContent}
       labelStyle={styles.buttonLabel}
       style={styles.button}

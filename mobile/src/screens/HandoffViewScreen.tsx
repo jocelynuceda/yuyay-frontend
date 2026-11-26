@@ -5,7 +5,9 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from 'react-native-paper';
 import { Badge } from '../components/Badge';
-import { ChoiceChips, FormCard, SubmitButton } from '../components/FormKit';
+import { DurationField } from '../components/DurationField';
+import { FormCard, SubmitButton } from '../components/FormKit';
+import { FormScroll } from '../components/FormScroll';
 import { IconButton, ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
@@ -23,6 +25,7 @@ import {
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HandoffItem, HandoffSession, HandoffSessionCreated, HomeStackParamList } from '../types';
+import { defaultHandoffExpiry, defaultHandoffReading, handoffDurations } from '../utils/accessDurations';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
 import { shareText } from '../utils/confirm';
 import { formatDate } from '../utils/format';
@@ -30,15 +33,6 @@ import { canManageHandoffLinks, handoffLinkState, type HandoffLinkState } from '
 import { handoffPublicLink, handoffPublicOrigin } from '../utils/handoffPublicLink';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HandoffView'>;
-
-const expiryOptions = [
-  { value: 2, label: '2 horas' },
-  { value: 24, label: '1 día' },
-  { value: 72, label: '3 días' },
-];
-
-/** Minutos que dura la vista una vez que el médico abre el enlace. */
-const SESSION_WINDOW_MINUTES = 30;
 
 const dateTime = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
@@ -60,7 +54,9 @@ export function HandoffViewScreen({ route, navigation }: Props) {
   const { handoffId, isPrincipal } = route.params;
   const { user } = useAuth();
   const [doctorMode, setDoctorMode] = useState(false);
-  const [expiresIn, setExpiresIn] = useState(24);
+  const [expiry, setExpiry] = useState(defaultHandoffExpiry);
+  const [reading, setReading] = useState(defaultHandoffReading);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [sharing, setSharing] = useState(false);
   const [createdLink, setCreatedLink] = useState<{ session: HandoffSessionCreated; url: string } | null>(null);
   const [accessSessionId, setAccessSessionId] = useState<number | null>(null);
@@ -83,13 +79,16 @@ export function HandoffViewScreen({ route, navigation }: Props) {
 
   const h = handoff.data;
   const groups = groupByCategory(h.items);
+  const durations = handoffDurations(expiry, reading);
 
   async function handleShare() {
-    setSharing(true);
     setMessage(null);
+    setFieldErrors({});
+    if (!durations.request || sharing) return;
+    setSharing(true);
     try {
       const origin = handoffPublicOrigin(process.env.EXPO_PUBLIC_WEB_URL, __DEV__);
-      const s = await createHandoffSession(handoffId, expiresIn, SESSION_WINDOW_MINUTES);
+      const s = await createHandoffSession(handoffId, durations.request);
       sessions.reload();
       if (s.accessCodeRequired !== true) {
         setCreatedLink(null);
@@ -101,6 +100,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
       setCreatedLink({ session: s, url });
       setAccessSessionId(s.id);
     } catch (e) {
+      if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
       setMessage({ text: e instanceof ApiError ? e.message : 'No pudimos crear el enlace.', tone: 'error' });
     } finally {
       setSharing(false);
@@ -176,7 +176,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.list}>
+    <FormScroll contentContainerStyle={styles.list}>
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>{formatDate(h.createdAt)}</Text>
         <Text style={styles.reason}>{h.reason}</Text>
@@ -209,10 +209,32 @@ export function HandoffViewScreen({ route, navigation }: Props) {
       {canManageLinks ? (
         <FormCard title="Compartir con un enlace temporal">
           <Text style={styles.help}>
-            El médico necesitará el enlace y un código de 6 dígitos. Al abrirlo, podrá ver el resumen durante {SESSION_WINDOW_MINUTES} minutos.
+            El médico necesitará el enlace y un código de 6 dígitos.
           </Text>
-          <ChoiceChips options={expiryOptions} selected={[expiresIn]} onToggle={setExpiresIn} />
-          <SubmitButton label="Crear enlace protegido" icon="link-variant" onPress={handleShare} loading={sharing} />
+          <DurationField
+            label="El enlace vence en"
+            value={expiry}
+            onChange={(value) => {
+              setExpiry(value);
+              setFieldErrors({});
+            }}
+            hint="Límite máximo: 3 días. Después de ese momento, el enlace y el permiso caducan."
+            error={durations.errors?.expiry ?? fieldErrors.expiresInMinutes ?? fieldErrors.expiresInHours}
+            disabled={sharing}
+          />
+          <DurationField
+            label="Tiempo de lectura desde la primera apertura"
+            value={reading}
+            onChange={(value) => {
+              setReading(value);
+              setFieldErrors({});
+            }}
+            hint="Empieza al abrir el enlace de resumen correctamente."
+            error={durations.errors?.reading ?? fieldErrors.sessionWindowMinutes}
+            disabled={sharing}
+          />
+          {durations.errors ? <StatusMessage tone="info" message="Ajusta los tiempos para continuar." /> : null}
+          <SubmitButton label="Generar enlace y código" icon="link-variant" onPress={handleShare} loading={sharing} disabled={!durations.request} />
           {createdLink ? (
             <View style={styles.readyLink}>
               <Text style={styles.itemTitle}>Enlace listo</Text>
@@ -266,7 +288,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
         <Ionicons name="trash-outline" size={18} color={colors.danger} />
         <Text style={styles.deleteText}>Borrar resumen</Text>
       </Pressable>
-    </ScrollView>
+    </FormScroll>
   );
 }
 

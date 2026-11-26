@@ -1,20 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import type { z } from 'zod'
-import { todayIso } from '../../schemas/common'
 import {
   delegationFields,
   delegationSchema,
   emptyDelegation,
-  maxDelegationDay,
   type DelegationFormValues,
 } from '../../schemas/delegation'
 import { createDelegation } from '../../services/api/delegations'
 import { CATEGORY_CODES, type DelegationCreated } from '../../types'
+import { delegationExpiry } from '../../utils/accessDurations'
 import { applyServerErrors } from '../../utils/apiErrors'
-import { categoryLabels } from '../../utils/format'
+import { categoryLabels, formatDateTime } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
+import { DurationField } from './DurationField'
 import { a11yProps } from './fieldProps'
 import { Field, FormActions, FormShell, ServerError } from './fields'
 
@@ -33,33 +33,41 @@ export function DelegationForm({
     register,
     handleSubmit,
     setError,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<DelegationFormValues, unknown, z.output<typeof delegationSchema>>({
     resolver: zodResolver(delegationSchema),
     defaultValues: emptyDelegation,
     mode: 'onChange',
   })
+  const duration = useWatch({ control, name: 'duration' })
+  const preview = delegationExpiry(duration).validUntil
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit(async ({ duration, ...values }) => {
     setServerError(null)
+    const expiry = delegationExpiry(duration)
+    if (!expiry.validUntil) {
+      setError('duration.amount', { message: expiry.error }, { shouldFocus: true })
+      return
+    }
     try {
-      onSaved(await createDelegation(subjectId, values))
+      onSaved(await createDelegation(subjectId, { ...values, validUntil: expiry.validUntil }))
     } catch (error) {
-      setServerError(applyServerErrors(error, setError, delegationFields))
+      setServerError(applyServerErrors(error, setError, delegationFields, { validUntil: 'duration.amount' }))
     }
   })
 
   return (
     <FormShell
       title="Delegar acceso"
-      description="Para alguien sin cuenta (por ejemplo, una enfermera o un familiar de viaje): solo verá lo que elijas, hasta la fecha que indiques."
+      description="Para alguien sin cuenta, como una enfermera o un familiar de viaje. Solo verá lo que elijas durante el tiempo que indiques."
       onSubmit={onSubmit}
     >
       <ServerError message={serverError} />
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id="delegation-name" label="Nombre" error={errors.granteeName}>
-          <input maxLength={120} autoComplete="off" {...a11yProps('delegation-name', errors.granteeName)} {...register('granteeName')} />
+          <input placeholder="Dr. Pedro Ramos" maxLength={120} autoComplete="off" {...a11yProps('delegation-name', errors.granteeName)} {...register('granteeName')} />
         </Field>
         <Field id="delegation-email" label="Correo" error={errors.granteeEmail}>
           <input
@@ -101,15 +109,15 @@ export function DelegationForm({
         ) : null}
       </fieldset>
 
-      <Field id="delegation-until" label="Válido hasta" hint="El acceso vence al final de ese día." error={errors.validUntil}>
-        <input
-          type="date"
-          min={todayIso()}
-          max={maxDelegationDay()}
-          {...a11yProps('delegation-until', errors.validUntil, 'hint')}
-          {...register('validUntil')}
-        />
-      </Field>
+      <DurationField
+        id="delegation-duration"
+        label="El acceso vence en"
+        hint={preview ? `Vence aproximadamente el ${formatDateTime(preview)}. Máximo: 365 días.` : 'El tiempo comienza al crear el acceso. Máximo: 365 días.'}
+        error={errors.duration?.amount}
+        amountField={register('duration.amount')}
+        unitField={register('duration.unit', { deps: ['duration.amount'] })}
+        disabled={isSubmitting}
+      />
 
       <FormActions submitting={isSubmitting} submitLabel="Crear acceso" submittingLabel="Creando…" onCancel={onCancel} />
     </FormShell>
