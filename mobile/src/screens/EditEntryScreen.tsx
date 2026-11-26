@@ -138,7 +138,8 @@ function EntryForm({ entry, subjectId, onDone }: { entry: HealthEntry; subjectId
       </FormCard>
 
       <FormCard title={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'}>
-        <TextArea value={details} onChangeText={setDetails} placeholder="Lo que conviene saber" maxLength={2000} />
+        <TextArea value={details} onChangeText={setDetails} placeholder="Lo que conviene saber" maxLength={null} />
+        <StatusMessage message={fieldErrors.details} />
       </FormCard>
 
       <FormCard title="Notas (opcional)">

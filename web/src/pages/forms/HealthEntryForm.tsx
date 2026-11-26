@@ -47,7 +47,8 @@ export function HealthEntryForm({
   requireCategoryChoice = false,
   suggestedFields,
   sourceAttachmentId,
-  onRegisterAppendDetails,
+  onRegisterApplyOcrText,
+  requireDocumentText = false,
   onSaved,
   onCancel,
 }: {
@@ -63,10 +64,12 @@ export function HealthEntryForm({
   requireCategoryChoice?: boolean
   /** Texto del documento que justifica cada campo sugerido; se muestra como pista bajo el campo. */
   suggestedFields?: Partial<Record<'title' | 'categoryCode' | 'occurredOn', string>>
-  /** Entrega una función que agrega texto al final de Detalles. */
-  onRegisterAppendDetails?: (
-    place: (text: string, previous?: string) => 'inserted' | 'replaced' | 'unchanged' | 'appended',
+  /** Aplica correcciones solo si la base anterior permanece intacta y no es ambigua. */
+  onRegisterApplyOcrText?: (
+    apply: (text: string, previous: string) => 'replaced' | 'unchanged' | 'conflict',
   ) => void
+  /** Un OCR con texto no se puede guardar sin contenido revisado. */
+  requireDocumentText?: boolean
   /** Documento que respalda el registro nuevo. */
   sourceAttachmentId?: number
   /** `entry` es null si se editó sin cambios (no se envía nada). */
@@ -99,6 +102,10 @@ export function HealthEntryForm({
   const categoryCode = useWatch({ control, name: 'categoryCode' })
   const isMedication = categoryCode === MEDICATION
   const isExam = categoryCode === EXAM_RESULT
+  const isDocument = sourceAttachmentId !== undefined
+  const detailsHint = isDocument
+    ? 'Se guardará este registro.'
+    : undefined
   // Archivo opcional al crear (foto, PDF o audio), como en la app móvil
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
@@ -115,32 +122,22 @@ export function HealthEntryForm({
   }
 
   useEffect(() => {
-    onRegisterAppendDetails?.((text, previous) => {
+    onRegisterApplyOcrText?.((text, previous) => {
       const current = getValues('details')
-      const options = { shouldDirty: true, shouldValidate: true }
-      // Si el bloque anterior sigue intacto, se reemplaza en su lugar
-      if (previous && current.includes(previous)) {
-        if (previous === text) return 'unchanged'
-        setValue(
-          'details',
-          current.replace(previous, () => text),
-          options,
-        )
-        return 'replaced'
-      }
       if (current.includes(text)) return 'unchanged'
-      if (!current.trim()) {
-        setValue('details', text, options)
-        return 'inserted'
-      }
-      // El bloque anterior se editó a mano: se agrega uno nuevo al final
-      setValue('details', `${current}\n\n${text}`, options)
-      return previous ? 'appended' : 'inserted'
+      // Una edición manual nunca se sustituye ni se duplica con otra copia del OCR.
+      if (!previous || current.split(previous).length !== 2) return 'conflict'
+      setValue('details', current.replace(previous, () => text), { shouldDirty: true, shouldValidate: true })
+      return 'replaced'
     })
-  }, [onRegisterAppendDetails, getValues, setValue])
+  }, [onRegisterApplyOcrText, getValues, setValue])
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
+    if (requireDocumentText && !values.details?.trim()) {
+      setError('details', { type: 'required', message: 'Revisa y conserva el texto del documento, o escribe el contenido que deseas guardar.' }, { shouldFocus: true })
+      return
+    }
     try {
       if (!entry) {
         const attachmentId = sourceAttachmentId ?? (await uploadFile())
@@ -255,8 +252,17 @@ export function HealthEntryForm({
         />
       </Field>
 
-      <Field id="entry-details" label={isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'} error={errors.details}>
-        <textarea rows={3} maxLength={2000} {...a11yProps('entry-details', errors.details)} {...register('details')} />
+      <Field
+        id="entry-details"
+        label={isDocument ? (isExam ? 'Resultado / Texto del documento' : 'Texto del documento') : isExam ? 'Resultado (opcional)' : 'Detalles (opcional)'}
+        error={errors.details}
+        hint={detailsHint}
+      >
+        <textarea
+          rows={isDocument ? 12 : 3}
+          {...a11yProps('entry-details', errors.details, detailsHint)}
+          {...register('details')}
+        />
       </Field>
 
       {canAttach ? (

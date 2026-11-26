@@ -340,12 +340,12 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   await waitFor(() => /Leyendo el documento/.test(text()), 'lectura en curso')
   await waitFor(() => !!document.querySelector<HTMLInputElement>('#entry-title'), 'formulario de revisión', 6000)
 
-  // Sugerencias por reglas a partir de la receta real; Detalles queda vacío
+  // El formulario aparece al terminar el OCR, con todo el texto visible y por confirmar
   assert.equal(document.querySelector<HTMLInputElement>('#entry-title')!.value, 'Receta médica')
   assert.equal(document.querySelector<HTMLInputElement>('input[name="categoryCode"][value="MEDICATION"]')!.checked, true)
   assert.equal(document.querySelector<HTMLInputElement>('#entry-occurredOn, input[name="occurredOn"]')!.value, '2024-08-02')
   assert.equal(document.querySelector<HTMLInputElement>('input[name="confidenceLevel"][value="UNCERTAIN"]')!.checked, true)
-  assert.equal(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value, '')
+  assert.equal(document.querySelector<HTMLTextAreaElement>('#entry-details')!.value, RECETA_UNICA_MINSA)
   assert.match(text(), /Sugerido del documento/)
 
   // Medicamentos sugeridos con el diccionario: nada se cambia sin aceptarlo
@@ -359,23 +359,22 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   await waitFor(() => /Aceptado/.test(text()) && /Descartado/.test(text()), 'decisiones visibles')
   const detailsArea = () => document.querySelector<HTMLTextAreaElement>('#entry-details')!
   // Aceptar todavía no cambia Detalles, y la página lo dice
-  assert.equal(detailsArea().value, '')
-  assert.match(text(), /1 corrección aceptada sin aplicar a Detalles\./)
+  assert.equal(detailsArea().value, RECETA_UNICA_MINSA)
+  assert.match(text(), /1 corrección aceptada sin aplicar al texto del documento\./)
 
   // Aplicar desde la sección: Detalles recibe el texto con la corrección
-  assert.match(text(), /Texto leído del documento/)
+  assert.match(text(), /Lectura original del documento/)
   assert.match(document.querySelector('pre')!.textContent!, /Panitidina/, 'la lectura original no cambia')
-  await click(byText('button', 'Aplicar a Detalles'), 'Aplicar a Detalles')
+  await click(byText('button', 'Aplicar al texto'), 'Aplicar al texto')
   await waitFor(() => /Hiosina/.test(detailsArea().value), 'texto aplicado a Detalles')
   assert.match(detailsArea().value, /Ranitidina 10mg/)
   assert.doesNotMatch(detailsArea().value, /Panitidina/)
   assert.match(detailsArea().value, /Joringa/, 'lo descartado queda como se leyó')
-  await waitFor(() => /Detalles ya incluye las correcciones aceptadas/.test(text()), 'estado al día')
+  await waitFor(() => /El texto del documento ya incluye las correcciones aceptadas/.test(text()), 'estado al día')
 
-  // Copiar otra vez no duplica el texto
+  // No hay un segundo paso oculto para incluir el texto en el registro.
   const once = detailsArea().value
-  await click(byText('button', 'Copiar a Detalles'), 'Copiar a Detalles')
-  assert.equal(detailsArea().value, once)
+  assert.equal(byText('button', 'Copiar a Detalles'), null)
 
   // Lo que el usuario escribe se conserva; deshacer y actualizar reemplaza solo el bloque insertado
   await act(async () => {
@@ -385,7 +384,7 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   })
   await click(document.querySelector<HTMLButtonElement>('button[aria-label="Deshacer decisión sobre Ranitidina"]')!, 'Deshacer')
   await waitFor(() => /Cambiaste las correcciones después de aplicarlas/.test(text()), 'aviso de cambios sin aplicar')
-  await click(byText('button', 'Actualizar Detalles'), 'Actualizar Detalles')
+  await click(byText('button', 'Actualizar texto'), 'Actualizar texto')
   await waitFor(() => /Panitidina 10mg/.test(detailsArea().value), 'bloque actualizado')
   assert.match(detailsArea().value, /^Nota del cuidador: tomar con comida\./)
   assert.doesNotMatch(detailsArea().value, /Ranitidina/)
@@ -393,9 +392,22 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
 
   // Se vuelve a aceptar para registrar con la corrección
   await click(document.querySelector<HTMLButtonElement>('button[aria-label="Aceptar Ranitidina en lugar de Panitidina"]')!, 'Aceptar otra vez')
-  await click(byText('button', 'Actualizar Detalles'), 'Actualizar Detalles')
+  await click(byText('button', 'Aplicar al texto'), 'Aplicar al texto')
   await waitFor(() => /Ranitidina 10mg/.test(detailsArea().value), 'corrección aplicada otra vez')
   assert.equal(detailsArea().value.match(/Hiosina/g)?.length, 1, 'sigue habiendo un solo bloque')
+
+  // Una edición dentro del bloque impide sustituirlo o anexar otra copia del OCR.
+  const manuallyReviewed = detailsArea().value.replace('10mg', '20mg, verificado con el archivo')
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set!.call(detailsArea(), manuallyReviewed)
+    detailsArea().dispatchEvent(new window.Event('input', { bubbles: true }))
+  })
+  await click(document.querySelector('button[aria-label="Aceptar Hioscina en lugar de Hiosina"]'), 'Aceptar Hioscina')
+  await click(byText('button', 'Actualizar texto'), 'Actualizar texto')
+  assert.equal(detailsArea().value, manuallyReviewed)
+  assert.match(text(), /Conservamos tus cambios/)
+  await click(byText('button', 'Actualizar texto'), 'Reintentar sin duplicar')
+  assert.equal(detailsArea().value, manuallyReviewed)
 
   // El usuario corrige el título antes de guardar
   await type(document.querySelector<HTMLInputElement>('#entry-title')!, 'Receta de emergencia')
@@ -409,6 +421,55 @@ test('Documentos: sube el archivo, espera la lectura y crea el registro con el t
   assert.equal(created.confidenceLevel, 'UNCERTAIN')
   assert.match(String(created.details), /Hiosina/)
   assert.match(String(created.details), /Ranitidina/)
+})
+
+test('Documentos: guarda todo el texto largo corregido con Confirmado y explica su uso en el resumen', async (t) => {
+  const longText = `${RECETA_UNICA_MINSA}\n${'Texto completo del documento de prueba. '.repeat(180)}FIN DEL DOCUMENTO`
+  const { b, unmount } = await mountApp('/people/1/documents/32', {
+    loggedIn: true,
+    seed: (db) => Object.assign(db.attachments[1], { ocrStatus: 'DONE', ocrText: longText }),
+  })
+  t.after(unmount)
+  await waitFor(() => !!document.querySelector('#entry-details'), 'texto precargado')
+  const details = document.querySelector<HTMLTextAreaElement>('#entry-details')!
+  assert.equal(details.value, longText)
+  assert.equal(details.hasAttribute('maxlength'), false)
+  assert.equal(details.closest('details'), null, 'el texto editable está visible')
+  assert.match(text(), /Se guardará este registro\./)
+  assert.equal(document.querySelector<HTMLInputElement>('input[value="UNCERTAIN"]')!.checked, true)
+  const reviewed = longText.replace('Panitidina', 'Ranitidina revisada')
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set!.call(details, reviewed)
+    details.dispatchEvent(new window.Event('input', { bubbles: true }))
+  })
+  await click(document.querySelector('input[value="CONFIRMED"]'), 'Confirmado')
+  await waitFor(() => /Medicamentos y dispositivos detectados/.test(text()), 'diccionario cargado')
+  assert.equal(details.value, reviewed)
+  assert.equal(document.querySelector<HTMLInputElement>('input[value="CONFIRMED"]')!.checked, true)
+  await click(byText('button', 'Registrar'), 'Registrar')
+  await waitFor(() => b.db.createdEntries.length === 1, 'POST del registro')
+  assert.equal(b.db.createdEntries[0].details, reviewed)
+  assert.equal(b.db.createdEntries[0].confidenceLevel, 'CONFIRMED')
+  assert.equal(b.db.createdEntries[0].sourceAttachmentId, 32)
+})
+
+test('Documentos: borrar el texto OCR impide guardar y pide conservar o escribir contenido', async (t) => {
+  const { b, unmount } = await mountApp('/people/1/documents/32', {
+    loggedIn: true,
+    seed: (db) => Object.assign(db.attachments[1], { ocrStatus: 'DONE', ocrText: RECETA_UNICA_MINSA }),
+  })
+  t.after(unmount)
+  await waitFor(() => !!document.querySelector('#entry-details'), 'texto precargado')
+  const details = document.querySelector<HTMLTextAreaElement>('#entry-details')!
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set!.call(details, '   ')
+    details.dispatchEvent(new window.Event('input', { bubbles: true }))
+  })
+  await click(document.querySelector('input[value="CONFIRMED"]'), 'Confirmado')
+  await click(byText('button', 'Registrar'), 'Registrar')
+  await waitFor(() => /Revisa y conserva el texto del documento/.test(text()), 'explicación junto al contenido')
+  assert.equal(b.db.createdEntries.length, 0)
+  assert.equal(details.value, '   ', 'no rellena el campo silenciosamente')
 })
 
 test('Documentos: sin categoría sugerida hay que elegirla (no hay "Alergia" por defecto)', async (t) => {

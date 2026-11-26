@@ -18,7 +18,7 @@ export const healthEntrySchema = z
   .object({
     categoryCode: z.enum(CATEGORY_CODES, 'Elige una categoría.'),
     title: requiredText('Escribe un título.', 150),
-    details: optionalText(2000),
+    details: optionalText(),
     dose: optionalText(60),
     frequency: optionalText(60),
     occurredOn: optionalDate({ notFuture: true }),

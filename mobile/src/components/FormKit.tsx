@@ -95,7 +95,7 @@ export function GenderChips({ value, onChange, disabled }: { value: Gender | nul
   return <ChoiceChips options={genderOptions} selected={value ? [value] : []} onToggle={onChange} disabled={disabled} />;
 }
 
-/** Texto largo con contador de caracteres. */
+/** Texto largo con contador de caracteres; maxLength=null permite conservar documentos completos. */
 export function TextArea({
   value,
   onChangeText,
@@ -107,7 +107,7 @@ export function TextArea({
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
-  maxLength?: number;
+  maxLength?: number | null;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -119,12 +119,12 @@ export function TextArea({
         placeholder={placeholder}
         placeholderTextColor={colors.placeholder}
         multiline
-        maxLength={maxLength}
+        maxLength={maxLength ?? undefined}
         style={[styles.textArea, style]}
         {...inputProps}
       />
       <Text style={styles.counter}>
-        {value.length}/{maxLength}
+        {maxLength == null ? `${value.length} caracteres` : `${value.length}/${maxLength}`}
       </Text>
     </View>
   );

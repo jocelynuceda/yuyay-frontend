@@ -149,3 +149,29 @@ test('pulsar guardar dos veces comparte la escritura y cancelar una carga no gua
   await loading
   assert.equal(cancelled.getSnapshot().preparation, null)
 })
+
+test('el resumen conserva todo el texto revisado de la versión elegida y usa la respuesta guardada', async () => {
+  const reviewedText = `${'Texto revisado del documento.\n'.repeat(200)}FIN DEL TEXTO VALIDADO`;
+  const preparedVersion = { ...version, details: reviewedText, sourceAttachmentId: 77, confidenceLevel: 'UNCERTAIN' as const };
+  const prepared = {
+    ...preparation,
+    categories: [{ categoryCode: 'ALLERGY', entries: [{ entryId: 12, versionId: 31, version: preparedVersion }] }],
+  };
+  const snapshot: HandoffDetail = {
+    ...saved,
+    items: [{ ...preparedVersion, healthEntryId: 12, healthEntryVersionId: 31, categoryCode: 'ALLERGY' }],
+  };
+  const review = model(async (body) => {
+    assert.deepEqual(body.entries, [{ entryId: 12, versionId: 31 }]);
+    return snapshot;
+  }, async () => prepared);
+  await review.load();
+  assert.equal(review.getSnapshot().preparation?.categories[0].entries[0].version.details, reviewedText);
+  review.review();
+  await review.save();
+  assert.equal(review.getSnapshot().saved?.items[0].details, reviewedText);
+  assert.equal(review.getSnapshot().saved?.items[0].confidenceLevel, 'UNCERTAIN');
+  assert.equal(review.getSnapshot().saved?.items[0].healthEntryVersionId, 31);
+  review.edit({ selected: [], reason: 'Cambio posterior' });
+  assert.equal(review.getSnapshot().saved, snapshot);
+});

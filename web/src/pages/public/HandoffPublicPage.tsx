@@ -2,11 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { openHandoffSession } from '../../services/api/handoffs'
+import { openHandoffSession, openHandoffSource } from '../../services/api/handoffs'
 import { emptyOpenHandoff, openHandoffFields, openHandoffSchema, type OpenHandoffFormValues } from '../../schemas/handoff'
 import type { CategoryCode, HandoffItem, HandoffPublicView } from '../../types'
 import { CATEGORY_CODES } from '../../types'
-import { applyServerErrors } from '../../utils/apiErrors'
+import { applyServerErrors, getErrorMessage } from '../../utils/apiErrors'
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { PublicShell } from './PublicShell'
@@ -16,11 +16,15 @@ import { PublicShell } from './PublicShell'
  * abre la sesión y muestra el resumen en letra grande y solo lectura.
  */
 export function HandoffPublicPage({ token }: { token: string }) {
+  return <HandoffSessionContent key={token} token={token} />
+}
+
+function HandoffSessionContent({ token }: { token: string }) {
   const [view, setView] = useState<HandoffPublicView | null>(null)
 
   return (
     <PublicShell>
-      {view ? <HandoffSummary view={view} /> : <VisitorForm token={token} onOpened={setView} />}
+      {view ? <HandoffSummary view={view} token={token} /> : <VisitorForm token={token} onOpened={setView} />}
     </PublicShell>
   )
 }
@@ -95,7 +99,7 @@ function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: Hand
   )
 }
 
-function HandoffSummary({ view }: { view: HandoffPublicView }) {
+function HandoffSummary({ view, token }: { view: HandoffPublicView; token: string }) {
   const byCategory = CATEGORY_CODES.map((code) => ({
     code,
     items: view.items.filter((item) => item.categoryCode === code),
@@ -129,7 +133,7 @@ function HandoffSummary({ view }: { view: HandoffPublicView }) {
           </h2>
           <ul className="mt-3 grid gap-3">
             {items.map((item) => (
-              <HandoffItemCard key={item.healthEntryVersionId} item={item} />
+              <HandoffItemCard key={item.healthEntryVersionId} item={item} token={token} />
             ))}
           </ul>
         </section>
@@ -138,7 +142,22 @@ function HandoffSummary({ view }: { view: HandoffPublicView }) {
   )
 }
 
-function HandoffItemCard({ item }: { item: HandoffItem }) {
+function HandoffItemCard({ item, token }: { item: HandoffItem; token: string }) {
+  const [opening, setOpening] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  async function openSource() {
+    setOpening(true)
+    setError(null)
+    try {
+      if (!(await openHandoffSource(token, item.healthEntryVersionId))) {
+        setError('Permita abrir una nueva pestaña para ver el documento original.')
+      }
+    } catch (cause) {
+      setError(getErrorMessage(cause))
+    } finally {
+      setOpening(false)
+    }
+  }
   const facts = [item.dose && `Dosis: ${item.dose}`, item.frequency].filter(Boolean).join(' · ')
   return (
     <li className="rounded-2xl bg-card p-5 sm:p-6">
@@ -153,11 +172,21 @@ function HandoffItemCard({ item }: { item: HandoffItem }) {
         </span>
       </div>
       {facts ? <p className="mt-2 font-semibold">{facts}</p> : null}
-      {item.details ? <p className="mt-2 whitespace-pre-line">{item.details}</p> : null}
+      {item.details ? <p className="mt-2 whitespace-pre-wrap break-words">{item.details}</p> : null}
       {item.notes ? <p className="mt-2 whitespace-pre-line text-muted">{item.notes}</p> : null}
       <p className="mt-3 text-base text-muted">
         {item.occurredOn ? `Fecha: ${formatDate(item.occurredOn)} · ` : ''}Actualizado el {formatDate(item.declaredAt)}
       </p>
+      {item.hasSourceAttachment ? (
+        <div className="mt-4 grid gap-2">
+          <button type="button" onClick={() => void openSource()} disabled={opening}
+            className={`justify-self-start rounded-xl border border-line px-4 py-2 text-base font-semibold disabled:opacity-60 ${focusRing}`}>
+            {opening ? 'Abriendo original…' : 'Ver documento original'}
+          </button>
+          <p className="text-sm text-muted">Respaldo del registro compartido. Se abre en otra pestaña.</p>
+          {error ? <p role="alert" className="text-base text-danger">{error}</p> : null}
+        </div>
+      ) : null}
     </li>
   )
 }

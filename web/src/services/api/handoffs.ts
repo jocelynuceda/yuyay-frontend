@@ -57,3 +57,23 @@ export async function openHandoffSession(token: string, request: OpenHandoffRequ
   )
   return data
 }
+
+/** Respaldo de una versión incluida, sujeto a la vigencia del mismo enlace del resumen. */
+export async function openHandoffSource(token: string, versionId: number) {
+  const tab = window.open('', '_blank')
+  if (!tab) return false
+  tab.opener = null
+  try {
+    const { data } = await publicApi.get<Blob>(
+      `/public/handoff-sessions/${encodeURIComponent(token)}/versions/${versionId}/source/content`,
+      { responseType: 'blob', timeout: 60000 },
+    )
+    const url = URL.createObjectURL(data)
+    tab.location.href = url
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+    return true
+  } catch (error) {
+    tab.close()
+    throw error
+  }
+}

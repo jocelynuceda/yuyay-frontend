@@ -95,7 +95,7 @@ function DetectedTermsSection({
         Medicamentos y dispositivos detectados
       </h2>
       <p className="text-muted">
-        Revisa cada sugerencia con la imagen. Solo se usan las que aceptes, al aplicarlas a Detalles.
+        Revisa cada sugerencia con la imagen. Solo se usan las que aceptes, al aplicarlas al texto del documento.
       </p>
       <ul className="grid gap-3">
         {matches.map((match) => {
@@ -152,24 +152,24 @@ function DetectedTermsSection({
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl bg-accent-tint p-3 text-accent-text">
           <span>
             {outdated
-              ? 'Cambiaste las correcciones después de aplicarlas. Actualiza Detalles.'
+              ? 'Cambiaste las correcciones después de aplicarlas. Actualiza el texto del documento.'
               : pendingCount === 1
-                ? '1 corrección aceptada sin aplicar a Detalles.'
-                : `${pendingCount} correcciones aceptadas sin aplicar a Detalles.`}
+                ? '1 corrección aceptada sin aplicar al texto del documento.'
+                : `${pendingCount} correcciones aceptadas sin aplicar al texto del documento.`}
           </span>
           <Button size="sm" onClick={onApply}>
-            {outdated ? 'Actualizar Detalles' : 'Aplicar a Detalles'}
+            {outdated ? 'Actualizar texto' : 'Aplicar al texto'}
           </Button>
         </div>
       ) : upToDate ? (
-        <p className="text-sm text-muted">Detalles ya incluye las correcciones aceptadas.</p>
+        <p className="text-sm text-muted">El texto del documento ya incluye las correcciones aceptadas.</p>
       ) : null}
     </section>
   )
 }
 
-/** Texto completo de la lectura, para consultarlo o copiarlo a Detalles. */
-function OcrTextSection({ text, onAppend }: { text: string; onAppend: () => void }) {
+/** Lectura original de referencia; el texto que se guardará está en el formulario visible. */
+function OcrTextSection({ text }: { text: string }) {
   const toast = useToast()
 
   async function copy() {
@@ -183,15 +183,12 @@ function OcrTextSection({ text, onAppend }: { text: string; onAppend: () => void
 
   return (
     <details className="rounded-2xl bg-card p-4">
-      <summary className="cursor-pointer font-semibold">Texto leído del documento</summary>
+      <summary className="cursor-pointer font-semibold">Lectura original del documento</summary>
       <div className="mt-3 grid gap-3">
         <pre className="max-h-[60vh] overflow-auto rounded-xl border border-line p-3 text-base whitespace-pre-wrap break-words">
           {text}
         </pre>
         <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" size="sm" onClick={onAppend}>
-            Copiar a Detalles
-          </Button>
           <Button variant="secondary" size="sm" onClick={() => void copy()}>
             Copiar
           </Button>
@@ -216,14 +213,16 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
   const [retrying, setRetrying] = useState(false)
   const [opening, setOpening] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [correctionWarning, setCorrectionWarning] = useState<string | null>(null)
   useOcrPolling(document?.ocrStatus === 'PENDING', reload)
-  type PlaceDetails = (text: string, previous?: string) => 'inserted' | 'replaced' | 'unchanged' | 'appended'
-  const appendDetails = useRef<PlaceDetails | null>(null)
-  const registerAppendDetails = useCallback((fn: PlaceDetails) => {
-    appendDetails.current = fn
+  type PlaceDetails = (text: string, previous: string) => 'replaced' | 'unchanged' | 'conflict'
+  const applyOcrText = useRef<PlaceDetails | null>(null)
+  const registerApplyOcrText = useCallback((fn: PlaceDetails) => {
+    applyOcrText.current = fn
   }, [])
   const done = document?.ocrStatus === 'DONE'
-  const ocrText = document?.ocrText ?? ''
+  // Los textarea normalizan los saltos de línea; la base de las correcciones debe coincidir.
+  const ocrText = (document?.ocrText ?? '').replace(/\r\n?/g, '\n')
   const suggestion = useMemo(() => (done ? suggestEntryFromOcr(ocrText) : null), [done, ocrText])
   const matcher = useMedicalTermMatcher()
   const matches = useMemo(
@@ -246,26 +245,27 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
     })
   }
 
-  // Último bloque puesto en Detalles; se reinicia si cambia el texto leído
+  // Base precargada o última corrección aplicada. Nunca reinicializa el formulario durante un render.
   const [insertedState, setInsertedState] = useState<{ forText: string; value: string | null }>({
     forText: ocrText,
     value: null,
   })
-  const inserted = insertedState.forText === ocrText ? insertedState.value : null
+  const inserted = (insertedState.forText === ocrText ? insertedState.value : null) ?? ocrText
   const corrected = applyAcceptedMatches(ocrText, acceptedSuggestions)
-  const pendingCount = inserted === null ? acceptedSuggestions.length : 0
-  const outdated = inserted !== null && inserted !== corrected
-  const upToDate = inserted !== null && inserted === corrected && acceptedSuggestions.length > 0
+  const pendingCount = inserted === ocrText ? acceptedSuggestions.length : 0
+  const outdated = inserted !== ocrText && inserted !== corrected
+  const upToDate = inserted === corrected && acceptedSuggestions.length > 0
 
   function placeDetails() {
-    const result = appendDetails.current?.(corrected, inserted ?? undefined)
+    const result = applyOcrText.current?.(corrected, inserted)
     if (!result) return
+    if (result === 'conflict') {
+      setCorrectionWarning('Conservamos tus cambios. No aplicamos las sugerencias porque editaste el texto; corrige los términos directamente en Texto del documento.')
+      return
+    }
+    setCorrectionWarning(null)
     setInsertedState({ forText: ocrText, value: corrected })
-    if (result === 'inserted') toast.success('Texto copiado a Detalles.')
-    else if (result === 'replaced') toast.success('Detalles actualizado con las correcciones.')
-    else if (result === 'unchanged') toast.success('Detalles ya tiene este texto.')
-    else if (result === 'appended')
-      toast.info('Editaste el texto en Detalles, así que agregamos la versión corregida al final.')
+    toast.success(result === 'replaced' ? 'Texto del documento actualizado con las correcciones.' : 'El texto ya incluye estas correcciones.')
   }
 
   const backToDocuments = `/people/${subjectId}?tab=documents`
@@ -317,7 +317,8 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
       requireCategoryChoice
       suggestedFields={suggestedFields}
       sourceAttachmentId={attachmentId}
-      onRegisterAppendDetails={registerAppendDetails}
+      requireDocumentText={!!ocrText.trim()}
+      onRegisterApplyOcrText={registerApplyOcrText}
       onCancel={() => void navigate(backToDocuments)}
       onSaved={handleSaved}
     />
@@ -394,8 +395,8 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
                 {!document.ocrText
                   ? 'No encontramos texto en este documento. Puedes escribir el registro.'
                   : hasSuggestions
-                    ? 'Sugerimos algunos campos a partir del documento. Revísalos con la imagen antes de guardar.'
-                    : 'No pudimos sugerir campos. Completa el registro mirando el documento.'}
+                    ? 'Precargamos el texto completo y sugerimos algunos campos. Revisa y corrige el contenido con el archivo antes de guardar.'
+                    : 'Precargamos el texto completo. Revísalo con el archivo y completa los campos del registro antes de guardar.'}
               </p>
               {document.ocrText && matches.length > 0 ? (
                 <DetectedTermsSection
@@ -408,14 +409,15 @@ export function DocumentReviewPage({ subjectId, attachmentId }: { subjectId: num
                   onApply={placeDetails}
                 />
               ) : null}
-              {document.ocrText ? <OcrTextSection text={document.ocrText} onAppend={placeDetails} /> : null}
+              {correctionWarning ? <p role="status" className="rounded-2xl bg-accent-tint p-4 text-accent-text">{correctionWarning}</p> : null}
+              {document.ocrText ? <OcrTextSection text={document.ocrText} /> : null}
               {form(
                 {
                   title: suggestion.title,
                   categoryCode: suggestion.categoryCode,
                   occurredOn: suggestion.occurredOn,
                   confidenceLevel: 'UNCERTAIN',
-                  details: '',
+                  details: ocrText,
                 },
                 suggestion.evidence,
               )}
