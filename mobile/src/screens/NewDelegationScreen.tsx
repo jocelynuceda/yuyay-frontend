@@ -1,8 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { ScrollView, Text } from 'react-native';
+import { DurationField } from '../components/DurationField';
 import { ChoiceChips, FormCard, formStyles, SubmitButton } from '../components/FormKit';
-import { DateField, parseDateParts } from '../components/DateField';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
@@ -11,10 +11,10 @@ import { createDelegation, getHealthCategories } from '../services/api';
 import { API_URL, ApiError } from '../services/http';
 import { fonts, makeStyles } from '../theme';
 import type { DelegationCreated, HomeStackParamList } from '../types';
+import { defaultDelegationDuration, delegationExpiry } from '../utils/accessDurations';
 import { categoryMeta } from '../utils/categories';
 import { shareText } from '../utils/confirm';
-import { oneYearFrom } from '../utils/dates';
-import { formatDate, isEmail, todayIso } from '../utils/format';
+import { formatDateTime, isEmail } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewDelegation'>;
 
@@ -29,24 +29,19 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [codes, setCodes] = useState<string[]>([]);
-  const [dateParts, setDateParts] = useState({ day: '', month: '', year: '' });
+  const [duration, setDuration] = useState(defaultDelegationDuration);
   const [submitted, setSubmitted] = useState(false);
+  const [durationEdited, setDurationEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<DelegationCreated | null>(null);
 
-  const today = todayIso();
-  // Desde hoy y hasta un año después, igual que en la web
-  const dateRules = { allowFuture: true, notBefore: today, notAfter: oneYearFrom(today) };
-  const date = parseDateParts(dateParts, dateRules);
-  const { year, month, day } = dateParts;
-  const dateError = !dateParts.day && !dateParts.month && !dateParts.year ? 'Elige hasta cuándo.' : date.error;
+  const preview = delegationExpiry(duration);
   const errors = {
-    name: !name.trim() ? 'Ingresa su nombre.' : undefined,
+    name: !name.trim() ? 'Introduce tu nombre' : undefined,
     email: !isEmail(email) ? 'Ingresa un correo válido.' : undefined,
     codes: codes.length === 0 ? 'Elige al menos una opción.' : undefined,
-    date: dateError,
   };
 
   function toggleCode(code: string) {
@@ -55,7 +50,8 @@ export function NewDelegationScreen({ route, navigation }: Props) {
 
   async function handleSave() {
     setSubmitted(true);
-    if (Object.values(errors).some(Boolean)) return;
+    const { validUntil } = delegationExpiry(duration);
+    if (saving || Object.values(errors).some(Boolean) || !validUntil) return;
     setSaving(true);
     setError(null);
     try {
@@ -64,8 +60,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
         granteeEmail: email.trim(),
         categoryCodes: codes.filter((code) => code !== CONSULTATIONS),
         includeConsultations: codes.includes(CONSULTATIONS),
-        // Vale hasta el final del día elegido, en hora local
-        validUntil: new Date(Number(year), Number(month) - 1, Number(day), 23, 59, 59).toISOString(),
+        validUntil,
       });
       setCreated(res);
     } catch (e) {
@@ -83,12 +78,14 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   if (created) {
     // En desarrollo el backend no conoce la IP de la computadora: el enlace pasa por Metro, igual que la API
     const link = __DEV__ ? `${API_URL}/access/${created.token}` : created.shareLink;
-    const shareMessage = `${created.delegation.granteeName}, te compartieron información de salud en Yuyay hasta el ${formatDate(created.delegation.validUntil)}. Ábrela aquí, sin crear cuenta: ${link}\n\nSi usas la app: en el inicio de sesión toca "Tengo un código" (si ya tienes sesión: Perfil, "Tengo un código de acceso") y pega este código: ${created.token}`;
+    const expires = formatDateTime(created.delegation.validUntil);
+    const shareMessage = `${created.delegation.granteeName}, te compartieron información de salud en Yuyay hasta el ${expires}. Ábrela aquí, sin crear cuenta: ${link}\n\nSi usas la app: en el inicio de sesión toca "Tengo un código" (si ya tienes sesión: Perfil, "Tengo un código de acceso") y pega este código: ${created.token}`;
     return (
       <ScrollView contentContainerStyle={formStyles.container}>
         <StatusMessage tone="info" message={`Listo. Ahora compártele el enlace a ${created.delegation.granteeName}.`} />
         <FormCard title="Enlace de acceso">
           <Text style={styles.help}>Lo abre en su navegador, sin crear una cuenta.</Text>
+          <Text style={styles.help}>Vence el {expires}.</Text>
           <Text selectable style={styles.value}>
             {link}
           </Text>
@@ -116,9 +113,13 @@ export function NewDelegationScreen({ route, navigation }: Props) {
       <FormCard title="¿A quién le das acceso?">
         <FormField
           label="Nombre"
+          placeholder="Dr. Pedro Ramos"
           icon="account-outline"
           value={name}
-          onChangeText={setName}
+          onChangeText={(value) => {
+            setName(value);
+            setFieldErrors(({ granteeName: _granteeName, ...rest }) => rest);
+          }}
           maxLength={120}
           error={(submitted ? errors.name : undefined) ?? fieldErrors.granteeName}
         />
@@ -152,14 +153,17 @@ export function NewDelegationScreen({ route, navigation }: Props) {
       </FormCard>
 
       <FormCard title="¿Hasta cuándo?">
-        <DateField
-          label="Último día de acceso"
-          onChange={(p) => {
-            setDateParts(p);
+        <DurationField
+          label="El acceso vence en"
+          value={duration}
+          onChange={(value) => {
+            setDuration(value);
+            setDurationEdited(true);
             setFieldErrors(({ validUntil: _validUntil, ...rest }) => rest);
           }}
-          rules={dateRules}
-          error={(submitted ? errors.date : undefined) ?? fieldErrors.validUntil}
+          hint={preview.validUntil ? `Vence aproximadamente el ${formatDateTime(preview.validUntil)}. Máximo: 365 días.` : 'El tiempo comienza al crear el acceso. Máximo: 365 días.'}
+          error={(submitted || durationEdited ? preview.error : undefined) ?? fieldErrors.validUntil}
+          disabled={saving}
         />
       </FormCard>
 

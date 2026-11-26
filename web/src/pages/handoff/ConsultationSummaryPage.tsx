@@ -12,7 +12,7 @@ import { parseRouteId } from '../../utils/urlParams'
 import { inputClass } from '../forms/fieldProps'
 import NotFoundPage from '../NotFoundPage'
 import { PersonRouteFrame } from '../people/PersonRouteFrame'
-import { CreateHandoffLink } from './HandoffLinkStep'
+import { linkButtonClass, linkSecondaryClass } from '../../utils/styles'
 
 export default function ConsultationSummaryRoute() {
   const { id, consultationId: param } = useParams()
@@ -88,8 +88,11 @@ export function ConsultationSummaryPage({ subjectId, consultationId }: { subject
         <p className="whitespace-pre-wrap">{state.saved.reason}</p>
         <p className="whitespace-pre-wrap">{state.saved.questions || 'Sin preguntas.'}</p>
         {state.saved.items.map((item) => <VersionContent key={item.healthEntryVersionId} version={item} />)}
-        <Link to={`/people/${subjectId}?tab=handoffs`} className="text-primary underline">Volver a consultar los resúmenes guardados</Link>
-        <CreateHandoffLink handoffId={state.saved.id} />
+        <div className="flex flex-wrap gap-3">
+          <Link to={`/people/${subjectId}/handoffs/${state.saved.id}`} className={linkSecondaryClass}>Ver resumen</Link>
+          <Link to={`/people/${subjectId}/handoffs/${state.saved.id}/share`} className={linkButtonClass}>Generar enlace y código</Link>
+          <Link to={`/people/${subjectId}?tab=handoffs`} className={linkSecondaryClass}>Regresar</Link>
+        </div>
       </section>
     )
   }

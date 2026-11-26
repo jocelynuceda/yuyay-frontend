@@ -125,6 +125,7 @@ function ShareDelegation({ created, onClose }: { created: DelegationCreated; onC
       <h3 id="share-delegation-title" className="text-xl font-semibold">
         Acceso creado para {created.delegation.granteeName}
       </h3>
+      <p className="text-sm text-muted">Vence el {formatDateTime(created.delegation.validUntil)}.</p>
       <p className="text-muted">
         También se envía por correo a {created.delegation.granteeEmail}. Si quieres compartirlo por otro medio, cópialo
         ahora: por seguridad no se vuelve a mostrar. Solo se puede abrir una vez y el acceso se cierra cuando la persona

@@ -7,24 +7,30 @@ test('solicita protección explícita y envía autenticación sólo en la cabece
   const token = 'credencial-ficticia-no-real';
   const http = createApiClient('https://api.example/api/v1', { generation: 1, accessToken: token, refresh: async () => {} });
   const controller = new AbortController();
-  const seen: string[] = [];
+  const bodies: unknown[] = [];
+  let codeFetched = false;
   http.defaults.adapter = async (config) => {
-    seen.push(config.url!);
     assert.equal(config.headers.Authorization, `Bearer ${token}`);
     assert.equal(config.url?.includes(token), false);
     assert.equal(config.params, undefined);
     if (config.method === 'post') {
       assert.equal(config.url, '/handoffs/12/sessions');
-      assert.deepEqual(JSON.parse(config.data), { expiresInHours: 24, sessionWindowMinutes: 30, requireAccessCode: true });
+      bodies.push(JSON.parse(config.data));
     } else {
       assert.equal(config.url, '/handoff-sessions/34/access-code');
       assert.equal(config.signal, controller.signal);
       assert.equal(config.data, undefined);
+      codeFetched = true;
     }
     return { status: 200, statusText: 'OK', data: {}, headers: {}, config };
   };
   const api = createHandoffAccessApi(http);
   await api.createSession(12, 24, 30);
+  await api.createSession(12, { expiresInMinutes: 90, sessionWindowMinutes: 45 });
   await api.getCode(34, controller.signal);
-  assert.equal(seen.length, 2);
+  assert.deepEqual(bodies, [
+    { expiresInHours: 24, sessionWindowMinutes: 30, requireAccessCode: true },
+    { expiresInMinutes: 90, sessionWindowMinutes: 45, requireAccessCode: true },
+  ]);
+  assert.equal(codeFetched, true);
 });

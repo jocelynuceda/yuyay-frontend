@@ -21,7 +21,10 @@ const ok = (config: InternalAxiosRequestConfig, data: unknown) => ({ config, dat
 const pageOf = (entries: unknown[]) => ({ content: entries, number: 0, size: 100, totalElements: entries.length, totalPages: 1 })
 function adapter(t: TestContext, fn: AxiosAdapter) {
   const old = api.defaults.adapter, oldPublic = publicApi.defaults.adapter
-  api.defaults.adapter = fn; publicApi.defaults.adapter = fn
+  api.defaults.adapter = fn
+  publicApi.defaults.adapter = (config) => config.url?.endsWith('/access-requirements')
+    ? Promise.resolve(ok(config, { accessCodeRequired: false }))
+    : fn(config)
   t.after(() => { api.defaults.adapter = old; publicApi.defaults.adapter = oldPublic })
 }
 async function mount(t: TestContext, node: ReactNode) {
@@ -64,7 +67,7 @@ test('Resumen manual muestra texto completo en pasos 2/3 y envía la versión re
   adapter(t, async (config) => {
     if (config.method === 'get') return ok(config, pageOf([entry]))
     payload = JSON.parse(config.data)
-    return ok(config, { id: 12, items: [version] })
+    return ok(config, { id: 12, careSubjectId: 3, items: [version] })
   })
   const container = await mount(t, <NewHandoffPage subjectId={3} />)
   await selectAndReview(container)
@@ -72,6 +75,10 @@ test('Resumen manual muestra texto completo en pasos 2/3 y envía la versión re
   assert.deepEqual(payload.expectedVersionIds, { 8: 19 })
   assert.deepEqual(payload.healthEntryIds, [8])
   assert.match(container.textContent!, /Resumen creado/)
+  assert.equal(container.querySelector('a[href$="/share"]')?.getAttribute('href'), '/people/3/handoffs/12/share')
+  assert.equal(container.querySelector('a[href="/people/3/handoffs/12"]')?.textContent, 'Ver resumen')
+  assert.equal(container.querySelector('a[href="/people/3?tab=handoffs"]')?.textContent, 'Regresar')
+  assert.doesNotMatch(container.textContent!, /Vence en \(horas\)/)
 })
 
 test('409 bloquea repetir el guardado hasta recargar y revisar; conserva motivo', async (t) => {

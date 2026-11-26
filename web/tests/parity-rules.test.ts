@@ -46,14 +46,11 @@ test('Cita: puede ser pasada o futura, hasta dentro de 2 años', () => {
   assert.equal(message(consultationSchema.safeParse({ ...c, date: `${maxYear(3)}-01-01` })), `El año debe ser ${maxYear(2)} o anterior.`)
 })
 
-test('Delegación: se elige el día, desde hoy hasta el año próximo, y vence al final de ese día', () => {
+test('La delegación requiere elegir una duración entera mayor que cero', () => {
   const d = { granteeName: 'Luz', granteeEmail: 'luz@example.test', categoryCodes: ['ALLERGY'], includeConsultations: false }
-  const today = delegationSchema.parse({ ...d, validUntil: todayIso() })
-  const end = new Date(today.validUntil)
-  assert.equal(end.getHours(), 23)
-  assert.equal(end.getMinutes(), 59)
-  assert.equal(message(delegationSchema.safeParse({ ...d, validUntil: shift(-1) })), 'La fecha no puede ser anterior a hoy.')
-  assert.equal(message(delegationSchema.safeParse({ ...d, validUntil: `${maxYear(2)}-01-01` })), 'Máximo un año desde hoy.')
+  assert.equal(delegationSchema.safeParse({ ...d, duration: { amount: '1', unit: 'minutes' } }).success, true)
+  assert.equal(message(delegationSchema.safeParse({ ...d, duration: { amount: '', unit: 'days' } })), 'Introduce una cantidad.')
+  assert.equal(message(delegationSchema.safeParse({ ...d, duration: { amount: '1.5', unit: 'hours' } })), 'Introduce un número entero.')
 })
 
 test('Resumen: motivo de hasta 200 caracteres y preguntas de hasta 500', () => {
