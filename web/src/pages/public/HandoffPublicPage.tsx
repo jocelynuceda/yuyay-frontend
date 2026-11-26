@@ -11,6 +11,8 @@ import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format
 import { focusRing } from '../../utils/styles'
 import { PublicShell, StatusPanel } from './PublicShell'
 import { SummaryPdfDownload } from './SummaryPdfDownload'
+import { resumeReading, supportsReadingCookie } from '../../services/api/readingCookie'
+import { ReadingCookiePanel } from './ReadingCookiePanel'
 
 /**
  * Vista para el médico (/handoff/:token). Pide nombre y rol del visitante,
@@ -24,12 +26,28 @@ function HandoffSessionContent({ token }: { token: string }) {
   const [opened, setOpened] = useState<{ view: HandoffPublicView; deadline: number | null } | null>(null)
   const [expired, setExpired] = useState(false)
   const [codeRequired, setCodeRequired] = useState<boolean>()
+  const [rememberAvailable, setRememberAvailable] = useState(false)
   const [requirementsError, setRequirementsError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
     getHandoffAccessRequirements(token, controller.signal)
-      .then((required) => { if (!controller.signal.aborted) setCodeRequired(required) })
+      .then(async (required) => {
+        if (controller.signal.aborted) return
+        if (required && supportsReadingCookie()) {
+          const startedAt = performance.now()
+          try {
+            const view = await resumeReading(token, controller.signal)
+            if (controller.signal.aborted) return
+            if (view) { acceptView(view, startedAt); return }
+            setRememberAvailable(true)
+          } catch {
+            // El código permite continuar si el servidor aún no ofrece reanudación.
+            if (controller.signal.aborted) return
+          }
+        }
+        setCodeRequired(required)
+      })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setRequirementsError(getErrorMessage(error))
       })
@@ -69,6 +87,7 @@ function HandoffSessionContent({ token }: { token: string }) {
     <PublicShell compact>
       {expired ? <p role="status" className="mb-4 rounded-xl bg-accent-tint p-4 text-accent-text">Terminó el tiempo de lectura de este resumen. Solicita un nuevo acceso a quien lo compartió.</p> : null}
       {opened ? <HandoffSummary view={opened.view} token={token} deadline={opened.deadline} /> : null}
+      {opened?.view.accessGrant && rememberAvailable && <ReadingCookiePanel token={token} grant={opened.view.accessGrant} />}
       {!opened && !expired && (requirementsError
         ? <StatusPanel title="No pudimos abrir el enlace" message={requirementsError} tone="error" />
         : codeRequired === undefined
