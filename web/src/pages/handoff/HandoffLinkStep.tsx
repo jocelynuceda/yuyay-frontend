@@ -12,7 +12,8 @@ import { formatDateTime } from '../../utils/format'
 import { handoffLink } from '../../utils/links'
 import { focusRing, linkButtonClass, linkSecondaryClass } from '../../utils/styles'
 import { DurationField } from '../forms/DurationField'
-import { FormActions, FormShell, ServerError } from '../forms/fields'
+import { DownloadPermission } from './DownloadPermission'
+import { FormActions, ServerError } from '../forms/fields'
 
 /** Después de guardar, cada acción continúa en su propia página. */
 export function HandoffLinkStep({ handoff, subjectName }: { handoff: HandoffDetail; subjectName?: string }) {
@@ -32,9 +33,10 @@ export function HandoffLinkStep({ handoff, subjectName }: { handoff: HandoffDeta
 }
 
 /** Formulario del enlace temporal; una vez creado, muestra el enlace para copiarlo. */
-export function CreateHandoffLink({ handoffId, onCreated }: { handoffId: number; onCreated?: () => void }) {
+export function CreateHandoffLink({ handoffId, subjectName, onCreated }: { handoffId: number; subjectName?: string; onCreated?: () => void }) {
   const [session, setSession] = useState<HandoffSessionCreated | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
+  const [allowDownload, setAllowDownload] = useState(false)
   const {
     register,
     handleSubmit,
@@ -49,14 +51,16 @@ export function CreateHandoffLink({ handoffId, onCreated }: { handoffId: number;
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
     try {
-      const created = await createHandoffSession(handoffId, values)
-      if (created.accessCodeRequired !== true) {
+      const created = await createHandoffSession(handoffId, { ...values, ...(allowDownload ? { allowDownload: true } : {}) })
+      if (created.accessCodeRequired !== true || (allowDownload && created.allowDownload !== true)) {
         try {
           await revokeHandoffSession(created.id)
         } catch {
           // El token no se muestra ni se copia aunque no se pueda revocar.
         }
-        setServerError('El servidor todavía no permite crear enlaces protegidos con código. Inténtalo cuando el servicio esté actualizado.')
+        setServerError(allowDownload && created.accessCodeRequired === true
+          ? 'El servidor todavía no admite el permiso de descarga. No compartimos este enlace. Desactiva la descarga o inténtalo cuando el servicio esté actualizado.'
+          : 'El servidor todavía no permite crear enlaces protegidos con código. Inténtalo cuando el servicio esté actualizado.')
         onCreated?.()
         return
       }
@@ -74,13 +78,13 @@ export function CreateHandoffLink({ handoffId, onCreated }: { handoffId: number;
   if (session) return <ShareLink session={session} />
 
   return (
-    <FormShell
-      title="Generar enlace y código"
-      description="El lector puede abrirlo sin cuenta. Su nombre y rol quedan en la bitácora."
-      onSubmit={onSubmit}
-    >
+    <form onSubmit={onSubmit} noValidate aria-labelledby={`handoff-link-title-${handoffId}`} className="grid gap-3 rounded-3xl bg-card p-5 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 id={`handoff-link-title-${handoffId}`} className="text-xl font-semibold">Generar enlace y código</h1>
+        <span className="ml-auto max-w-full rounded-full bg-primary-tint px-3 py-1 text-sm [overflow-wrap:anywhere]">{subjectName ? `${subjectName} · ` : ''}Resumen para la consulta</span>
+      </div>
       <ServerError message={serverError} />
-      <div className="grid gap-5">
+      <div className="grid gap-3">
         <DurationField
           id={`session-expiry-${handoffId}`}
           label="El enlace vence en"
@@ -99,14 +103,16 @@ export function CreateHandoffLink({ handoffId, onCreated }: { handoffId: number;
           unitField={register('reading.unit', { deps: ['reading.amount'] })}
           disabled={isSubmitting}
         />
+        <DownloadPermission allowed={allowDownload} onChange={setAllowDownload} disabled={isSubmitting} />
       </div>
-      <div aria-hidden={!errors.expiry?.amount && !errors.reading?.amount} className={`grid transition-[grid-template-rows,opacity] duration-[240ms] ease-out motion-reduce:transition-none ${errors.expiry?.amount || errors.reading?.amount ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-        <div className="min-h-0 overflow-hidden">
-          <p className="rounded-xl bg-accent-tint p-4 text-accent-text">Ajusta los tiempos para continuar.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3 pt-1">
+        <div className="min-w-[min(100%,15rem)] flex-1">
+          <p id="download-permission-hint" className="text-sm text-muted">La copia podrá conservarse después de que venza el enlace.</p>
+          {errors.expiry?.amount || errors.reading?.amount ? <p className="mt-2 rounded-xl bg-accent-tint p-3 text-sm text-accent-text">Ajusta los tiempos para continuar.</p> : null}
         </div>
+        <FormActions submitting={isSubmitting} submitDisabled={!!(errors.expiry?.amount || errors.reading?.amount)} submitLabel="Generar enlace y código" submittingLabel="Creando…" />
       </div>
-      <FormActions submitting={isSubmitting} submitDisabled={!!(errors.expiry?.amount || errors.reading?.amount)} submitLabel="Generar enlace y código" submittingLabel="Creando…" />
-    </FormShell>
+    </form>
   )
 }
 
@@ -132,6 +138,7 @@ function ShareLink({ session }: { session: HandoffSessionCreated }) {
       <p className="text-muted">
         Envía el enlace solo al médico y comparte el código por separado. Vence el {formatDateTime(session.expiresAt)}.
       </p>
+      <p className="text-sm text-muted">{session.allowDownload === true ? 'Descarga del resumen en PDF autorizada.' : 'Descarga del resumen en PDF desactivada.'}</p>
       <HandoffAccessCode sessionId={session.id} />
       <div className="flex flex-wrap gap-2">
         <input

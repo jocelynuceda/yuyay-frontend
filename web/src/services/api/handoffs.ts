@@ -66,6 +66,16 @@ export async function openHandoffSession(token: string, request: OpenHandoffRequ
   return data
 }
 
+/** PDF del snapshot autorizado, con el permiso de esta apertura. */
+export async function getHandoffSummaryPdf(token: string, accessGrant?: string | null, signal?: AbortSignal) {
+  const { data } = await publicApi.get<Blob>(
+    `/public/handoff-sessions/${encodeURIComponent(token)}/summary.pdf`,
+    { responseType: 'blob', timeout: 60000, signal, ...(accessGrant ? { headers: { 'X-Handoff-Access': accessGrant } } : {}) },
+  )
+  if (!(data instanceof Blob) || data.type.split(';')[0] !== 'application/pdf') throw new Error('El servidor no devolvió un PDF válido.')
+  return data
+}
+
 /** Respaldo de una versión incluida, sujeto a la vigencia del mismo enlace del resumen. */
 export async function openHandoffSource(token: string, versionId: number, accessGrant?: string | null) {
   const tab = window.open('', '_blank')

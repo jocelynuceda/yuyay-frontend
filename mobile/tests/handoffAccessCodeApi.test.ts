@@ -27,10 +27,12 @@ test('solicita protección explícita y envía autenticación sólo en la cabece
   const api = createHandoffAccessApi(http);
   await api.createSession(12, 24, 30);
   await api.createSession(12, { expiresInMinutes: 90, sessionWindowMinutes: 45 });
+  await api.createSession(12, { expiresInMinutes: 90, sessionWindowMinutes: 45, allowDownload: true });
   await api.getCode(34, controller.signal);
   assert.deepEqual(bodies, [
     { expiresInHours: 24, sessionWindowMinutes: 30, requireAccessCode: true },
     { expiresInMinutes: 90, sessionWindowMinutes: 45, requireAccessCode: true },
+    { expiresInMinutes: 90, sessionWindowMinutes: 45, allowDownload: true, requireAccessCode: true },
   ]);
   assert.equal(codeFetched, true);
 });

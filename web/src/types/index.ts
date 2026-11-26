@@ -262,10 +262,11 @@ export interface HandoffRequest {
 export type HandoffSessionRequest = (
   | { expiresInMinutes: number; expiresInHours?: never }
   | { expiresInHours: number; expiresInMinutes?: never }
-) & { sessionWindowMinutes: number }
+) & { sessionWindowMinutes: number; allowDownload?: boolean }
 
 /** Enlace temporal de un resumen, sin el token (solo se muestra al crearlo). */
 export interface HandoffSession {
+  allowDownload?: boolean
   id: number
   handoffId: number
   expiresAt: string
@@ -277,6 +278,7 @@ export interface HandoffSession {
 }
 
 export interface HandoffSessionCreated {
+  allowDownload?: boolean
   accessCodeRequired?: boolean
   id: number
   token: string
@@ -292,6 +294,7 @@ export interface OpenHandoffRequest {
 }
 
 export interface HandoffPublicView {
+  downloadAllowed?: boolean
   accessGrant?: string | null
   accessExpiresAt?: string | null
   serverTime?: string
