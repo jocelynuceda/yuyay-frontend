@@ -227,7 +227,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
       {activeTab === 'caregivers' && (
         <CaregiversPanel subjectId={subjectId} isPrincipal={isPrincipal} onChanged={caregivers.reload} />
       )}
-      {activeTab === 'access' && <DelegationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
+      {activeTab === 'access' && <DelegationsPanel key={subjectId} subjectName={subject.name} subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'appointments' && <ConsultationsPanel subjectId={subjectId} subjectName={subject.name} isPrincipal={isPrincipal} />}
       {activeTab === 'handoffs' && <HandoffsPanel key={subjectId} subjectId={subjectId} isPrincipal={isPrincipal} userId={userId} />}
       {isPrincipal && activeTab === 'access-log' && <AccessLogPanel subjectId={subjectId} />}

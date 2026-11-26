@@ -7,7 +7,7 @@ import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
-import { createDelegation, getHealthCategories } from '../services/api';
+import { createDelegation, getHealthEntriesPage, getConsultations } from '../services/api';
 import { API_URL, ApiError } from '../services/http';
 import { fonts, makeStyles } from '../theme';
 import type { DelegationCreated, HomeStackParamList } from '../types';
@@ -18,14 +18,27 @@ import { formatDateTime, isEmail } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewDelegation'>;
 
-
 /** Las citas se eligen junto a las categorías, pero no son una categoría de salud. */
 const CONSULTATIONS = 'CONSULTATIONS';
 
-export function NewDelegationScreen({ route, navigation }: Props) {
+export function NewDelegationScreen(props: Props) {
+  return <DelegationEditor key={props.route.params.subjectId} {...props} />;
+}
+
+function DelegationEditor({ route, navigation }: Props) {
   const styles = useStyles();
   const { subjectId } = route.params;
-  const categories = useFetch(getHealthCategories);
+  const categories = useFetch(async () => {
+    const knownCodes = Object.keys(categoryMeta);
+    const [pages, consultations] = await Promise.all([
+      Promise.all(knownCodes.map(code => getHealthEntriesPage(subjectId, 0, code, 1))),
+      getConsultations(subjectId),
+    ]);
+    const options = knownCodes.filter((_, i) => (Array.isArray(pages[i]) ? pages[i] : pages[i].content).length > 0)
+      .map(code => ({ value: code, label: categoryMeta[code].plural }));
+    if (consultations.length) options.push({ value: CONSULTATIONS, label: 'Citas' });
+    return options;
+  }, [subjectId]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [codes, setCodes] = useState<string[]>([]);
@@ -44,6 +57,8 @@ export function NewDelegationScreen({ route, navigation }: Props) {
     codes: codes.length === 0 ? 'Elige al menos una opción.' : undefined,
   };
 
+  const available = !!categories.data?.length && !categories.loading && !categories.error;
+
   function toggleCode(code: string) {
     setCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
   }
@@ -51,7 +66,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   async function handleSave() {
     setSubmitted(true);
     const { validUntil } = delegationExpiry(duration);
-    if (saving || Object.values(errors).some(Boolean) || !validUntil) return;
+    if (saving || !available || Object.values(errors).some(Boolean) || !validUntil) return;
     setSaving(true);
     setError(null);
     try {
@@ -137,21 +152,6 @@ export function NewDelegationScreen({ route, navigation }: Props) {
         />
       </FormCard>
 
-      <FormCard title="¿Qué podrá ver?">
-        <ChoiceChips
-          options={[
-            ...(categories.data ?? []).map((c) => ({ value: c.code, label: categoryMeta[c.code]?.plural ?? c.name })),
-            { value: CONSULTATIONS, label: 'Citas' },
-          ]}
-          selected={codes}
-          onToggle={toggleCode}
-        />
-        {codes.includes(CONSULTATIONS) ? (
-          <Text style={styles.help}>Verá la fecha, la hora y el motivo de las citas, pero no sus notas.</Text>
-        ) : null}
-        {submitted && errors.codes ? <Text style={formStyles.error}>{errors.codes}</Text> : null}
-      </FormCard>
-
       <FormCard title="¿Hasta cuándo?">
         <DurationField
           label="El acceso vence en"
@@ -167,7 +167,24 @@ export function NewDelegationScreen({ route, navigation }: Props) {
         />
       </FormCard>
 
-      <SubmitButton label="Crear acceso" icon="key" onPress={handleSave} loading={saving} />
+      <FormCard title="¿Qué podrá ver?">
+        {categories.error ? <>
+          <StatusMessage message={categories.error} />
+          <SubmitButton label="Reintentar" onPress={categories.reload} />
+        </> : categories.loading ? <Text style={styles.help}>Cargando opciones…</Text> :
+          !available ? <Text style={styles.help}>Aún no hay registros ni citas para compartir.</Text> : null}
+        <ChoiceChips
+          options={categories.data ?? []}
+          selected={codes}
+          onToggle={toggleCode}
+        />
+        {codes.includes(CONSULTATIONS) ? (
+          <Text style={styles.help}>Verá la fecha, la hora y el motivo de las citas, pero no sus notas.</Text>
+        ) : null}
+        {submitted && errors.codes ? <Text style={formStyles.error}>{errors.codes}</Text> : null}
+      </FormCard>
+
+      <SubmitButton label="Crear acceso" icon="key" onPress={handleSave} loading={saving} disabled={!available} />
     </FormScroll>
   );
 }

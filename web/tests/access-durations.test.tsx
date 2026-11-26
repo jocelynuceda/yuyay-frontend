@@ -93,8 +93,10 @@ test('La vigencia y la lectura conservan sus cantidades al cambiar unidad y env�
 
 test('La delegación usa el reloj del envío y conserva los demás datos del formulario', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-26T15:00:00Z') })
-  const requests = watchRequests(t, () => ({ token: 'test' }))
-  const form = await mount(t, <DelegationForm subjectId={3} onSaved={() => {}} />)
+  const requests = watchRequests(t, request => request.url?.endsWith('/health-entries')
+    ? { content: request.params.category === 'ALLERGY' ? [{}] : [] }
+    : request.url?.endsWith('/consultations') ? [{}] : { token: 'test' })
+  const form = await mount(t, <DelegationForm subjectName="Lucía" subjectId={3} onSaved={() => {}} />)
   const duration = form.querySelector<HTMLInputElement>('input[name="duration.amount"]')!
   const durationUnit = form.querySelector<HTMLSelectElement>('select[name="duration.unit"]')!
   assert.equal(duration.value, '')
@@ -104,9 +106,10 @@ test('La delegación usa el reloj del envío y conserva los demás datos del for
   const allergy = form.querySelector<HTMLInputElement>('input[name="categoryCodes"][value="ALLERGY"]')!
   await act(async () => allergy.click())
   assert.equal(allergy.checked, true, 'se seleccionó la categoría')
+  assert.equal(form.querySelector('input[value="EXAM_RESULT"]'), null)
   await act(async () => form.querySelector<HTMLInputElement>('input[name="includeConsultations"]')!.click())
   await submit(form)
-  assert.equal(requests.length, 0)
+  assert.equal(requests.filter(r => r.method === 'post').length, 0)
   assert.match(form.textContent ?? '', /Introduce una cantidad/)
 
   await select(durationUnit, 'minutes')
@@ -115,9 +118,10 @@ test('La delegación usa el reloj del envío y conserva los demás datos del for
   assert.ok(form.textContent?.includes(`Vence aproximadamente el ${formatDateTime('2026-11-26T15:30:00Z')}.`))
   t.mock.timers.setTime(new Date('2026-11-26T15:21:45Z').getTime())
   await submit(form)
-  assert.equal(requests.length, 1)
-  assert.equal(requests[0].url, '/care-subjects/3/delegations')
-  assert.deepEqual(JSON.parse(requests[0].data), {
+  const posts = requests.filter(r => r.method === 'post')
+  assert.equal(posts.length, 1)
+  assert.equal(posts[0].url, '/care-subjects/3/delegations')
+  assert.deepEqual(JSON.parse(posts[0].data), {
     granteeName: 'Ana Vega', granteeEmail: 'ana@example.test', categoryCodes: ['ALLERGY'], includeConsultations: true,
     validUntil: '2026-11-26T15:51:45.000Z',
   })
