@@ -69,7 +69,6 @@ export const FEATURES = [
 ] as const
 
 export const TEAM = [
-  'Matias Andres Caceres Sanchez',
   'Luis Felipe Augusto Huapaya Núñez',
   'Nayra Kamila Paredes Rodriguez',
   'Valentina Yamile Puicon Arapa',

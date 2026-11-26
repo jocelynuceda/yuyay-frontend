@@ -219,7 +219,7 @@ function Team() {
         Yuyay nació como proyecto del curso CS2031 Desarrollo Basado en Plataformas de la UTEC (Lima, 2026).
         Todas las demostraciones usan datos ficticios.
       </p>
-      <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {TEAM.map((name) => (
           <li key={name} className="reveal flex items-center gap-3 rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] lg:flex-col lg:text-center">
             <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary-tint font-display text-lg font-bold text-primary">
