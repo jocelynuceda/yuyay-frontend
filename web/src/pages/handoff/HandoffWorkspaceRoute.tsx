@@ -26,7 +26,7 @@ export default function HandoffWorkspaceRoute({ mode = 'detail' }: { mode?: Hand
       {valid ? (
         <PersonRouteFrame key={`${subjectId}:${handoffId}:${mode}:${sessionId ?? ''}`} subjectId={subjectId}
           section={mode === 'detail' ? 'Resumen' : mode === 'share' ? 'Compartir resumen' : 'Código de acceso'}>
-          {(subject) => <HandoffWorkspacePage subjectId={subjectId} handoffId={handoffId} mode={mode} sessionId={sessionId}
+          {(subject) => <HandoffWorkspacePage subjectId={subjectId} subjectName={subject.name} handoffId={handoffId} mode={mode} sessionId={sessionId}
             isPrincipal={subject.myRole === 'PRINCIPAL'} userId={user?.id} showBack={false} />}
         </PersonRouteFrame>
       ) : <NotFoundPage />}

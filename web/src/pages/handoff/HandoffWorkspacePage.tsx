@@ -16,6 +16,7 @@ import { CreateHandoffLink } from './HandoffLinkStep'
 export type HandoffWorkspaceMode = 'detail' | 'share' | 'code'
 type WorkspaceProps = {
   subjectId: number
+  subjectName?: string
   handoffId: number
   isPrincipal: boolean
   userId: number | undefined
@@ -36,7 +37,7 @@ export function HandoffWorkspacePage({ showBack = true, ...props }: WorkspacePro
   )
 }
 
-function WorkspaceContent({ subjectId, handoffId, isPrincipal, userId, mode, sessionId }: WorkspaceProps) {
+function WorkspaceContent({ subjectId, subjectName, handoffId, isPrincipal, userId, mode, sessionId }: WorkspaceProps) {
   const { data, error, errorStatus, loading, reload } = useFetch((signal) => getHandoff(handoffId, signal), [handoffId])
   if (loading) return <p role="status" className="text-muted">Cargando resumen…</p>
   if (error) return <LoadError message={error} status={errorStatus} onRetry={reload} />
@@ -49,8 +50,7 @@ function WorkspaceContent({ subjectId, handoffId, isPrincipal, userId, mode, ses
   }
   if (mode === 'share') return (
     <div className="mx-auto grid w-full max-w-2xl gap-5">
-      <header><h1 className="text-3xl font-semibold">Generar enlace y código</h1><p className="mt-2 break-words text-muted">{data.reason}</p></header>
-      <CreateHandoffLink handoffId={handoffId} />
+      <CreateHandoffLink handoffId={handoffId} subjectName={subjectName} />
     </div>
   )
   if (mode === 'code') return <ExistingCodePage subjectId={subjectId} handoff={data} sessionId={sessionId} />

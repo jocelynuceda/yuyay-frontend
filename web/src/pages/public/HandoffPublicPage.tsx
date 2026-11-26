@@ -10,6 +10,7 @@ import { applyServerErrors, getErrorMessage } from '../../utils/apiErrors'
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { PublicShell, StatusPanel } from './PublicShell'
+import { SummaryPdfDownload } from './SummaryPdfDownload'
 
 /**
  * Vista para el médico (/handoff/:token). Pide nombre y rol del visitante,
@@ -65,9 +66,9 @@ function HandoffSessionContent({ token }: { token: string }) {
   }, [opened])
 
   return (
-    <PublicShell>
+    <PublicShell compact>
       {expired ? <p role="status" className="mb-4 rounded-xl bg-accent-tint p-4 text-accent-text">Terminó el tiempo de lectura de este resumen. Solicita un nuevo acceso a quien lo compartió.</p> : null}
-      {opened ? <HandoffSummary view={opened.view} token={token} /> : null}
+      {opened ? <HandoffSummary view={opened.view} token={token} deadline={opened.deadline} /> : null}
       {!opened && !expired && (requirementsError
         ? <StatusPanel title="No pudimos abrir el enlace" message={requirementsError} tone="error" />
         : codeRequired === undefined
@@ -197,27 +198,36 @@ function VisitorForm({ token, codeRequired, onOpened }: {
   )
 }
 
-function HandoffSummary({ view, token }: { view: HandoffPublicView; token: string }) {
+function HandoffSummary({ view, token, deadline }: { view: HandoffPublicView; token: string; deadline: number | null }) {
   const byCategory = CATEGORY_CODES.map((code) => ({
     code,
     items: view.items.filter((item) => item.categoryCode === code),
   })).filter((group) => group.items.length > 0)
 
   return (
-    <article className="grid gap-8 text-lg leading-relaxed">
+    <article className="rounded-3xl bg-card p-5 text-base leading-relaxed shadow-sm [overflow-wrap:anywhere] sm:p-8">
+      <div className="flex flex-wrap items-center gap-2 text-[13px]">
+        <span className="rounded-full bg-primary-tint px-2.5 py-1 font-semibold text-primary">Solo lectura</span>
+        {view.accessExpiresAt ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" title="Hora de Lima">
+          Lectura hasta el {readingExpiry.format(new Date(view.accessExpiresAt))}
+        </span> : null}
+      </div>
       <header>
-        <p className="text-base font-semibold uppercase tracking-wide text-muted">Resumen de salud</p>
-        <h1 className="mt-1 text-4xl font-semibold">{view.careSubjectName}</h1>
-        <p className="mt-2 text-muted">Preparado el {formatDate(view.createdAt)}</p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="min-w-0 max-w-full text-3xl font-semibold tracking-tight">Resumen de {view.careSubjectName}</h1>
+          {view.downloadAllowed === true && deadline !== null
+            ? <SummaryPdfDownload token={token} accessGrant={view.accessGrant} deadline={deadline} /> : null}
+        </div>
+        <p className="mt-1 text-sm text-muted">Preparado el {formatDate(view.createdAt)}</p>
       </header>
 
-      <section className="rounded-3xl bg-card p-6 sm:p-8">
-        <h2 className="text-2xl font-semibold">Motivo de la consulta</h2>
-        <p className="mt-2 whitespace-pre-line">{view.reason}</p>
+      <section className="mt-5">
+        <h2 className="text-lg font-semibold">Motivo de la consulta</h2>
+        <p className="mt-1 whitespace-pre-wrap break-words">{view.reason}</p>
         {view.questions ? (
           <>
-            <h2 className="mt-6 text-2xl font-semibold">Preguntas de la familia</h2>
-            <p className="mt-2 whitespace-pre-line">{view.questions}</p>
+            <h2 className="mt-5 text-lg font-semibold">Preguntas de la familia</h2>
+            <p className="mt-1 whitespace-pre-wrap break-words">{view.questions}</p>
           </>
         ) : null}
       </section>
@@ -225,11 +235,11 @@ function HandoffSummary({ view, token }: { view: HandoffPublicView; token: strin
       {byCategory.length === 0 ? <p className="text-muted">Este resumen no incluye registros.</p> : null}
 
       {byCategory.map(({ code, items }) => (
-        <section key={code} aria-labelledby={`cat-${code}`}>
-          <h2 id={`cat-${code}`} className="text-2xl font-semibold">
+        <section key={code} aria-labelledby={`cat-${code}`} className="mt-5">
+          <h2 id={`cat-${code}`} className="text-lg font-semibold">
             {categoryLabels[code as CategoryCode]?.plural ?? code}
           </h2>
-          <ul className="mt-3 grid gap-3">
+          <ul className="mt-2 grid grid-cols-1 gap-4">
             {items.map((item) => (
               <HandoffItemCard key={item.healthEntryVersionId} item={item} token={token} accessGrant={view.accessGrant} />
             ))}
@@ -258,11 +268,11 @@ function HandoffItemCard({ item, token, accessGrant }: { item: HandoffItem; toke
   }
   const facts = [item.dose && `Dosis: ${item.dose}`, item.frequency].filter(Boolean).join(' · ')
   return (
-    <li className="rounded-2xl bg-card p-5 sm:p-6">
+    <li className="min-w-0 border-l-[3px] border-primary/40 pl-3.5">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="text-xl font-semibold">{item.title}</h3>
+        <h3 className="min-w-0 max-w-full font-semibold">{item.title}</h3>
         <span
-          className={`rounded-full px-3 py-1 text-base font-semibold ${
+          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
             item.confidenceLevel === 'CONFIRMED' ? 'bg-accent-tint text-accent-text' : 'bg-soft text-soft-text'
           }`}
         >
@@ -272,13 +282,13 @@ function HandoffItemCard({ item, token, accessGrant }: { item: HandoffItem; toke
       {facts ? <p className="mt-2 font-semibold">{facts}</p> : null}
       {item.details ? <p className="mt-2 whitespace-pre-wrap break-words">{item.details}</p> : null}
       {item.notes ? <p className="mt-2 whitespace-pre-line text-muted">{item.notes}</p> : null}
-      <p className="mt-3 text-base text-muted">
+      <p className="mt-2 text-sm text-muted">
         {item.occurredOn ? `Fecha: ${formatDate(item.occurredOn)} · ` : ''}Actualizado el {formatDate(item.declaredAt)}
       </p>
       {item.hasSourceAttachment ? (
-        <div className="mt-4 grid gap-2">
+        <div className="mt-2 grid gap-1">
           <button type="button" onClick={() => void openSource()} disabled={opening}
-            className={`justify-self-start rounded-xl border border-line px-4 py-2 text-base font-semibold disabled:opacity-60 ${focusRing}`}>
+            className={`justify-self-start rounded-xl border border-line px-3 py-2 text-sm font-semibold disabled:opacity-60 ${focusRing}`}>
             {opening ? 'Abriendo original…' : 'Ver documento original'}
           </button>
           <p className="text-sm text-muted">Respaldo del registro compartido. Se abre en otra pestaña.</p>
@@ -323,3 +333,7 @@ function Field({
 
 const inputClass = (invalid: boolean) =>
   `rounded-xl border bg-card px-4 py-3 text-lg ${invalid ? 'border-danger' : 'border-line'} ${focusRing}`
+
+const readingExpiry = new Intl.DateTimeFormat('es-PE', {
+  timeZone: 'America/Lima', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+})

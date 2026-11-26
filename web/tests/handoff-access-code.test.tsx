@@ -333,6 +333,7 @@ test('lista, detalle, generación y código existente son páginas separadas con
   assert.equal(container.querySelector('form'), null)
   await follow(container, 'Generar enlace y código')
   assert.equal(path(), '/people/4/handoffs/2/share')
+  assert.match(container.textContent!, /Persona de prueba · Resumen para la consulta/)
   assert.ok(container.querySelector('form'))
   assert.doesNotMatch(container.textContent!, /Enlace anterior sin código/)
   await follow(container, 'Regresar al resumen')

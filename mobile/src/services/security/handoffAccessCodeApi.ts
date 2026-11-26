@@ -2,7 +2,7 @@ import type { AxiosInstance } from 'axios';
 import type { HandoffSessionCreated } from '../../types';
 import type { HandoffAccessCodeResponse } from './handoffAccessCode';
 
-type MinuteSession = { expiresInMinutes: number; sessionWindowMinutes: number };
+type MinuteSession = { expiresInMinutes: number; sessionWindowMinutes: number; allowDownload?: boolean };
 
 /** Autenticación en el cliente HTTP; ni el JWT ni el código van en la URL. */
 export function createHandoffAccessApi(http: Pick<AxiosInstance, 'get' | 'post'>) {
