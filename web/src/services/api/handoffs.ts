@@ -44,7 +44,7 @@ export async function revokeHandoffSession(sessionId: number) {
 
 /** Genera el enlace temporal (token) para el médico. */
 export async function createHandoffSession(handoffId: number, request: HandoffSessionRequest) {
-  const { data } = await api.post<HandoffSessionCreated>(`/handoffs/${handoffId}/sessions`, request)
+  const { data } = await api.post<HandoffSessionCreated>(`/handoffs/${handoffId}/sessions`, { ...request, requireAccessCode: true })
   return data
 }
 
@@ -59,14 +59,14 @@ export async function openHandoffSession(token: string, request: OpenHandoffRequ
 }
 
 /** Respaldo de una versión incluida, sujeto a la vigencia del mismo enlace del resumen. */
-export async function openHandoffSource(token: string, versionId: number) {
+export async function openHandoffSource(token: string, versionId: number, accessGrant?: string | null) {
   const tab = window.open('', '_blank')
   if (!tab) return false
   tab.opener = null
   try {
     const { data } = await publicApi.get<Blob>(
       `/public/handoff-sessions/${encodeURIComponent(token)}/versions/${versionId}/source/content`,
-      { responseType: 'blob', timeout: 60000 },
+      { responseType: 'blob', timeout: 60000, ...(accessGrant ? { headers: { 'X-Handoff-Access': accessGrant } } : {}) },
     )
     const url = URL.createObjectURL(data)
     tab.location.href = url

@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { openHandoffSession, openHandoffSource } from '../../services/api/handoffs'
 import { emptyOpenHandoff, openHandoffFields, openHandoffSchema, type OpenHandoffFormValues } from '../../schemas/handoff'
-import type { CategoryCode, HandoffItem, HandoffPublicView } from '../../types'
+import type { CategoryCode, HandoffItem, HandoffPublicView, OpenHandoffRequest } from '../../types'
 import { CATEGORY_CODES } from '../../types'
 import { applyServerErrors, getErrorMessage } from '../../utils/apiErrors'
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
@@ -20,16 +20,52 @@ export function HandoffPublicPage({ token }: { token: string }) {
 }
 
 function HandoffSessionContent({ token }: { token: string }) {
-  const [view, setView] = useState<HandoffPublicView | null>(null)
+  const [opened, setOpened] = useState<{ view: HandoffPublicView; deadline: number | null } | null>(null)
+  const [expired, setExpired] = useState(false)
+
+  function acceptView(view: HandoffPublicView, startedAt: number) {
+    const now = performance.now()
+    const remaining = view.accessExpiresAt
+      ? Date.parse(view.accessExpiresAt) - (view.serverTime ? Date.parse(view.serverTime) : Date.now()) - (now - startedAt)
+      : null
+    if (remaining !== null && (!Number.isFinite(remaining) || remaining <= 0)) {
+      setExpired(true)
+      return
+    }
+    setExpired(false)
+    setOpened({ view, deadline: remaining === null ? null : now + remaining })
+  }
+
+  useEffect(() => {
+    if (opened?.deadline == null) return
+    const deadline = opened.deadline
+    const check = () => {
+      if (performance.now() >= deadline) { setOpened(null); setExpired(true) }
+    }
+    const timer = setTimeout(check, Math.max(0, deadline - performance.now()))
+    window.addEventListener('focus', check)
+    document.addEventListener('visibilitychange', check)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('focus', check)
+      document.removeEventListener('visibilitychange', check)
+    }
+  }, [opened])
 
   return (
     <PublicShell>
-      {view ? <HandoffSummary view={view} token={token} /> : <VisitorForm token={token} onOpened={setView} />}
+      {expired ? <p role="status" className="mb-4 rounded-xl bg-accent-tint p-4 text-accent-text">Terminó el tiempo de lectura de este resumen. Solicita un nuevo acceso a quien lo compartió.</p> : null}
+      {opened ? <HandoffSummary view={opened.view} token={token} /> : <VisitorForm token={token} onOpened={acceptView} />}
     </PublicShell>
   )
 }
 
-function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: HandoffPublicView) => void }) {
+async function openTimedHandoff(token: string, request: OpenHandoffRequest) {
+  const startedAt = performance.now()
+  return { view: await openHandoffSession(token, request), startedAt }
+}
+
+function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: HandoffPublicView, startedAt: number) => void }) {
   const [serverError, setServerError] = useState<string | null>(null)
   const {
     register,
@@ -45,7 +81,8 @@ function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: Hand
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
     try {
-      onOpened(await openHandoffSession(token, values))
+      const result = await openTimedHandoff(token, values)
+      onOpened(result.view, result.startedAt)
     } catch (error) {
       setServerError(applyServerErrors(error, setError, openHandoffFields))
     }
@@ -86,6 +123,13 @@ function VisitorForm({ token, onOpened }: { token: string; onOpened: (view: Hand
             className={inputClass(!!errors.visitorRole)}
             {...register('visitorRole')}
           />
+        </Field>
+        <Field label="Código de acceso" hint="Para enlaces con código; solicítalo a quien compartió el resumen." error={errors.accessCode?.message} id="accessCode">
+          <input id="accessCode" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+            placeholder="000000" pattern="[0-9]{6}"
+            aria-invalid={!!errors.accessCode} aria-describedby={errors.accessCode ? 'accessCode-error' : 'accessCode-hint'}
+            className={`${inputClass(!!errors.accessCode)} font-mono tracking-[0.2em] tabular-nums`}
+            {...register('accessCode')} />
         </Field>
         <button
           type="submit"
@@ -133,7 +177,7 @@ function HandoffSummary({ view, token }: { view: HandoffPublicView; token: strin
           </h2>
           <ul className="mt-3 grid gap-3">
             {items.map((item) => (
-              <HandoffItemCard key={item.healthEntryVersionId} item={item} token={token} />
+              <HandoffItemCard key={item.healthEntryVersionId} item={item} token={token} accessGrant={view.accessGrant} />
             ))}
           </ul>
         </section>
@@ -142,14 +186,14 @@ function HandoffSummary({ view, token }: { view: HandoffPublicView; token: strin
   )
 }
 
-function HandoffItemCard({ item, token }: { item: HandoffItem; token: string }) {
+function HandoffItemCard({ item, token, accessGrant }: { item: HandoffItem; token: string; accessGrant?: string | null }) {
   const [opening, setOpening] = useState(false)
   const [error, setError] = useState<string | null>(null)
   async function openSource() {
     setOpening(true)
     setError(null)
     try {
-      if (!(await openHandoffSource(token, item.healthEntryVersionId))) {
+      if (!(await openHandoffSource(token, item.healthEntryVersionId, accessGrant))) {
         setError('Permita abrir una nueva pestaña para ver el documento original.')
       }
     } catch (cause) {

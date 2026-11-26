@@ -35,10 +35,11 @@ export const emptyHandoffSession: HandoffSessionFormValues = { expiresInHours: 2
 
 /** Vista pública /handoff/:token: el visitante se identifica antes de ver los datos. */
 export const openHandoffSchema = z.object({
+  accessCode: z.string().trim().regex(/^(?:[0-9]{6})?$/, 'Ingrese los 6 dígitos del código.').optional().transform((value) => value || undefined),
   visitorName: requiredText('Ingrese su nombre.', 120),
   visitorRole: requiredText('Ingrese su rol.', 80),
 }) satisfies z.ZodType<OpenHandoffRequest, unknown>
 
 export type OpenHandoffFormValues = z.input<typeof openHandoffSchema>
 export const openHandoffFields = Object.keys(openHandoffSchema.shape) as (keyof OpenHandoffFormValues)[]
-export const emptyOpenHandoff: OpenHandoffFormValues = { visitorName: '', visitorRole: '' }
+export const emptyOpenHandoff: OpenHandoffFormValues = { visitorName: '', visitorRole: '', accessCode: '' }

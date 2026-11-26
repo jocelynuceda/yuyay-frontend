@@ -22,6 +22,7 @@ const EntryDetailRoute = lazy(() => import('../pages/entries/EntryDetailRoute'))
 const DocumentReviewRoute = lazy(() => import('../pages/documents/DocumentReviewRoute'))
 const ConsultationSummaryRoute = lazy(() => import('../pages/handoff/ConsultationSummaryPage'))
 const NewHandoffRoute = lazy(() => import('../pages/handoff/NewHandoffRoute'))
+const HandoffWorkspaceRoute = lazy(() => import('../pages/handoff/HandoffWorkspaceRoute'))
 const DelegateAccessPage = lazy(() => import('../pages/public/DelegateAccessPage')
   .then(({ DelegateAccessPage }) => ({ default: DelegateAccessPage })))
 const HandoffPublicPage = lazy(() => import('../pages/public/HandoffPublicPage')
@@ -84,6 +85,9 @@ export default function AppRoutes() {
               <Route path="/people/:id/documents/:attachmentId" element={<DocumentReviewRoute />} />
               <Route path="/people/:id/consultations/:consultationId/summary" element={<ConsultationSummaryRoute />} />
               <Route path="/people/:id/handoff/new" element={<NewHandoffRoute />} />
+              <Route path="/people/:id/handoffs/:handoffId" element={<HandoffWorkspaceRoute mode="detail" />} />
+              <Route path="/people/:id/handoffs/:handoffId/share" element={<HandoffWorkspaceRoute mode="share" />} />
+              <Route path="/people/:id/handoffs/:handoffId/sessions/:sessionId" element={<HandoffWorkspaceRoute mode="code" />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/invitations/:id" element={<InvitationPage />} />

@@ -262,6 +262,7 @@ export interface HandoffRequest {
 export interface HandoffSessionRequest {
   expiresInHours: number // 1–72
   sessionWindowMinutes: number // ≥ 1
+  requireAccessCode?: boolean
 }
 
 /** Enlace temporal de un resumen, sin el token (solo se muestra al crearlo). */
@@ -270,12 +271,14 @@ export interface HandoffSession {
   handoffId: number
   expiresAt: string
   sessionWindowMinutes: number
+  accessCodeRequired?: boolean
   firstOpenedAt: string | null
   revokedAt: string | null
   createdAt: string
 }
 
 export interface HandoffSessionCreated {
+  accessCodeRequired?: boolean
   id: number
   token: string
   expiresAt: string
@@ -284,11 +287,15 @@ export interface HandoffSessionCreated {
 }
 
 export interface OpenHandoffRequest {
+  accessCode?: string
   visitorName: string
   visitorRole: string
 }
 
 export interface HandoffPublicView {
+  accessGrant?: string | null
+  accessExpiresAt?: string | null
+  serverTime?: string
   handoffId: number
   careSubjectName: string
   reason: string
