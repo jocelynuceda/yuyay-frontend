@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from 'react-native-paper';
 import { Badge } from '../components/Badge';
 import { DurationField } from '../components/DurationField';
+import { DownloadPermission } from '../components/DownloadPermission';
 import { FormCard, SubmitButton } from '../components/FormKit';
 import { FormScroll } from '../components/FormScroll';
 import { IconButton, ListItem } from '../components/ListItem';
@@ -56,6 +57,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
   const [doctorMode, setDoctorMode] = useState(false);
   const [expiry, setExpiry] = useState(defaultHandoffExpiry);
   const [reading, setReading] = useState(defaultHandoffReading);
+  const [allowDownload, setAllowDownload] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [sharing, setSharing] = useState(false);
   const [createdLink, setCreatedLink] = useState<{ session: HandoffSessionCreated; url: string } | null>(null);
@@ -88,12 +90,16 @@ export function HandoffViewScreen({ route, navigation }: Props) {
     setSharing(true);
     try {
       const origin = handoffPublicOrigin(process.env.EXPO_PUBLIC_WEB_URL, __DEV__);
-      const s = await createHandoffSession(handoffId, durations.request);
+      const s = await createHandoffSession(handoffId, { ...durations.request, ...(allowDownload ? { allowDownload: true } : {}) });
       sessions.reload();
-      if (s.accessCodeRequired !== true) {
+      if (s.accessCodeRequired !== true || (allowDownload && s.allowDownload !== true)) {
         setCreatedLink(null);
         setAccessSessionId(null);
-        setMessage({ text: 'El servidor todavía no admite enlaces protegidos con código. No compartimos el enlace creado.', tone: 'error' });
+        try { await revokeHandoffSession(s.id); } catch { /* El token no se muestra aunque falle la revocación. */ }
+        setMessage({ text: s.accessCodeRequired === true
+          ? 'El servidor todavía no admite el permiso de descarga. No compartimos este enlace. Desactiva la descarga o inténtalo cuando el servicio esté actualizado.'
+          : 'El servidor todavía no admite enlaces protegidos con código. No compartimos el enlace creado.', tone: 'error' });
+        sessions.reload();
         return;
       }
       const url = handoffPublicLink(origin, s.token);
@@ -233,11 +239,13 @@ export function HandoffViewScreen({ route, navigation }: Props) {
             error={durations.errors?.reading ?? fieldErrors.sessionWindowMinutes}
             disabled={sharing}
           />
+          <DownloadPermission allowed={allowDownload} onChange={setAllowDownload} disabled={sharing} />
           {durations.errors ? <StatusMessage tone="info" message="Ajusta los tiempos para continuar." /> : null}
           <SubmitButton label="Generar enlace y código" icon="link-variant" onPress={handleShare} loading={sharing} disabled={!durations.request} />
           {createdLink ? (
             <View style={styles.readyLink}>
               <Text style={styles.itemTitle}>Enlace listo</Text>
+              <Text style={styles.help}>{createdLink.session.allowDownload === true ? 'Descarga del resumen en PDF autorizada.' : 'Descarga del resumen en PDF desactivada.'}</Text>
               <Text selectable style={styles.link}>{createdLink.url}</Text>
               <Button icon="share-variant" mode="outlined" onPress={() => void shareCreatedLink()}>Compartir enlace</Button>
             </View>
