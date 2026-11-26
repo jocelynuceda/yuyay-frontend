@@ -95,6 +95,7 @@ export interface HandoffInput {
 }
 
 export interface HandoffSession {
+  allowDownload?: boolean;
   id: number;
   expiresAt: string;
   sessionWindowMinutes: number;
@@ -105,6 +106,7 @@ export interface HandoffSession {
 }
 
 export interface HandoffSessionCreated {
+  allowDownload?: boolean;
   id: number;
   token: string;
   expiresAt: string;
