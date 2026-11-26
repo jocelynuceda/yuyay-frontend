@@ -14,6 +14,7 @@ export const defaultHandoffReading: Duration = { amount: '30', unit: 'minutes' }
 export const defaultDelegationDuration: Duration = { amount: '', unit: 'days' }
 
 const minutesPerUnit: Record<DurationUnit, number> = { minutes: 1, hours: 60, days: 1440 }
+const maxHandoffMinutes = 3 * minutesPerUnit.days
 const minuteMs = 60_000
 function durationError(amount: string) {
   if (!amount.trim()) return 'Introduce una cantidad.'
@@ -31,9 +32,9 @@ export function handoffDurations(expiry: Duration, reading: Duration) {
   const expiresInMinutes = durationInMinutes(expiry)
   const sessionWindowMinutes = durationInMinutes(reading)
   const expiryError = expiresInMinutes === null ? durationError(expiry.amount) :
-    expiresInMinutes > 3 * minutesPerUnit.days ? 'El límite máximo es 3 días.' : undefined
+    expiresInMinutes > maxHandoffMinutes ? 'El límite máximo es 3 días.' : undefined
   const readingError = sessionWindowMinutes === null ? durationError(reading.amount) :
-    sessionWindowMinutes > 7 * minutesPerUnit.days ? 'Máximo 7 días.' :
+    sessionWindowMinutes > maxHandoffMinutes ? 'El límite máximo es 3 días.' :
       !expiryError && expiresInMinutes !== null && sessionWindowMinutes > expiresInMinutes
         ? 'El tiempo de lectura no puede superar la vigencia del enlace.' : undefined
 

@@ -24,14 +24,14 @@ test('web y móvil convierten las tres unidades con los mismos defaults y sin ac
   }
 });
 
-test('la vigencia absoluta conserva 72 horas y la lectura no rebasa ni la vigencia ni 7 días', () => {
+test('la vigencia absoluta conserva 72 horas y la lectura no rebasa la vigencia elegida', () => {
   for (const client of [mobile, web]) {
     const expiry = { amount: '3', unit: 'days' } as const;
     const duration = client.handoffDurations(expiry, { amount: '4320', unit: 'minutes' });
     assert.deepEqual(duration.request, { expiresInMinutes: 4320, sessionWindowMinutes: 4320 });
     assert.equal(client.handoffDurations({ amount: '4321', unit: 'minutes' }, expiry).errors?.expiry, 'El límite máximo es 3 días.');
-    assert.match(client.handoffDurations(expiry, { amount: '7', unit: 'days' }).errors?.reading ?? '', /vigencia/);
-    assert.equal(client.handoffDurations(expiry, { amount: '10081', unit: 'minutes' }).errors?.reading, 'Máximo 7 días.');
+    assert.match(client.handoffDurations({ amount: '1', unit: 'hours' }, { amount: '61', unit: 'minutes' }).errors?.reading ?? '', /vigencia/);
+    assert.equal(client.handoffDurations(expiry, { amount: '4321', unit: 'minutes' }).errors?.reading, 'El límite máximo es 3 días.');
     const short = client.handoffDurations({ amount: '1', unit: 'minutes' }, { amount: '1', unit: 'minutes' });
     assert.deepEqual(short.request, { expiresInMinutes: 1, sessionWindowMinutes: 1 });
   }
