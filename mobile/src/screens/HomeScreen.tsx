@@ -30,6 +30,7 @@ import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
 import { appointmentOrder, careRoleLabel, formatTime, todayIso } from '../utils/format';
+import { loadBySubject } from '../utils/loadBySubject';
 
 const monthShort = new Intl.DateTimeFormat('es-PE', { month: 'short' });
 const weekdayLong = new Intl.DateTimeFormat('es-PE', { weekday: 'long' });
@@ -69,7 +70,8 @@ export function HomeScreen({ navigation }: Props) {
   const subjectIds = subjects.data?.map((s) => s.id) ?? [];
   // Consultas de todas las personas, para la tarjeta de próxima cita
   const consultations = useFetch(
-    () => Promise.all(subjectIds.map((id) => getConsultations(id).catch(() => []))).then((lists) => lists.flat()),
+    () => loadBySubject(subjectIds, getConsultations)
+      .then(({ loaded, failed }) => ({ list: [...loaded.values()].flat(), failed })),
     [subjectIds],
   );
   useRefreshOnFocus(() => {
@@ -84,7 +86,8 @@ export function HomeScreen({ navigation }: Props) {
   const firstName = user?.name.split(' ')[0] ?? '';
   const unread = notifications.data?.filter((n) => !n.read).length ?? 0;
   const people = subjects.data ?? [];
-  const appointment = pickAppointment(consultations.data ?? [], people);
+  const appointment = pickAppointment(consultations.data?.list ?? [], people);
+  const missingAppointments = !!(subjects.error || consultations.error || consultations.data?.failed);
 
   const header = (
     <View>
@@ -222,16 +225,17 @@ export function HomeScreen({ navigation }: Props) {
                     : 'Próxima cita'
                   : 'Última consulta'
                 : 'Próxima cita'}
+              {appointment && missingAppointments ? ' · lista incompleta' : ''}
             </Text>
             <Text style={styles.appointmentTitle} numberOfLines={1}>
-              {appointment ? appointment.consultation.reason : 'Sin citas registradas'}
+              {appointment ? appointment.consultation.reason : missingAppointments ? 'No pudimos cargar las citas' : 'Sin citas registradas'}
             </Text>
             <Text style={styles.appointmentMeta} numberOfLines={1}>
               {appointment
                 ? `${appointment.subjectName} · ${weekdayLong.format(new Date(`${appointment.consultation.date}T12:00:00`))}${
                     appointment.consultation.time ? `, ${formatTime(appointment.consultation.time)}` : ''
                   }`
-                : 'Anótalas en el perfil de cada uno'}
+                : missingAppointments ? 'Toca para reintentar' : 'Anótalas en el perfil de cada uno'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.ink} />

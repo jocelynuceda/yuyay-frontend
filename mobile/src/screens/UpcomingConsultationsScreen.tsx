@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { AddToCalendar } from '../components/AddToCalendar';
 import { EmptyState } from '../components/EmptyState';
+import { SubmitButton } from '../components/FormKit';
 import { ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
 import { ReminderToggle } from '../components/ReminderToggle';
@@ -13,8 +14,9 @@ import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { getCareSubjects, getConsultations } from '../services/api';
 import { reconcileReminders } from '../services/reminders';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { Consultation, HomeStackParamList } from '../types';
+import type { HomeStackParamList } from '../types';
 import { appointmentOrder, formatTime, initialsOf, todayIso } from '../utils/format';
+import { loadBySubject } from '../utils/loadBySubject';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'UpcomingConsultations'>;
 
@@ -35,22 +37,14 @@ function daysUntil(date: string, today: string) {
  */
 async function loadUpcoming() {
   const subjects = await getCareSubjects();
-  const loaded = new Map<number, Consultation[]>();
-  await Promise.all(
-    subjects.map((s) =>
-      getConsultations(s.id).then(
-        (list) => void loaded.set(s.id, list),
-        () => undefined,
-      ),
-    ),
-  );
+  const { loaded, failed } = await loadBySubject(subjects.map((s) => s.id), getConsultations);
   const today = todayIso();
   const items = [...loaded.values()]
     .flat()
     .filter((c) => c.date >= today)
     .sort((a, b) => appointmentOrder(a).localeCompare(appointmentOrder(b)))
     .map((c) => ({ ...c, subject: subjects.find((s) => s.id === c.careSubjectId)! }));
-  return { items, loaded, subjectIds: new Set(subjects.map((s) => s.id)) };
+  return { items, loaded, failed, subjectIds: new Set(subjects.map((s) => s.id)) };
 }
 
 export function UpcomingConsultationsScreen({ navigation }: Props) {
@@ -70,6 +64,9 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
 
   const today = todayIso();
   const list = upcoming.data?.items ?? [];
+  const failed = upcoming.data?.failed ?? 0;
+  // Solo una carga completa permite afirmar que no hay citas
+  const complete = upcoming.data !== null && !upcoming.error && !failed;
 
   return (
     <ScrollView
@@ -78,9 +75,12 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
         <RefreshControl refreshing={upcoming.refreshing} onRefresh={upcoming.refresh} tintColor={colors.primary} />
       }
     >
-      <StatusMessage message={upcoming.error} />
+      <StatusMessage message={upcoming.error ?? (failed ? 'No pudimos cargar todas las citas.' : null)} />
+      {upcoming.error || failed ? (
+        <SubmitButton label="Reintentar" loading={upcoming.loading} onPress={upcoming.reload} />
+      ) : null}
 
-      {list.length === 0 ? (
+      {list.length === 0 && complete ? (
         <EmptyState
           title="No hay citas próximas"
           description="Regístralas desde Citas, en el perfil de cada persona."
