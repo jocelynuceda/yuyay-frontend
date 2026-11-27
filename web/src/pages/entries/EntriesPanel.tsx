@@ -72,7 +72,7 @@ function EntriesResults({
                 aria-pressed={selected}
                 onClick={() => setFilter({ category: code })}
                 className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${focusRing} ${
-                  selected ? 'border-ink bg-ink text-white' : 'border-line bg-card hover:border-primary'
+                  selected ? 'border-ink bg-ink text-surface' : 'border-line bg-card hover:border-primary-fg'
                 }`}
               >
                 {code ? categoryLabels[code].plural : 'Todas'}
@@ -94,7 +94,7 @@ function EntriesResults({
                 <button
                   type="button"
                   onClick={() => onParamsChange({ ...params, page: 1 })}
-                  className={`font-semibold text-primary underline ${focusRing}`}
+                  className={`font-semibold text-primary-fg underline ${focusRing}`}
                 >
                   Ir a la primera página
                 </button>
@@ -162,7 +162,7 @@ function EntriesTable({ entries, onOpen }: { entries: HealthEntry[]; onOpen: (en
                   <button
                     type="button"
                     onClick={() => onOpen(entry)}
-                    className={`text-left font-semibold text-ink hover:text-primary hover:underline ${focusRing}`}
+                    className={`text-left font-semibold text-ink hover:text-primary-fg hover:underline ${focusRing}`}
                   >
                     {v.title}
                   </button>

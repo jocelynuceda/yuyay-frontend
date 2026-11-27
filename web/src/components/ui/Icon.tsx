@@ -73,6 +73,27 @@ const icons = {
     </>
   ),
   menu: <path d="M3 6h18M3 12h18M3 18h18" />,
+  flower: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 9a3.5 3.5 0 1 1 3-1.5M15 12a3.5 3.5 0 1 1-1.5 3M12 15a3.5 3.5 0 1 1-3 1.5M9 12a3.5 3.5 0 1 1 1.500-3" />
+    </>
+  ),
+  pulse: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
+  medkit: (
+    <>
+      <rect x="3" y="7" width="18" height="14" rx="2" />
+      <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M12 11v6M9 14h6" />
+    </>
+  ),
+  shield: (
+    <>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </>
+  ),
+  bolt: <path d="M13 2 3 14h9l-1 8 10-12h-9z" />,
+  flask: <path d="M9 3h6M10 3v6L4.500 19a1.500 1.500 0 0 0 1.300 2h12.400a1.500 1.500 0 0 0 1.300-2L14 9V3M7.500 15h9" />,
 } satisfies Record<string, ReactNode>
 
 export type IconName = keyof typeof icons

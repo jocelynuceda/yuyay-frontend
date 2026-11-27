@@ -15,11 +15,11 @@ export function AppHeader() {
   const name = user?.name ?? ''
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-surface/70 px-4 py-3 backdrop-blur-md sm:px-6 lg:justify-end">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-surface/70 px-4 py-3 backdrop-blur-md sm:px-6 lg:pointer-events-none lg:justify-end lg:bg-transparent lg:backdrop-blur-none">
       <Link to="/" aria-label="Yuyay, ir al inicio" className={cx('rounded-xl lg:hidden', focusRing)}>
         <Isotipo />
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="pointer-events-auto flex items-center gap-2">
         <ThemeToggle />
         <Link
           to="/notifications"
@@ -30,7 +30,7 @@ export function AppHeader() {
           {count > 0 ? (
             <span
               aria-hidden="true"
-              className="absolute top-0 right-0 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] leading-4 font-bold text-white"
+              className="absolute top-0 right-0 min-w-4 rounded-full bg-danger-solid px-1 text-center text-[10px] leading-4 font-bold text-white"
             >
               {formatBadge(count)}
             </span>

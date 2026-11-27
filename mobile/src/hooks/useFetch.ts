@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isAccessLost } from '../services/client';
 import { ApiError } from '../services/http';
 
 interface FetchResult<T> {
@@ -26,7 +27,9 @@ export function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
       .catch((e) => {
         if (!active) return;
         const message = e instanceof ApiError ? e.message : 'No pudimos cargar la información.';
-        setResult((prev) => ({ key, identity, data: prev?.identity === identity ? prev.data : null, error: message }));
+        // Sin conexión se conserva lo cargado; si se retiró el permiso, deja de mostrarse.
+        const keep = !isAccessLost(e);
+        setResult((prev) => ({ key, identity, data: keep && prev?.identity === identity ? prev.data : null, error: message }));
       })
       .finally(() => active && setRefreshing(false));
     return () => {

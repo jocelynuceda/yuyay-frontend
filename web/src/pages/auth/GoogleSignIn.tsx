@@ -5,7 +5,8 @@ import { Button } from '../../components/ui/Button'
 import { useAccountTerms } from '../../hooks/useAccountTerms'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
-import type { TermsAcceptance } from '../../types/auth'
+import type { RegistrationIdentity, TermsAcceptance } from '../../types/auth'
+import { GoogleRegistrationDialog } from './GoogleRegistrationDialog'
 import {
   completeGoogleSignIn,
   GOOGLE_CLIENT_ID,
@@ -38,6 +39,8 @@ export function GoogleSignIn({
   const mounted = useRef(false)
   const running = useRef(false)
   const resolveTerms = useRef<((acceptance: TermsAcceptance | null) => void) | null>(null)
+  const resolveIdentity = useRef<((identity: RegistrationIdentity | null) => void) | null>(null)
+  const [identityPrompt, setIdentityPrompt] = useState<{ error?: unknown; saving: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   // Google dibuja el botón con un ancho fijo (de 200 a 400 px): se ajusta al espacio disponible.
   const [width, setWidth] = useState<number | null>(null)
@@ -60,6 +63,8 @@ export function GoogleSignIn({
       mounted.current = false
       resolveTerms.current?.(null)
       resolveTerms.current = null
+      resolveIdentity.current?.(null)
+      resolveIdentity.current = null
     }
   }, [])
 
@@ -76,13 +81,27 @@ export function GoogleSignIn({
     resolve?.(acceptance)
   }
 
+  function requestIdentity(error?: unknown) {
+    if (!mounted.current) return Promise.resolve(null)
+    setIdentityPrompt({ error, saving: false })
+    return new Promise<RegistrationIdentity | null>((resolve) => { resolveIdentity.current = resolve })
+  }
+
+  function finishIdentity(identity: RegistrationIdentity | null) {
+    const resolve = resolveIdentity.current
+    if (!resolve) return
+    resolveIdentity.current = null
+    setIdentityPrompt(identity ? { saving: true } : null)
+    resolve(identity)
+  }
+
   async function handleCredential(credential?: string) {
     if (!mounted.current || running.current) return
     running.current = true
     onStart?.()
     setBusy(true)
     try {
-      const result = await completeGoogleSignIn(credential, loginWithGoogle, requestTerms)
+      const result = await completeGoogleSignIn(credential, loginWithGoogle, requestTerms, requestIdentity)
       if (!mounted.current) return
       if (result.status === 'signed-in') onSignedIn()
       else if (result.status === 'error') onError(result.message)
@@ -90,7 +109,10 @@ export function GoogleSignIn({
       if (mounted.current) onError(googleErrorMessage(error))
     } finally {
       running.current = false
-      if (mounted.current) setBusy(false)
+      if (mounted.current) {
+        setBusy(false)
+        setIdentityPrompt(null)
+      }
     }
   }
 
@@ -120,7 +142,7 @@ export function GoogleSignIn({
           </GoogleOAuthProvider>
         )}
       </div>
-      {busy ? (
+      {busy && !identityPrompt ? (
         <p role="status" className="text-center text-sm text-muted">
           Conectando con Google…
         </p>
@@ -142,6 +164,7 @@ export function GoogleSignIn({
           </div>
         </div>
       </AccountTermsDialog>
+      {identityPrompt && <GoogleRegistrationDialog {...identityPrompt} onFinish={finishIdentity} />}
     </div>
   )
 }

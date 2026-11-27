@@ -109,7 +109,7 @@ export function DelegationsPanel({ subjectId, subjectName, isPrincipal }: { subj
         onCancel={() => setRevoking(null)}
         onConfirm={async () => {
           if (!revoking) return
-          await revokeDelegation(revoking.id)
+          await revokeDelegation(revoking.id, subjectId)
           notify(`Acceso de ${revoking.granteeName} revocado.`)
           setRevoking(null)
           reload()

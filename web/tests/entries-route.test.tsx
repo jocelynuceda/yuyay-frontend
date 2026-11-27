@@ -9,13 +9,18 @@ const dom = new JSDOM('<!doctype html><body></body>', { url: 'http://localhost/'
 dom.window.scrollTo = () => {}
 Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement,
   sessionStorage: dom.window.sessionStorage, requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window), IS_REACT_ACT_ENVIRONMENT: true })
+Object.assign(dom.window.HTMLDialogElement.prototype, {
+  showModal(this: HTMLDialogElement) { this.open = true },
+  close(this: HTMLDialogElement) { this.open = false },
+})
 const { createRoot } = await import('react-dom/client')
-const { MemoryRouter, Routes, Route, useLocation } = await import('react-router-dom')
+const { Link, MemoryRouter, Routes, Route, useLocation } = await import('react-router-dom')
 const { default: EntriesRoute } = await import('../src/pages/entries/EntriesRoute')
 const { default: EntryDetailRoute } = await import('../src/pages/entries/EntryDetailRoute')
 const { EntriesPanel } = await import('../src/pages/entries/EntriesPanel')
 const { ToastProvider } = await import('../src/contexts/ToastContext')
-const { api } = await import('../src/services/http')
+const { api, clearTokens, setTokens } = await import('../src/services/http')
+const { getHealthEntry, listHealthEntries } = await import('../src/services/api/healthEntries')
 
 const subject = { id: 4, name: 'Persona ficticia', birthDate: null, notes: null, createdAt: '2026-01-01T00:00:00Z', myRole: 'CAREGIVER' }
 function entry(id: number, title: string, category: CategoryCode = 'CONDITION'): HealthEntry {
@@ -26,8 +31,18 @@ function entry(id: number, title: string, category: CategoryCode = 'CONDITION'):
       declaredAt: '2026-01-01T00:00:00Z', sourceAttachmentId: null } }
 }
 const ok = (config: InternalAxiosRequestConfig, data: unknown) => ({ config, data, headers: {}, status: 200, statusText: 'OK' })
+const denied = (config: InternalAxiosRequestConfig, status = 403, message = 'Se retiró el acceso.') =>
+  new AxiosError(message, 'ERR_BAD_REQUEST', config, undefined, { ...ok(config, { message }), status })
+const gate = () => {
+  let release!: () => void
+  const wait = new Promise<void>((resolve) => { release = resolve })
+  return { wait, release }
+}
 function page(content: HealthEntry[], number = 0, size = 10, totalElements = content.length): Page<HealthEntry> {
   return { content, number, size, totalElements, totalPages: Math.ceil(totalElements / size) }
+}
+function isForbidden(error: unknown) {
+  return error instanceof AxiosError && error.response?.status === 403
 }
 function mockApi(t: TestContext, adapter: AxiosAdapter) {
   const previous = api.defaults.adapter
@@ -192,4 +207,164 @@ test('una página fuera de rango permite volver al inicio aun cuando la categor�
   assert.deepEqual(pages, [98, 0])
   assert.equal(container.querySelector('[data-testid="location"]')?.textContent, '/people/4/entries?category=CONDITION')
   assert.match(container.textContent!, /No hay registros de condiciones/)
+})
+
+test('una denegación retira el registro abierto, cancela lecturas tardías y protege la reentrada', async (t) => {
+  const loaded = entry(11, 'Registro privado ficticio')
+  const staleSubject = gate()
+  const staleEntry = gate()
+  const staleEntryStarted = gate()
+  let subjectReads = 0
+  let entryReads = 0
+  let accessRemoved = false
+  let staleSubjectSignal: AbortSignal | undefined
+  mockApi(t, async (config) => {
+    switch (config.url) {
+      case '/care-subjects/4':
+        if (++subjectReads === 2) {
+          staleSubjectSignal = config.signal as AbortSignal
+          await staleSubject.wait
+        } else if (accessRemoved) throw denied(config, 404)
+        return ok(config, subject)
+      case '/care-subjects/4/health-entries/11':
+        if (++entryReads === 2) {
+          staleEntryStarted.release()
+          await staleEntry.wait
+        }
+        return ok(config, loaded)
+      case '/care-subjects/4/health-entries/11/versions': return ok(config, [loaded.latestVersion])
+      case '/care-subjects/4/health-entries': throw denied(config)
+      default: assert.fail(`Petición inesperada ${config.url}`)
+    }
+  })
+  const path = '/people/4/entries/11'
+  const { container } = await mount(t, <><Link to={path}>Volver al detalle</Link><EntryRoutes /></>, path)
+  assert.match(container.textContent!, /Registro privado ficticio/)
+  assert.match(container.textContent!, /Persona ficticia/)
+  await act(async () => {
+    window.dispatchEvent(new window.Event('focus'))
+    document.dispatchEvent(new window.Event('visibilitychange'))
+  })
+  assert.equal(subjectReads, 2, 'focus y visibilitychange comparten la comprobación pendiente')
+  const lateRead = assert.rejects(getHealthEntry(4, 11), { code: 'ERR_CANCELED' })
+  await staleEntryStarted.wait
+  await act(async () => {
+    accessRemoved = true
+    await assert.rejects(listHealthEntries(4), isForbidden)
+  })
+  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /No tienes acceso/)
+  assert.doesNotMatch(container.textContent!, /Registro privado ficticio|Persona ficticia|Detalle revisado/)
+  assert.equal(container.querySelector('dialog'), null)
+  assert.equal(staleSubjectSignal?.aborted, true)
+
+  await act(async () => { staleSubject.release(); staleEntry.release(); await lateRead })
+  assert.doesNotMatch(container.textContent!, /Registro privado ficticio|Persona ficticia/)
+  await click(container, 'Regresar', 'a')
+  await click(container, 'Volver al detalle', 'a')
+  assert.equal(subjectReads, 3, 'la entrada verifica de nuevo los permisos')
+  assert.equal(entryReads, 2, 'la entrada denegada no vuelve a consultar el registro')
+  assert.doesNotMatch(container.textContent!, /Registro privado ficticio|Persona ficticia/)
+})
+
+test('un 403 al borrar conserva el registro mientras la persona siga accesible y lo retira al perder el permiso', async (t) => {
+  const loaded = entry(11, 'Registro de solo lectura')
+  let accessible = true
+  let subjectReads = 0
+  mockApi(t, async (config) => {
+    switch (config.url) {
+      case '/care-subjects/4':
+        subjectReads++
+        if (!accessible) throw denied(config, 410)
+        return ok(config, subject)
+      case '/care-subjects/4/health-entries/11':
+        if (config.method === 'delete') throw denied(config, 403, 'Solo el autor puede borrar el registro.')
+        return ok(config, loaded)
+      case '/care-subjects/4/health-entries/11/versions': return ok(config, [loaded.latestVersion])
+      default: assert.fail(`Petición inesperada ${config.url}`)
+    }
+  })
+  const { container } = await mount(t, <EntryRoutes />, '/people/4/entries/11')
+  await click(container, 'Borrar')
+  await click(container, 'Borrar registro')
+  assert.equal(subjectReads, 2)
+  assert.match(container.querySelector('dialog[open] [role="alert"]')?.textContent ?? '', /Solo el autor/)
+  assert.equal(container.querySelector('h1')?.textContent, 'Registro de solo lectura')
+  await click(container, 'Cancelar')
+  await click(container, 'Borrar')
+  accessible = false
+  await click(container, 'Borrar registro')
+  assert.equal(subjectReads, 3)
+  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /Se retiró el acceso/)
+  assert.doesNotMatch(container.textContent!, /Registro de solo lectura|Persona ficticia|Detalle revisado/)
+  assert.equal(container.querySelector('dialog'), null)
+})
+
+test('la denegación de lectura de un registro se muestra sin esperar a que llegue su historial', async (t) => {
+  const loaded = entry(11, 'Registro que deja de ser accesible')
+  const staleHistory = gate()
+  let saved = false
+  let subjectReads = 0
+  mockApi(t, async (config) => {
+    switch (config.url) {
+      case '/care-subjects/4':
+        subjectReads++
+        return ok(config, subject)
+      case '/care-subjects/4/health-entries/11':
+        if (config.method === 'patch') {
+          saved = true
+          return ok(config, entry(11, 'Título editado'))
+        }
+        if (saved) throw denied(config, 403, 'El registro ya no está disponible para ti.')
+        return ok(config, loaded)
+      case '/care-subjects/4/health-entries/11/versions':
+        if (saved) await staleHistory.wait
+        return ok(config, [loaded.latestVersion])
+      default: assert.fail(`Petición inesperada ${config.url}`)
+    }
+  })
+  const { container } = await mount(t, <EntryRoutes />, '/people/4/entries/11')
+  assert.equal(container.querySelector('h1')?.textContent, loaded.latestVersion.title)
+  await click(container, 'Editar')
+  await fill(container, '#entry-title', 'Título editado')
+  await click(container, 'Guardar cambios')
+  assert.equal(saved, true)
+  assert.equal(subjectReads, 2)
+  assert.match(container.textContent!, /Persona ficticia/)
+  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /El registro ya no está disponible/)
+  assert.doesNotMatch(container.textContent!, /Registro que deja de ser accesible|Detalle revisado/)
+  await act(async () => staleHistory.release())
+  assert.doesNotMatch(container.textContent!, /Registro que deja de ser accesible|Detalle revisado/)
+})
+
+test('una denegación de otra persona o de una sesión anterior no cierra el registro activo', async (t) => {
+  const loaded = entry(11, 'Registro de la sesión actual')
+  const oldSession = gate()
+  const oldReadStarted = gate()
+  setTokens({ accessToken: 'demo-anterior', refreshToken: 'demo-renovación-anterior' })
+  t.after(clearTokens)
+  mockApi(t, async (config) => {
+    if (config.url === '/care-subjects/5/health-entries') throw denied(config)
+    if (config.url === '/care-subjects/4/health-entries') {
+      assert.equal(config.headers.get('Authorization'), 'Bearer demo-anterior')
+      oldReadStarted.release()
+      await oldSession.wait
+      throw denied(config)
+    }
+    assert.equal(config.headers.get('Authorization'), 'Bearer demo-actual')
+    if (config.url === '/care-subjects/4') return ok(config, subject)
+    if (config.url === '/care-subjects/4/health-entries/11') return ok(config, loaded)
+    if (config.url === '/care-subjects/4/health-entries/11/versions') return ok(config, [loaded.latestVersion])
+    assert.fail(`Petición inesperada ${config.url}`)
+  })
+  const lateDenial = assert.rejects(listHealthEntries(4), { code: 'ERR_CANCELED' })
+  await oldReadStarted.wait
+  setTokens({ accessToken: 'demo-actual', refreshToken: 'demo-renovación-actual' })
+  const { container } = await mount(t, <EntryRoutes />, '/people/4/entries/11')
+  await act(async () => {
+    await assert.rejects(listHealthEntries(5), isForbidden)
+    oldSession.release()
+    await lateDenial
+  })
+  assert.equal(container.querySelector('h1')?.textContent, 'Registro de la sesión actual')
+  assert.equal(container.querySelector('[role="alert"]'), null)
 })

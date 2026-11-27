@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { passwordError } from '../utils/password'
-import { email, requiredText } from './common'
+import { email, optionalGender, requiredText } from './common'
 
 const newPassword = z.string().superRefine((value, ctx) => {
   const message = passwordError(value)
@@ -17,9 +17,15 @@ export const loginSchema = z.object({
   ),
 })
 
-export const registerSchema = z
-  .object({
-    name: requiredText('Escribe tu nombre.', 120),
+export const registrationIdentitySchema = z.object({
+  name: requiredText('Elige un nombre de usuario.', 120),
+  fullName: requiredText('Escribe tus nombres y apellidos según tu DNI.', 200),
+  dni: z.string().trim().regex(/^\d{8}$/, 'Ingresa los 8 dígitos de tu DNI.'),
+})
+
+export const registerSchema = registrationIdentitySchema
+  .extend({
+    gender: optionalGender(),
     email: email(),
     password: newPassword,
     confirmPassword,

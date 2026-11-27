@@ -8,6 +8,7 @@ import { createHandoff } from '../../services/api/handoffs'
 import { listHealthEntries } from '../../services/api/healthEntries'
 import { CATEGORY_CODES, type ErrorResponse, type HandoffDetail, type HealthEntry } from '../../types'
 import { applyServerErrors, getErrorMessage } from '../../utils/apiErrors'
+import { createAttemptKey } from '../../utils/attemptKey'
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
 import { collectPages } from '../../utils/pagination'
 import { focusRing } from '../../utils/styles'
@@ -32,6 +33,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
   const [serverError, setServerError] = useState<string | null>(null)
   const [needsReview, setNeedsReview] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [attemptKey] = useState(() => createAttemptKey(() => crypto.randomUUID()))
   const {
     register,
     handleSubmit,
@@ -74,7 +76,8 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
       const expectedVersionIds = Object.fromEntries(
         loaded.entries.filter((e) => values.healthEntryIds.includes(e.id)).map((e) => [e.id, e.latestVersion.id]),
       )
-      setCreated(await createHandoff(subjectId, { ...values, expectedVersionIds }))
+      const request = { ...values, healthEntryIds: [...values.healthEntryIds].sort((a, b) => a - b), expectedVersionIds }
+      setCreated(await createHandoff(subjectId, { ...request, requestId: attemptKey(request) }))
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 409) {
         setNeedsReview(true)
@@ -95,7 +98,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
     return (
       <div className="grid gap-3">
         <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">{loaded.message}</p>
-        <button type="button" className={`justify-self-start font-semibold text-primary underline ${focusRing}`}
+        <button type="button" className={`justify-self-start font-semibold text-primary-fg underline ${focusRing}`}
           onClick={() => { setLoaded({ status: 'loading' }); setReloadKey((key) => key + 1) }}>
           Reintentar carga de registros
         </button>
@@ -115,7 +118,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
       <form onSubmit={onSubmit} noValidate className="grid gap-6 rounded-3xl bg-card p-6 sm:p-8">
         <ServerError message={serverError} />
         {needsReview ? (
-          <button type="button" className={`justify-self-start font-semibold text-primary underline ${focusRing}`}
+          <button type="button" className={`justify-self-start font-semibold text-primary-fg underline ${focusRing}`}
             onClick={() => { setStep(0); setLoaded({ status: 'loading' }); setReloadKey((key) => key + 1); setServerError(null) }}>
             Actualizar registros y revisar
           </button>
@@ -202,7 +205,7 @@ function Stepper({ current }: { current: number }) {
             key={label}
             aria-current={state === 'current' ? 'step' : undefined}
             className={`rounded-2xl border-2 px-3 py-2 text-sm ${
-              state === 'current' ? 'border-primary bg-card' : state === 'done' ? 'border-accent bg-card' : 'border-transparent bg-card/60 text-muted'
+              state === 'current' ? 'border-primary-fg bg-card' : state === 'done' ? 'border-accent bg-card' : 'border-transparent bg-card/60 text-muted'
             }`}
           >
             <span className="block font-semibold">
@@ -366,7 +369,7 @@ function ReviewBlock({ title, onEdit, children }: { title: string; onEdit: () =>
     <section className="rounded-2xl bg-surface/60 p-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-semibold">{title}</h3>
-        <button type="button" onClick={onEdit} className={`text-sm font-semibold text-primary underline ${focusRing}`}>
+        <button type="button" onClick={onEdit} className={`text-sm font-semibold text-primary-fg underline ${focusRing}`}>
           Cambiar
         </button>
       </div>

@@ -28,7 +28,7 @@ export function CareAuthorizationStatus({ subjectId }: { subjectId: number }) {
           <p className="text-sm">Declaración registrada · {declarationLabels[latest.type]}</p>
           <p className="text-sm text-muted">Yuyay registra la declaración sin verificar la autorización.</p>
           <details>
-            <summary className="cursor-pointer text-sm font-semibold text-primary">Ver historial de declaraciones</summary>
+            <summary className="cursor-pointer text-sm font-semibold text-primary-fg">Ver historial de declaraciones</summary>
             <ol className="mt-3 grid gap-4">
               {data?.map((declaration) => (
                 <li key={declaration.id} className="grid gap-1 rounded-xl border border-line p-3">

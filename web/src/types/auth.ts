@@ -2,6 +2,8 @@ import type { CareUserSummary, Gender } from './index'
 import type { RefreshResponse } from '../services/http'
 
 export interface User extends CareUserSummary {
+  /** Nombre completo del documento; `name` es el nombre de usuario. Falta en cuentas anteriores. */
+  fullName?: string | null
   role: string
   gender?: Gender | null
   createdAt: string
@@ -25,10 +27,19 @@ export interface TermsDocument {
 }
 
 export interface RegisterRequest extends LoginRequest, TermsAcceptance {
+  /** Nombre de usuario: el que se muestra en la app. */
   name: string
+  /** Nombres y apellidos escritos por la persona para contrastarlos en el registro. */
+  fullName: string
+  /** Opcional: quien no quiera decirlo puede saltar la pregunta. */
+  gender?: Gender | null
+  /** Se usa durante el alta para contrastar el nombre escrito. */
+  dni: string
 }
 
-export interface GoogleAuthRequest {
+export type RegistrationIdentity = Pick<RegisterRequest, 'dni' | 'fullName' | 'name'>
+
+export interface GoogleAuthRequest extends Partial<RegistrationIdentity> {
   idToken: string
   /** Versión aceptada explícitamente para crear una cuenta con Google. */
   acceptedTermsVersion?: string

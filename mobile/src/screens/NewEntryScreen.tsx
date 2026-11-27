@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ImagePickerAsset } from 'expo-image-picker';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Button, Chip, SegmentedButtons } from 'react-native-paper';
 import { DateField, parseDateParts } from '../components/DateField';
@@ -16,6 +16,7 @@ import { createHealthEntry, getHealthCategories, uploadAttachment } from '../ser
 import { audioFormData, imageFormData } from '../services/attachmentFiles';
 import type { UploadSource } from '../services/attachmentUpload';
 import { ApiError } from '../services/http';
+import { ocrDrafts } from '../services/ocrDrafts';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { ConfidenceLevel, HomeStackParamList } from '../types';
 import { EXAM_CATEGORY } from '../utils/categories';
@@ -26,8 +27,13 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'NewEntry'>;
 export function NewEntryScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { subjectId, sourceAttachmentId, returnToSource } = route.params;
-  const initial = initialEntryFields(route.params);
+  const { subjectId, sourceAttachmentId, returnToSource, ocrDraftId } = route.params;
+  const [initial] = useState(() => initialEntryFields(
+    (ocrDraftId === undefined ? undefined : ocrDrafts.read(subjectId, ocrDraftId)) ?? route.params,
+  ));
+  useEffect(() => {
+    if (ocrDraftId !== undefined) ocrDrafts.discard(ocrDraftId);
+  }, [ocrDraftId]);
   const categories = useFetch(getHealthCategories);
   const [categoryCode, setCategoryCode] = useState(initial.categoryCode);
   const [title, setTitle] = useState(initial.title);
@@ -157,7 +163,7 @@ export function NewEntryScreen({ route, navigation }: Props) {
         onChangeText={setDetails}
         multiline
         numberOfLines={3}
-        hint={route.params.ocrDraft ? 'Revisa el texto completo antes de guardar. Estos detalles podrán incluirse en el resumen para la consulta.' : undefined}
+        hint={ocrDraftId !== undefined ? 'Revisa el texto completo antes de guardar. Estos detalles podrán incluirse en el resumen para la consulta.' : undefined}
         error={fieldErrors.details}
       />
       <FormField

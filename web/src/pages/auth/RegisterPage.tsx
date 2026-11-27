@@ -11,8 +11,9 @@ import { applyServerErrors } from '../../utils/apiErrors'
 import { linkClass } from '../../utils/styles'
 import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
-import { Field, FormActions, FormShell, ServerError } from '../forms/fields'
+import { Field, FormActions, FormShell, GenderField, ServerError } from '../forms/fields'
 import { GoogleSignIn } from './GoogleSignIn'
+import { RegistrationIdentityFields } from './RegistrationIdentityFields'
 import { PasswordChecklist, PasswordInput } from './PasswordFields'
 
 export default function RegisterPage() {
@@ -33,12 +34,12 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
+    defaultValues: { name: '', fullName: '', gender: '' as const, dni: '', email: '', password: '', confirmPassword: '' },
     mode: 'onTouched',
   })
   const password = useWatch({ control, name: 'password' })
 
-  const onSubmit = handleSubmit(async ({ name, email, password }) => {
+  const onSubmit = handleSubmit(async ({ name, fullName, gender, dni, email, password }) => {
     setServerError(null)
     setTermsError(null)
     if (!terms.acceptance) {
@@ -46,7 +47,7 @@ export default function RegisterPage() {
       return
     }
     try {
-      if (await submitAuth({ name, email, password, ...terms.acceptance })) {
+      if (await submitAuth({ name, fullName, gender, dni, email, password, ...terms.acceptance })) {
         void navigate(getPostLoginTarget(location.state), { replace: true })
       }
     } catch (error) {
@@ -55,7 +56,7 @@ export default function RegisterPage() {
         terms.review()
         return
       }
-      setServerError(applyServerErrors(error, setError, ['name', 'email', 'password']))
+      setServerError(applyServerErrors(error, setError, ['name', 'fullName', 'gender', 'dni', 'email', 'password']))
     }
   })
 
@@ -80,9 +81,8 @@ export default function RegisterPage() {
           onSignedIn={() => void navigate(getPostLoginTarget(location.state), { replace: true })}
           onError={setServerError}
         />
-        <Field id="auth-name" label="Nombre" error={errors.name}>
-          <input {...register('name')} {...a11yProps('auth-name', errors.name)} autoComplete="name" />
-        </Field>
+        <RegistrationIdentityFields prefix="auth" dni={register('dni')} fullName={register('fullName')} name={register('name')} errors={errors} />
+        <GenderField field={register('gender')} legend="Género (opcional, puedes saltarlo)" />
         <Field id="auth-email" label="Correo electrónico" error={errors.email}>
           <input {...register('email')} {...a11yProps('auth-email', errors.email)} type="email" autoComplete="email" />
         </Field>

@@ -3,7 +3,7 @@ import { cx } from './cx'
 
 const tones = {
   neutral: 'bg-border text-muted',
-  primary: 'bg-primary-tint text-primary',
+  primary: 'bg-primary-tint text-primary-fg',
   accent: 'bg-accent-tint text-accent-text',
   danger: 'bg-danger-bg text-danger',
   soft: 'bg-soft text-soft-text',

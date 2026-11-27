@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useController, useForm, useWatch } from 'react-hook-form'
 import { LoadError } from '../../components/layout/LoadError'
 import { AccountTerms } from '../../components/AccountTerms'
 import { AvatarPicker, MyAvatar } from '../../components/ui/AvatarPicker'
@@ -18,7 +18,9 @@ import { useLogout } from '../../hooks/useLogout'
 import { useTheme } from '../../hooks/useTheme'
 import { useToast } from '../../hooks/useToast'
 import { profileSchema } from '../../schemas/profile'
-import { GenderField } from '../forms/fields'
+import { Field, GenderField } from '../forms/fields'
+import { a11yProps } from '../forms/fieldProps'
+import { DatePicker } from '../../components/ui/DatePicker'
 import { getDocumentScopeSummary, getMe, updateMe } from '../../services/api/users'
 import type { UserProfile } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
@@ -96,6 +98,7 @@ function ProfileForm({ profile, onSaved }: { profile: UserProfile; onSaved: (pro
     defaultValues: { name: profile.name, gender: profile.gender ?? ('' as const), birthDate: profile.birthDate ?? '' },
     mode: 'onChange',
   })
+  const { field: birthDateField } = useController({ control, name: 'birthDate' })
   const [name, gender, birthDate] = useWatch({ control, name: ['name', 'gender', 'birthDate'] })
   const unchanged =
     name.trim() === profile.name &&
@@ -122,15 +125,21 @@ function ProfileForm({ profile, onSaved }: { profile: UserProfile; onSaved: (pro
         error={errors.name?.message}
         {...register('name')}
       />
-      <Input
-        type="date"
+      <Field
+        id="profile-birthDate"
         label="Fecha de nacimiento (opcional)"
+        error={errors.birthDate}
         hint="Con ella mostramos tu edad y tu león automático crece contigo."
-        min={`${MIN_YEAR}-01-01`}
-        max={yesterdayIso()}
-        error={errors.birthDate?.message}
-        {...register('birthDate')}
-      />
+      >
+        <DatePicker
+          value={birthDateField.value ?? ''}
+          onChange={birthDateField.onChange}
+          onBlur={birthDateField.onBlur}
+          min={`${MIN_YEAR}-01-01`}
+          max={yesterdayIso()}
+          {...a11yProps('profile-birthDate', errors.birthDate, 'hint')}
+        />
+      </Field>
       <GenderField field={register('gender')} />
       <div>
         <Button type="submit" loading={isSubmitting} disabled={!isValid || unchanged}>
@@ -182,6 +191,7 @@ export default function ProfilePage() {
               <AvatarPicker open={pickingAvatar} onClose={() => setPickingAvatar(false)} title="Tu avatar" target={{ type: 'me' }} />
               <div className="min-w-0">
                 <h2 className="text-xl font-bold wrap-break-word">{profile.name}</h2>
+                {profile.fullName ? <p className="text-sm wrap-break-word">{profile.fullName}</p> : null}
                 <p className="text-muted wrap-break-word">{profile.email}</p>
               </div>
             </div>

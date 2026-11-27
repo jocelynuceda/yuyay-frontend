@@ -14,10 +14,10 @@ import { GenderChips, SubmitButton } from '../components/FormKit';
 import { ProfileCard } from '../components/ProfileCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAvatar } from '../hooks/useAvatar';
-import { useFetch } from '../hooks/useFetch';
+import { useCareSubjects, useSubjectNotifications } from '../hooks/useSubjectAccess';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { useToast } from '../hooks/useToast';
-import { getCareSubjects, getNotifications, updateMe } from '../services/api';
+import { updateMe } from '../services/api';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { Gender, RootStackParamList, TabNavigatorParamList } from '../types';
@@ -43,8 +43,8 @@ export function ProfileScreen({ navigation }: Props) {
   const [nameError, setNameError] = useState<string | undefined>();
   const [savingName, setSavingName] = useState(false);
   const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const subjects = useFetch(getCareSubjects);
-  const notifications = useFetch(getNotifications);
+  const subjects = useCareSubjects();
+  const notifications = useSubjectNotifications();
   useRefreshOnFocus(() => {
     subjects.reload();
     notifications.reload();
@@ -89,6 +89,9 @@ export function ProfileScreen({ navigation }: Props) {
   ];
 
   const rows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; tint: string }[] = [
+    ...(user.fullName
+      ? [{ icon: 'person-outline' as const, label: 'Nombre completo', value: user.fullName, tint: colors.primary }]
+      : []),
     { icon: 'mail-outline', label: 'Correo', value: user.email, tint: colors.primary },
     {
       icon: 'shield-checkmark-outline',
@@ -169,7 +172,7 @@ export function ProfileScreen({ navigation }: Props) {
 
       {editingName ? (
         <View style={styles.nameForm}>
-          <FormField label="Nombre" value={name} onChangeText={setName} maxLength={120} autoComplete="name" error={nameError} />
+          <FormField label="Nombre de usuario" value={name} onChangeText={setName} maxLength={120} autoComplete="nickname" error={nameError} />
           <Text style={styles.genderLabel}>Género (opcional)</Text>
           <GenderChips value={gender} onChange={setGender} />
           <DateField
