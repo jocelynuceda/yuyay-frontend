@@ -35,11 +35,11 @@ export function ConsultationSummaryPage({ subjectId, consultationId }: { subject
   const [historyRequired, setHistoryRequired] = useState(requiresSummaryHistoryCheck)
   const model = useMemo(() => acquireSummaryAttempt(session, key, () => createSummaryReview({
     prepare: async () => {
-      const data = await prepareConsultation(consultationId)
+      const data = await prepareConsultation(consultationId, undefined, subjectId)
       if (data.careSubjectId !== subjectId) throw new Error('La cita no pertenece a esta persona.')
       return data
     },
-    confirm: (body) => confirmConsultation(consultationId, body),
+    confirm: (body) => confirmConsultation(consultationId, body, subjectId),
     newId: () => crypto.randomUUID(),
     status: (error) => axios.isAxiosError(error) ? error.response?.status : undefined,
     errorMessage: (error) => {

@@ -9,13 +9,14 @@ export async function loadEntryHistory(
   getEntry: () => Promise<HealthEntry>,
   getVersions: () => Promise<HealthEntryVersion[]>,
 ) {
-  const [entry, versions] = await Promise.allSettled([getEntry(), getVersions()])
-  if (versions.status === 'rejected') throw versions.reason
-
-  const deleted = versions.value[0]?.changeType === 'DELETED'
-  if (entry.status === 'fulfilled') return { entry: deleted ? null : entry.value, versions: versions.value }
-
-  const notFound = axios.isAxiosError(entry.reason) && entry.reason.response?.status === 404
-  if (notFound && deleted) return { entry: null, versions: versions.value }
-  throw entry.reason
+  const [result, versions] = await Promise.all([
+    getEntry().then((entry) => ({ entry })).catch((error: unknown) => {
+      if (axios.isAxiosError(error) && error.response?.status === 404) return { missing: error }
+      throw error
+    }),
+    getVersions(),
+  ])
+  if (versions[0]?.changeType === 'DELETED') return { entry: null, versions }
+  if ('missing' in result) throw result.missing
+  return { entry: result.entry, versions }
 }

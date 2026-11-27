@@ -194,7 +194,7 @@ export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { su
         onCancel={() => setRemoving(null)}
         onConfirm={async () => {
           if (!removing) return
-          await deleteConsultation(removing.id)
+          await deleteConsultation(removing.id, subjectId)
           notify('Consulta borrada.')
           setRemoving(null)
           reload()

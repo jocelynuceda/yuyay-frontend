@@ -33,7 +33,7 @@ export function HandoffLinkStep({ handoff, subjectName }: { handoff: HandoffDeta
 }
 
 /** Formulario del enlace temporal; una vez creado, muestra el enlace para copiarlo. */
-export function CreateHandoffLink({ handoffId, subjectName, onCreated }: { handoffId: number; subjectName?: string; onCreated?: () => void }) {
+export function CreateHandoffLink({ handoffId, subjectId, subjectName, onCreated }: { handoffId: number; subjectId?: number; subjectName?: string; onCreated?: () => void }) {
   const [session, setSession] = useState<HandoffSessionCreated | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
   const [allowDownload, setAllowDownload] = useState(false)
@@ -51,10 +51,10 @@ export function CreateHandoffLink({ handoffId, subjectName, onCreated }: { hando
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
     try {
-      const created = await createHandoffSession(handoffId, { ...values, ...(allowDownload ? { allowDownload: true } : {}) })
+      const created = await createHandoffSession(handoffId, { ...values, ...(allowDownload ? { allowDownload: true } : {}) }, subjectId)
       if (created.accessCodeRequired !== true || (allowDownload && created.allowDownload !== true)) {
         try {
-          await revokeHandoffSession(created.id)
+          await revokeHandoffSession(created.id, subjectId)
         } catch {
           // El token no se muestra ni se copia aunque no se pueda revocar.
         }
@@ -75,7 +75,7 @@ export function CreateHandoffLink({ handoffId, subjectName, onCreated }: { hando
     }
   })
 
-  if (session) return <ShareLink session={session} />
+  if (session) return <ShareLink session={session} subjectId={subjectId} />
 
   return (
     <form onSubmit={onSubmit} noValidate aria-labelledby={`handoff-link-title-${handoffId}`} className="grid gap-3 rounded-3xl bg-card p-5 shadow-sm sm:p-6">
@@ -116,7 +116,7 @@ export function CreateHandoffLink({ handoffId, subjectName, onCreated }: { hando
   )
 }
 
-function ShareLink({ session }: { session: HandoffSessionCreated }) {
+function ShareLink({ session, subjectId }: { session: HandoffSessionCreated; subjectId?: number }) {
   const [copied, setCopied] = useState(false)
   const link = handoffLink(session.token)
 
@@ -139,7 +139,7 @@ function ShareLink({ session }: { session: HandoffSessionCreated }) {
         Envía el enlace solo al médico y comparte el código por separado. Vence el {formatDateTime(session.expiresAt)}.
       </p>
       <p className="text-sm text-muted">{session.allowDownload === true ? 'Descarga del resumen en PDF autorizada.' : 'Descarga del resumen en PDF desactivada.'}</p>
-      <HandoffAccessCode sessionId={session.id} />
+      <HandoffAccessCode sessionId={session.id} subjectId={subjectId} />
       <div className="flex flex-wrap gap-2">
         <input
           readOnly

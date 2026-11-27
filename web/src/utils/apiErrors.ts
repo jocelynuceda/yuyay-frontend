@@ -3,6 +3,8 @@ import { getHttpErrorMessage } from '../services/http'
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form'
 import type { ErrorResponse } from '../types'
 
+export { isAccessLost } from './accessStatus'
+
 /** Mensaje legible para un toast a partir de cualquier error de la API. */
 export function getErrorMessage(error: unknown): string {
   return getHttpErrorMessage(error)
@@ -11,11 +13,6 @@ export function getErrorMessage(error: unknown): string {
 /** Código HTTP de la respuesta de error, o undefined si no hubo respuesta (red, timeout). */
 export function getErrorStatus(error: unknown): number | undefined {
   return axios.isAxiosError(error) ? error.response?.status : undefined
-}
-
-/** El servidor ya no deja ver el recurso (sin permiso o retirado): lo que se había cargado debe ocultarse. */
-export function isAccessLost(status: number | undefined): boolean {
-  return status === 403 || status === 404 || status === 410
 }
 
 /**

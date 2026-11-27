@@ -58,7 +58,7 @@ export function ConsultationForm({
     try {
       onSaved(
         consultation
-          ? await updateConsultation(consultation.id, toConsultationUpdate(values))
+          ? await updateConsultation(consultation.id, toConsultationUpdate(values), subjectId)
           : await createConsultation(subjectId, values),
       )
     } catch (error) {

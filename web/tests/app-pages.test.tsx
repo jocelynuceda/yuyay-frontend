@@ -665,7 +665,7 @@ test('Registro: el DNI es obligatorio y el rechazo del backend aparece bajo el c
   await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
   assert.equal(b.calls.some((call) => call.includes('dni-lookup')), false)
   assert.equal(b.db.registers.length, 0)
-  assert.equal(document.querySelector('a[href^="mailto:"]')?.getAttribute('href'), 'mailto:luisfelipe.28h@gmail.com')
+  assert.equal(document.querySelector('form a[href^="mailto:"]'), null)
   await click(byText('button', 'Registrarme'), 'Registrarme')
   await waitFor(() => /El nombre no coincide con el de este DNI/.test(text()), 'rechazo del backend')
   assert.equal(inputById('auth-dni').getAttribute('aria-invalid'), 'true')
@@ -941,6 +941,108 @@ test('Perfil: el principal elimina a una persona tras confirmar y vuelve a la li
   await waitFor(() => pathname() === '/people', 'volver a la lista de personas')
   assert.ok(b.calls.includes('DELETE /care-subjects/2'))
   await waitFor(() => /Se eliminó a Pedro/.test(text()), 'confirmar el borrado con un aviso')
+})
+
+test('tras perder acceso, Inicio y Personas consultan el directorio vigente y el aviso anterior protege su contenido', async (t) => {
+  const { b, unmount } = await mountApp('/people/1?tab=appointments', { loggedIn: true, seed: (db) => {
+    db.notifications.unshift({ id: 30, type: 'APPOINTMENT_REMINDER', title: 'Recordatorio anterior de prueba',
+      body: 'Aviso de una consulta ya notificada.', careSubjectId: 1, read: true,
+      readAt: '2026-11-08T00:00:00Z', createdAt: '2026-11-07T00:00:00Z' })
+  } })
+  t.after(unmount)
+  await waitFor(() => /Control con cardiología/.test(text()), 'consulta de Rosa cargada')
+
+  b.db.subjects = b.db.subjects.filter(({ id }) => id !== 1)
+  await act(async () => window.dispatchEvent(new window.Event('focus')))
+  await waitFor(() => !!byText('a', 'Volver al inicio'), 'ficha retirada al recuperar el foco')
+  assert.doesNotMatch(text(), /Rosa|Control con cardiología/)
+  const oldConsultationReads = b.calls.filter((call) => call === 'GET /care-subjects/1/consultations').length
+
+  await click(byText('a', 'Volver al inicio'), 'volver al inicio')
+  await waitFor(() => pathname() === '/' && /Control con urología/.test(text()), 'Inicio muestra la próxima cita vigente')
+  assert.doesNotMatch(text(), /Rosa|Control con cardiología/)
+
+  await click(document.querySelector('a[href="/people"]'), 'ir a Personas')
+  await waitFor(() => pathname() === '/people' && /Pedro/.test(text()), 'directorio vigente de personas')
+  assert.doesNotMatch(text(), /Rosa/)
+
+  await click(document.querySelector('a[href="/notifications"]'), 'ir a Avisos')
+  await waitFor(() => pathname() === '/notifications' && !!byText('h2', 'Aviso de salud'), 'aviso histórico protegido')
+  assert.doesNotMatch(text(), /Recordatorio anterior de prueba|Aviso de una consulta ya notificada/)
+  assert.equal(document.querySelector('a[href="/people/1?tab=appointments"]'), null)
+  assert.ok(byText('a', 'Ver invitación'))
+  assert.equal(b.calls.filter((call) => call === 'GET /care-subjects/1/consultations').length, oldConsultationReads)
+})
+
+test('Inicio abierto retira las próximas citas de la persona que ya no está en el directorio al volver al foco', async (t) => {
+  const { b, unmount } = await mountApp('/', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Control con cardiología/.test(text()), 'citas de ambas personas')
+  assert.match(text(), /Control con urología/)
+  b.db.subjects = b.db.subjects.filter(({ id }) => id !== 1)
+  await act(async () => window.dispatchEvent(new window.Event('focus')))
+  await waitFor(() => /Control con urología/.test(text()) && !/Control con cardiología/.test(text()), 'citas vigentes al volver al foco')
+  assert.doesNotMatch(text(), /Rosa/)
+  assert.equal(b.calls.filter((call) => call === 'GET /care-subjects').length, 2)
+})
+
+test('Personas retira solo la tarjeta revocada al recuperar la conexión', async (t) => {
+  const { b, unmount } = await mountApp('/people', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Rosa/.test(text()) && /Pedro/.test(text()), 'tarjetas inicialmente accesibles')
+  b.db.subjects = b.db.subjects.filter(({ id }) => id !== 1)
+  await act(async () => window.dispatchEvent(new window.Event('online')))
+  await waitFor(() => /Pedro/.test(text()) && !/Rosa/.test(text()), 'se actualizó el directorio al reconectar')
+  assert.equal(b.calls.filter((call) => call === 'GET /care-subjects').length, 2)
+})
+
+test('una lista tardía no recupera la tarjeta de una persona cuyo acceso se retiró', async (t) => {
+  const { b, unmount } = await mountApp('/people', { loggedIn: true })
+  t.after(async () => { http.api.defaults.adapter = b.adapter; await unmount() })
+  await waitFor(() => /Rosa/.test(text()) && /Pedro/.test(text()), 'tarjetas inicialmente accesibles')
+  let release!: () => void
+  let markStarted!: () => void
+  const pending = new Promise<void>((resolve) => { release = resolve })
+  const started = new Promise<void>((resolve) => { markStarted = resolve })
+  http.api.defaults.adapter = async (config) => {
+    if (config.url === '/care-subjects/1/consultations') {
+      throw Object.assign(new Error('Acceso retirado'), { isAxiosError: true, config,
+        response: { status: 403, data: { message: 'Acceso retirado' }, headers: {}, config } })
+    }
+    const result = await b.adapter(config)
+    if (config.url === '/care-subjects') {
+      markStarted()
+      await pending
+    }
+    return result
+  }
+
+  await act(async () => window.dispatchEvent(new window.Event('focus')))
+  await started
+  b.db.subjects = b.db.subjects.filter(({ id }) => id !== 1)
+  await act(async () => {
+    await assert.rejects(http.api.get('/care-subjects/1/consultations'), /Acceso retirado/)
+  })
+  assert.match(text(), /Pedro/)
+  assert.doesNotMatch(text(), /Rosa/)
+  await act(async () => release())
+  assert.match(text(), /Pedro/)
+  assert.doesNotMatch(text(), /Rosa/)
+})
+
+test('Avisos oculta el texto ya cargado de la persona revocada cuando vuelve a estar visible', async (t) => {
+  const { b, unmount } = await mountApp('/notifications', { loggedIn: true, seed: (db) => {
+    db.notifications[0] = { ...db.notifications[0], title: 'Resultado clínico anterior', body: 'Detalle de prueba del resultado' }
+  } })
+  t.after(unmount)
+  await waitFor(() => /Resultado clínico anterior/.test(text()) && !!byText('a', 'Ver invitación'), 'aviso clínico accesible e invitación pendiente')
+  assert.match(text(), /Detalle de prueba del resultado/)
+  b.db.subjects = b.db.subjects.filter(({ id }) => id !== 1)
+  await act(async () => document.dispatchEvent(new window.Event('visibilitychange')))
+  await waitFor(() => !!byText('h2', 'Aviso de salud'), 'el aviso se protege al actualizar el directorio')
+  assert.doesNotMatch(text(), /Resultado clínico anterior|Detalle de prueba del resultado/)
+  assert.equal(document.querySelector('a[href="/people/1"]'), null)
+  assert.ok(byText('a', 'Ver invitación'))
 })
 
 test('Perfil: una persona inexistente muestra "no encontrada" sin botón de reintentar', async (t) => {

@@ -9,11 +9,13 @@ type CodeState =
   | { phase: 'ready'; code: string | null; seconds: number; period: number }
 
 /** Cada sesión tiene su propio ciclo: no se reutiliza ni un render del código de otro enlace. */
-export function HandoffAccessCode({ sessionId }: { sessionId: number }) {
-  return <AccessCode key={sessionId} sessionId={sessionId} />
+type AccessCodeProps = { sessionId: number; subjectId?: number }
+
+export function HandoffAccessCode(props: AccessCodeProps) {
+  return <AccessCode key={`${props.subjectId}:${props.sessionId}`} {...props} />
 }
 
-function AccessCode({ sessionId }: { sessionId: number }) {
+function AccessCode({ sessionId, subjectId }: AccessCodeProps) {
   const [state, setState] = useState<CodeState>({ phase: 'loading' })
   const [retry, setRetry] = useState(0)
 
@@ -35,7 +37,7 @@ function AccessCode({ sessionId }: { sessionId: number }) {
       controller = new AbortController()
       const startedAt = performance.now()
       try {
-        const code = await getHandoffAccessCode(sessionId, controller.signal)
+        const code = await getHandoffAccessCode(sessionId, controller.signal, subjectId)
         if (!active || current !== generation || !available()) return
         const deadline = accessCodeDeadline(code, startedAt, performance.now())
         if (deadline <= performance.now()) {
@@ -75,7 +77,7 @@ function AccessCode({ sessionId }: { sessionId: number }) {
       window.removeEventListener('offline', synchronize)
       document.removeEventListener('visibilitychange', synchronize)
     }
-  }, [sessionId, retry])
+  }, [sessionId, subjectId, retry])
 
   const ready = state.phase === 'ready'
   const progress = ready ? state.seconds / state.period : 0

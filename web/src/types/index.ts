@@ -329,7 +329,7 @@ export interface Notification {
   id: number
   type: 'ENTRY_CHANGED' | 'INVITATION' | 'CAREGIVER_JOINED' | 'APPOINTMENT_REMINDER' | (string & {})
   title: string
-  body: string
+  body: string | null
   careSubjectId: number | null
   read: boolean
   readAt: string | null

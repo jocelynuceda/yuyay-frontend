@@ -4,9 +4,8 @@ import { SubjectAvatar } from '../../components/ui/AvatarPicker'
 import { Icon } from '../../components/ui/Icon'
 import { Modal } from '../../components/ui/Modal'
 import { SearchInput } from '../../components/ui/SearchInput'
-import { useFetch } from '../../hooks/useFetch'
+import { useAccessiblePeople } from '../../hooks/useAccessiblePeople'
 import { useToast } from '../../hooks/useToast'
-import { listCareSubjects } from '../../services/api/careSubjects'
 import type { CareSubject } from '../../types'
 import { ageFrom } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
@@ -43,7 +42,7 @@ export function PeopleGrid({
   onParamsChange: (params: PeopleParams) => void
   onOpen: (subject: CareSubject) => void
 }) {
-  const { data, error, errorStatus, loading, reload } = useFetch((signal) => listCareSubjects(signal), [])
+  const { data, error, errorStatus, loading, reload } = useAccessiblePeople()
   const [adding, setAdding] = useState(false)
   const [creationLocked, setCreationLocked] = useState(false)
   const toast = useToast()
