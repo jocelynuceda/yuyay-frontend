@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LoadError } from '../../components/layout/LoadError'
 import { Button } from '../../components/ui/Button'
-import { Icon } from '../../components/ui/Icon'
+import { Icon, type IconName } from '../../components/ui/Icon'
 import { useFetch } from '../../hooks/useFetch'
 import { listHealthEntries } from '../../services/api/healthEntries'
 import type { CategoryCode, HealthEntry } from '../../types'
@@ -18,6 +18,16 @@ type ClinicalProfileProps = {
   /** Al remontar tras guardar, abre la categoría del registro recién creado. */
   initialCategory?: CategoryCode
   onNewEntry?: () => void
+}
+
+/** Ícono y color de cada categoría, como en la app móvil. */
+const categoryTiles: Record<CategoryCode, { icon: IconName; color: string }> = {
+  ALLERGY: { icon: 'flower', color: 'bg-accent text-on-accent' },
+  CONDITION: { icon: 'pulse', color: 'bg-soft text-soft-text' },
+  MEDICATION: { icon: 'medkit', color: 'bg-primary-tint text-primary-fg' },
+  IMMUNIZATION: { icon: 'shield', color: 'bg-primary text-white' },
+  EPISODE: { icon: 'bolt', color: 'bg-danger-bg text-danger' },
+  EXAM_RESULT: { icon: 'flask', color: 'bg-accent-tint text-accent-text' },
 }
 
 /** Una vista breve por categoría; el historial completo está en su página de registros. */
@@ -41,10 +51,10 @@ function ProfileContent({ subjectId, onOpenEntry, onAddEntry, initialCategory, o
         <h2 id="clinical-profile-title" className="text-2xl font-semibold">Perfil clínico</h2>
         {onNewEntry ? <Button onClick={onNewEntry}><Icon name="plus" className="h-4 w-4" />Nuevo registro</Button> : null}
       </div>
-      <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-card">
+      <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
         {PROFILE_CATEGORIES.map((code) => <ProfileCategory key={code} subjectId={subjectId} code={code}
           expanded={open.has(code)} onToggle={() => toggle(code)} onOpenEntry={onOpenEntry} onAddEntry={onAddEntry} />)}
-      </ul>
+      </div>
     </section>
   )
 }
@@ -64,18 +74,20 @@ function ProfileCategory({ subjectId, code, expanded, onToggle, onOpenEntry, onA
   const overview = !loading && !error && data ? clinicalCategoryOverview(data) : null
   const { name, plural } = categoryLabels[code]
   const panelId = `clinical-profile-${subjectId}-${code}`
+  const { icon, color } = categoryTiles[code]
   return (
-    <li>
+    <>
       <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={onToggle}
-        className={`flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface ${focusRing}`}>
-        <span className="flex-1 font-semibold">{plural}</span>
+        className={`control-interactive flex aspect-square min-w-0 flex-col items-center justify-center gap-2 rounded-2xl bg-card p-2 text-center shadow-[var(--shadow-soft)] ${expanded ? 'ring-2 ring-primary' : ''} ${focusRing}`}>
+        <span className={`grid h-11 w-11 place-items-center rounded-full ${color}`}><Icon name={icon} /></span>
+        <span className="max-w-full text-sm font-semibold wrap-break-word">{plural}</span>
         {overview ? <span aria-label={`${overview.total} ${overview.total === 1 ? 'registro' : 'registros'}`}
           className="rounded-full bg-primary-tint px-2.5 py-0.5 text-xs font-semibold text-primary-fg">{overview.total}</span>
           : <span className="text-xs text-muted">{error ? 'No disponible' : 'Cargando…'}</span>}
-        <Icon name="chevron-right" className={`h-5 w-5 text-muted transition-transform ${expanded ? 'rotate-90' : ''}`} />
       </button>
       {expanded ? (
-        <div id={panelId} className="grid gap-3 px-4 pb-4">
+        <div id={panelId} className="order-last col-span-full grid gap-3 rounded-2xl bg-card p-4">
+          <h3 className="text-lg font-semibold">{plural}</h3>
           {loading ? <p role="status" className="text-sm text-muted">Cargando {plural.toLowerCase()}…</p> : null}
           {error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : null}
           {overview ? overview.latest ? (
@@ -90,7 +102,7 @@ function ProfileCategory({ subjectId, code, expanded, onToggle, onOpenEntry, onA
           </div>
         </div>
       ) : null}
-    </li>
+    </>
   )
 }
 
