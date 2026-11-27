@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { forgetSummarySession, summarySession } from '../utils/summaryAttempts'
 import NotFoundPage from '../pages/NotFoundPage'
 import { getPostLoginTarget } from '../utils/redirect'
+import { forgetClaimAttempts } from '../utils/profileClaim'
 import PrivateRoute from './PrivateRoute'
 import SessionRoute, { RouteLoading } from './SessionRoute'
 
@@ -15,6 +16,7 @@ const DashboardPage = lazy(() => import('../pages/dashboard/DashboardPage'))
 const NotificationsPage = lazy(() => import('../pages/notifications/NotificationsPage'))
 const ProfilePage = lazy(() => import('../pages/profile/ProfilePage'))
 const InvitationPage = lazy(() => import('../pages/invitations/InvitationPage'))
+const ProfileClaimRoute = lazy(() => import('../pages/claims/ProfileClaimPage'))
 const PeopleRoute = lazy(() => import('../pages/people/PeopleRoute'))
 const PersonDetailRoute = lazy(() => import('../pages/people/PersonDetailRoute'))
 const EntriesRoute = lazy(() => import('../pages/entries/EntriesRoute'))
@@ -57,7 +59,10 @@ export default function AppRoutes() {
   const { user } = useAuth()
   const previousUser = useRef(user?.id)
   useEffect(() => {
-    if (previousUser.current !== undefined && previousUser.current !== user?.id) forgetSummarySession(summarySession(previousUser.current))
+    if (previousUser.current !== undefined && previousUser.current !== user?.id) {
+      forgetSummarySession(summarySession(previousUser.current))
+      forgetClaimAttempts(previousUser.current)
+    }
     previousUser.current = user?.id
   }, [user])
 
@@ -70,6 +75,8 @@ export default function AppRoutes() {
         <Route path="/traspaso/:token" element={<LegacyRedirect to="/handoff" />} />
         <Route path="/invitaciones/:id" element={<LegacyRedirect to="/invitations" />} />
         <Route element={<SessionRoute />}>
+          <Route path="/entrega" element={<ProfileClaimRoute />} />
+          <Route path="/entrega/:token" element={<ProfileClaimRoute />} />
           <Route element={<PublicAuthRoute />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />

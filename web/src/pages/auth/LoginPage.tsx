@@ -43,7 +43,7 @@ export default function LoginPage() {
       footer={
         <>
           ¿Aún no tienes cuenta?{' '}
-          <Link to="/register" className={linkClass}>
+          <Link to="/register" state={location.state} className={linkClass}>
             Regístrate
           </Link>
         </>
@@ -70,7 +70,7 @@ export default function LoginPage() {
             autoComplete="current-password"
           />
         </Field>
-        <Link to="/forgot-password" className="-mt-2 justify-self-end text-sm font-semibold text-primary underline">
+        <Link to="/forgot-password" state={location.state} className="-mt-2 justify-self-end text-sm font-semibold text-primary underline">
           ¿Olvidaste tu contraseña?
         </Link>
         <FormActions submitting={isSubmitting} submitLabel="Entrar" submittingLabel="Ingresando…" />
