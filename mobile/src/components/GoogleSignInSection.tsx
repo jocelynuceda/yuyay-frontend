@@ -9,7 +9,7 @@ import type { RegistrationIdentity } from '../types';
 import { fonts, makeStyles, radius, useTheme, useThemePreference } from '../theme';
 import { classifyGoogleError, GOOGLE_TERMS_REQUIRED } from '../utils/googleAuth';
 import { AccountTerms } from './AccountTerms';
-import { RegistrationIdentityFields, RegistrationSupport } from './RegistrationIdentityFields';
+import { RegistrationIdentityFields } from './RegistrationIdentityFields';
 import { StatusMessage } from './StatusMessage';
 
 /**
@@ -125,7 +125,6 @@ export function GoogleSignInSection({ disabled = false, children }: PropsWithChi
                 {needsIdentity ? 'Crear cuenta con Google' : 'Continuar con Google'}
               </Button>
             </View>
-            {needsIdentity && <RegistrationSupport />}
           </View>
         ) : (
           <View style={styles.button}>

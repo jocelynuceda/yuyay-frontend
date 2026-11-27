@@ -25,7 +25,3 @@ export function RegistrationIdentityFields({ prefix, dni, fullName, name, errors
     </Field>
   </>
 }
-
-export function RegistrationSupport() {
-  return <p className="text-sm text-muted">¿Necesitas ayuda con el registro? <a className="font-semibold text-primary-fg underline" href="mailto:luisfelipe.28h@gmail.com">Escribe a soporte</a> sin incluir tu DNI.</p>
-}

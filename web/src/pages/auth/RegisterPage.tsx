@@ -13,7 +13,7 @@ import { getPostLoginTarget } from '../../utils/redirect'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, GenderField, ServerError } from '../forms/fields'
 import { GoogleSignIn } from './GoogleSignIn'
-import { RegistrationIdentityFields, RegistrationSupport } from './RegistrationIdentityFields'
+import { RegistrationIdentityFields } from './RegistrationIdentityFields'
 import { PasswordChecklist, PasswordInput } from './PasswordFields'
 
 export default function RegisterPage() {
@@ -113,7 +113,6 @@ export default function RegisterPage() {
         </Field>
         <AccountTerms terms={terms} requireAcceptance disabled={isSubmitting} validationError={terms.acceptance ? null : termsError} />
         <FormActions submitting={isSubmitting} submitLabel="Registrarme" submittingLabel="Creando cuenta…" />
-        <RegistrationSupport />
       </FormShell>
     </AuthShell>
   )

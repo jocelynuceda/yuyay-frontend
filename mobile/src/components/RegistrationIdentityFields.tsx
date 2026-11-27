@@ -1,5 +1,3 @@
-import { Alert, Linking, Text } from 'react-native';
-import { fonts, makeStyles } from '../theme';
 import type { RegistrationIdentity } from '../types';
 import { FormField } from './FormField';
 
@@ -57,22 +55,3 @@ export function RegistrationIdentityFields({ identity, onChange, fieldErrors, su
     </>
   );
 }
-
-const SUPPORT_EMAIL = 'luisfelipe.28h@gmail.com';
-
-export function RegistrationSupport() {
-  const styles = useStyles();
-  return (
-    <Text style={styles.footer}>
-      ¿Necesitas ayuda con el registro?{' '}
-      <Text accessibilityRole="link" style={styles.link} onPress={() => {
-        void Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => Alert.alert('Soporte de Yuyay', SUPPORT_EMAIL));
-      }}>Escribe a soporte</Text> sin incluir tu DNI.
-    </Text>
-  );
-}
-
-const useStyles = makeStyles(({ colors }) => ({
-  footer: { fontFamily: fonts.regular, color: colors.muted, fontSize: 14 },
-  link: { fontFamily: fonts.semibold, color: colors.primary },
-}));

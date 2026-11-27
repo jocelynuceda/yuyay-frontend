@@ -7,7 +7,7 @@ import { registrationIdentitySchema } from '../../schemas/auth'
 import type { RegistrationIdentity } from '../../types/auth'
 import { applyServerErrors } from '../../utils/apiErrors'
 import { FormActions, FormShell, ServerError } from '../forms/fields'
-import { RegistrationIdentityFields, RegistrationSupport } from './RegistrationIdentityFields'
+import { RegistrationIdentityFields } from './RegistrationIdentityFields'
 
 export function GoogleRegistrationDialog({ error, saving, onFinish }: {
   error?: unknown
@@ -38,7 +38,6 @@ export function GoogleRegistrationDialog({ error, saving, onFinish }: {
           <RegistrationIdentityFields prefix="google-signup" dni={register('dni')} fullName={register('fullName')} name={register('name')} errors={errors} />
         </fieldset>
         <FormActions submitting={saving} submittingLabel="Creando cuenta…" submitLabel="Crear cuenta con Google" onCancel={() => onFinish(null)} />
-        <RegistrationSupport />
       </FormShell>
     </Modal>, document.body,
   )

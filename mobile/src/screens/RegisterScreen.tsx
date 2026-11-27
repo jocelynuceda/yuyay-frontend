@@ -7,7 +7,7 @@ import { AuthLayout } from '../components/AuthLayout';
 import { AccountTerms } from '../components/AccountTerms';
 import { FormField, passwordInputProps } from '../components/FormField';
 import { GoogleSignInSection } from '../components/GoogleSignInSection';
-import { RegistrationIdentityFields, RegistrationSupport } from '../components/RegistrationIdentityFields';
+import { RegistrationIdentityFields } from '../components/RegistrationIdentityFields';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { needsTermsReview, useAccountTerms } from '../hooks/useAccountTerms';
@@ -164,7 +164,6 @@ export function RegisterScreen({ navigation }: Props) {
         >
           Crear cuenta
         </Button>
-        <RegistrationSupport />
       </GoogleSignInSection>
     </AuthLayout>
   );
