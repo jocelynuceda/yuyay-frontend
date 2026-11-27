@@ -31,6 +31,10 @@ import type {
   InviteCaregiverInput,
   Notification,
   User,
+  AgendaDose,
+  DoseStatus,
+  MedicationSchedule,
+  MedicationScheduleInput,
 } from '../types';
 import type { CareAuthorizationDeclaration, CareAuthorizationPolicy, CareSubjectCreation } from '../types/careAuthorization';
 
@@ -252,3 +256,34 @@ export const prepareConsultation = (consultationId: number) =>
 export const confirmConsultation = (consultationId: number, body: ConfirmPreparation) =>
   http.post<HandoffDetail>(`/consultations/${consultationId}/preparation/confirm`, body)
     .then((response) => response.data);
+
+// ---- Horario de medicamentos ----
+
+const scheduleUrl = (subjectId: number, entryId: number) =>
+  `/care-subjects/${subjectId}/health-entries/${entryId}/schedule`;
+
+/** Horario del medicamento, o null si todavía no tiene. */
+export const getMedicationSchedule = (subjectId: number, entryId: number) =>
+  http
+    .get<MedicationSchedule>(scheduleUrl(subjectId, entryId))
+    .then((r) => r.data)
+    .catch((e: unknown) => {
+      if ((e as { status?: number }).status === 404) return null;
+      throw e;
+    });
+
+export const saveMedicationSchedule = (subjectId: number, entryId: number, input: MedicationScheduleInput) =>
+  http.put<MedicationSchedule>(scheduleUrl(subjectId, entryId), input).then((r) => r.data);
+
+export const deleteMedicationSchedule = (subjectId: number, entryId: number) =>
+  http.delete(scheduleUrl(subjectId, entryId));
+
+/** Tomas de todas las personas que cuido entre dos fechas (máximo 42 días). */
+export const getMedicationAgenda = (from: string, to: string) =>
+  http.get<AgendaDose[]>('/me/medication-agenda', { params: { from, to } }).then((r) => r.data);
+
+export const markDose = (scheduleId: number, body: { date: string; time: string; status: DoseStatus }) =>
+  http.put<AgendaDose>(`/medication-schedules/${scheduleId}/doses`, body).then((r) => r.data);
+
+export const unmarkDose = (scheduleId: number, date: string, time: string) =>
+  http.delete(`/medication-schedules/${scheduleId}/doses`, { params: { date, time } });

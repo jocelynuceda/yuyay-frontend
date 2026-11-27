@@ -297,6 +297,16 @@ function SubjectProfile({
                           entry={entry}
                           onEdit={() => navigation.navigate('EditEntry', { subjectId, entryId: entry.id })}
                           onHistory={() => navigation.navigate('EntryHistory', { subjectId, entryId: entry.id })}
+                          onSchedule={
+                            entry.categoryCode === 'MEDICATION'
+                              ? () =>
+                                  navigation.navigate('MedicationSchedule', {
+                                    subjectId,
+                                    entryId: entry.id,
+                                    medication: entry.latestVersion.title,
+                                  })
+                              : undefined
+                          }
                         />
                       ))
                     )}

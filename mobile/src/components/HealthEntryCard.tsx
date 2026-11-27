@@ -12,11 +12,14 @@ export function HealthEntryCard({
   entry,
   onEdit,
   onHistory,
+  onSchedule,
   attachmentOpen = false,
 }: {
   entry: HealthEntry;
   onEdit?: () => void;
   onHistory?: () => void;
+  /** Solo medicamentos: abre su horario de tomas. */
+  onSchedule?: () => void;
   /** Muestra la foto o el audio sin esperar a que se toque «Ver adjunto». */
   attachmentOpen?: boolean;
 }) {
@@ -54,8 +57,9 @@ export function HealthEntryCard({
       {canSeeAttachment && showAttachment ? (
         <VersionAttachment subjectId={entry.careSubjectId} attachmentId={v.sourceAttachmentId!} />
       ) : null}
-      {onEdit || onHistory ? (
+      {onEdit || onHistory || onSchedule ? (
         <View style={styles.actions}>
+          {onSchedule ? <CardAction icon="alarm-outline" label="Horario" onPress={onSchedule} /> : null}
           {onEdit ? <CardAction icon="create-outline" label="Editar" onPress={onEdit} /> : null}
           {onHistory ? <CardAction icon="time-outline" label="Historial" onPress={onHistory} /> : null}
           {canSeeAttachment ? (

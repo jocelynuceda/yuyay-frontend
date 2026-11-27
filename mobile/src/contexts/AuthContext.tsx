@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import * as api from '../services/api';
+import { cancelAllDoseReminders, syncDoseReminders } from '../services/doseReminders';
 import { cancelAllReminders, reconcileAllReminders } from '../services/reminders';
 import { NoSessionError, refreshSession, session, setSessionHandlers, vault } from '../services/http';
 import type { AuthResponse, User } from '../types';
@@ -50,7 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Al entrar con sesión, los avisos de citas del celular se comparan con lo que hay en el servidor
   const userId = user?.id;
   useEffect(() => {
-    if (status === 'authenticated' && userId !== undefined) void reconcileAllReminders(userId);
+    if (status === 'authenticated' && userId !== undefined) {
+      void reconcileAllReminders(userId);
+      // Y los de las tomas, con lo que se marcó en otros celulares
+      void syncDoseReminders(userId);
+    }
   }, [status, userId]);
 
   const restore = useCallback((active: () => boolean = () => true) => {
@@ -167,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout: async () => {
       // Los avisos de citas son de esta cuenta: no deben sonar después de cerrar sesión
       void cancelAllReminders();
+      void cancelAllDoseReminders();
       const removal = session.logout();
       const expected = session.generation;
       setBiometricState(false);

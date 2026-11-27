@@ -21,6 +21,7 @@ import {
   formatWeekdayDate,
 } from '../../utils/format'
 import { linkClass } from '../../utils/styles'
+import { TodayAgenda } from './TodayAgenda'
 
 interface NextAppointment {
   subject: CareSubject
@@ -226,6 +227,8 @@ export default function DashboardPage() {
           )}
         </StatCard>
       </div>
+
+      <TodayAgenda />
 
       {people.data && people.data.upcoming.length > 1 ? (
         <Card as="section" aria-labelledby="upcoming-title" className={`${cardAnimation} grid gap-3`}>

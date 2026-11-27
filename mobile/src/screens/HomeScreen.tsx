@@ -11,6 +11,7 @@ import { CareSubjectCard } from '../components/CareSubjectCard';
 import { EmptyState } from '../components/EmptyState';
 import { MyAvatar, SubjectAvatar } from '../components/PersonAvatar';
 import { LoadingView } from '../components/LoadingView';
+import { MedicationAgenda } from '../components/MedicationAgenda';
 import { Isotipo } from '../components/Isotipo';
 import { Logo } from '../components/Logo';
 import { FadeIn, Floating, PressableScale } from '../components/Motion';
@@ -72,7 +73,10 @@ export function HomeScreen({ navigation }: Props) {
     () => Promise.all(subjectIds.map((id) => getConsultations(id).catch(() => []))).then((lists) => lists.flat()),
     [subjectIds],
   );
+  // Cambia al volver a la pantalla o al deslizar para recargar: la agenda vuelve a leer las tomas
+  const [agendaKey, setAgendaKey] = useState(0);
   useRefreshOnFocus(() => {
+    setAgendaKey((key) => key + 1);
     subjects.reload();
     invitations.reload();
     notifications.reload();
@@ -238,6 +242,19 @@ export function HomeScreen({ navigation }: Props) {
         </PressableScale>
       </FadeIn>
 
+      <FadeIn delay={360}>
+        <MedicationAgenda
+          refreshKey={agendaKey}
+          onOpen={(dose) =>
+            navigation.navigate('MedicationSchedule', {
+              subjectId: dose.careSubjectId,
+              entryId: dose.healthEntryId,
+              medication: dose.medication,
+            })
+          }
+        />
+      </FadeIn>
+
       {invitations.data && invitations.data.length > 0 ? (
         <Invitations
           items={invitations.data}
@@ -298,6 +315,7 @@ export function HomeScreen({ navigation }: Props) {
         <RefreshControl
           refreshing={subjects.refreshing}
           onRefresh={() => {
+            setAgendaKey((key) => key + 1);
             subjects.refresh();
             invitations.reload();
             notifications.reload();

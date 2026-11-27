@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LoadError } from '../../components/layout/LoadError'
-import type { HealthEntryVersion } from '../../types'
+import { MEDICATION, type HealthEntryVersion } from '../../types'
 import { useFetch } from '../../hooks/useFetch'
 import { openAttachment } from '../../services/api/attachments'
 import { deleteHealthEntry, getHealthEntry, listHealthEntryVersions } from '../../services/api/healthEntries'
@@ -11,6 +11,7 @@ import { changedFields, changeTypeLabels, displayField, versionFieldLabels } fro
 import { focusRing } from '../../utils/styles'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
+import { MedicationScheduleSection } from './MedicationScheduleSection'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
 /**
@@ -129,6 +130,10 @@ export function EntryDetailPage({
           </p>
         </section>
       )}
+
+      {entry && entry.categoryCode === MEDICATION && !editing ? (
+        <MedicationScheduleSection subjectId={subjectId} entryId={entryId} />
+      ) : null}
 
       <section aria-labelledby="history">
         <h2 id="history" className="text-2xl font-semibold">
