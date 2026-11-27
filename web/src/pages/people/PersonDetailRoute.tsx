@@ -15,6 +15,7 @@ import { focusRing, linkActiveClass, linkButtonClass, linkSecondaryClass } from 
 import { entriesSearch, parseEntriesParams, parseRouteId } from '../../utils/urlParams'
 import { AccessLogPanel } from '../care/AccessLogPanel'
 import { CaregiversPanel } from '../care/CaregiversPanel'
+import { ProfileClaimPanel } from '../claims/ProfileClaimPanel'
 import { ConsultationsPanel } from '../care/ConsultationsPanel'
 import { DelegationsPanel } from '../care/DelegationsPanel'
 import { HandoffsPanel } from '../care/HandoffsPanel'
@@ -225,7 +226,10 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
       {activeTab === 'documents' && <DocumentsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'voice-notes' && <VoiceNotesPanel key={subjectId} subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'caregivers' && (
-        <CaregiversPanel subjectId={subjectId} isPrincipal={isPrincipal} onChanged={caregivers.reload} />
+        <div className="grid gap-6">
+          <CaregiversPanel subjectId={subjectId} isPrincipal={isPrincipal} onChanged={caregivers.reload} />
+          <ProfileClaimPanel subject={subject} onChanged={() => { onSubjectChanged(); caregivers.reload() }} />
+        </div>
       )}
       {activeTab === 'access' && <DelegationsPanel key={subjectId} subjectName={subject.name} subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'appointments' && <ConsultationsPanel subjectId={subjectId} subjectName={subject.name} isPrincipal={isPrincipal} />}

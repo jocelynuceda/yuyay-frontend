@@ -106,4 +106,5 @@ export const notificationTypeLabels: Record<string, string> = {
   INVITATION: 'Invitación',
   CAREGIVER_JOINED: 'Nuevo cuidador',
   APPOINTMENT_REMINDER: 'Recordatorio de cita',
+  PROFILE_CLAIMED: 'Perfil entregado a su titular',
 }
