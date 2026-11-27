@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "tsx --tsconfig tsconfig.test.json --import ./tests/vite-env.mjs --test tests/*.test.*",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:integration": "pwsh -NoProfile -File tests/integration/run.ps1"
   },
   "dependencies": {
     "@hookform/resolvers": "^7.0.2",
