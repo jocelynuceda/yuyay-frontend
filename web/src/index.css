@@ -52,7 +52,7 @@
   --color-primary-fg: #A6A1E4;
   --color-accent: #7CC4E4;
   --color-danger: #F0588F;
-  --color-danger-solid: #D93F79;
+  --color-danger-solid: #CE3976;
   --color-danger-bg: #3A1530;
   --color-accent-text: #9FD8F2;
   --color-soft-text: #D6D2FF;
@@ -109,9 +109,9 @@
     --control-pressed: color-mix(in srgb, var(--color-primary) 80%, black);
   }
 
-  .control-interactive:where(.bg-danger) {
-    --control-hover: color-mix(in srgb, var(--color-danger) 90%, black);
-    --control-pressed: color-mix(in srgb, var(--color-danger) 80%, black);
+  .control-interactive:where(.bg-danger-solid) {
+    --control-hover: color-mix(in srgb, var(--color-danger-solid) 95%, black);
+    --control-pressed: color-mix(in srgb, var(--color-danger-solid) 90%, black);
   }
 
   .control-interactive:where(.control-ghost) {
