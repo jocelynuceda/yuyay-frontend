@@ -26,3 +26,17 @@ test('Cada error de /auth/google tiene un mensaje claro', () => {
   assert.deepEqual(classifyGoogleError(new ApiError(0, 'Sin conexión')), { kind: 'error', message: 'Sin conexión' });
   assert.deepEqual(classifyGoogleError(new Error('raro')), { kind: 'error', message: GOOGLE_SIGN_IN_FAILED });
 });
+
+test('Solo el 428 de datos de alta solicita los datos de identidad', () => {
+  assert.deepEqual(classifyGoogleError(new ApiError(428, 'Completa los datos', {}, 'REGISTRATION_DETAILS_REQUIRED')), { kind: 'details' });
+  assert.deepEqual(classifyGoogleError(new ApiError(428, 'Otro requisito')), { kind: 'error', message: 'Otro requisito' });
+});
+
+test('el alta pendiente conserva la credencial ante errores corregibles y la descarta si venció', () => {
+  for (const status of [0, 400, 429, 503]) {
+    const fields: Record<string, string> = status === 400 ? { dni: 'Revisa el documento' } : {};
+    const failure = new ApiError(status, 'Vuelve a intentarlo', fields);
+    assert.deepEqual(classifyGoogleError(failure, true), { kind: 'retry', message: failure.message, fieldErrors: fields });
+  }
+  assert.deepEqual(classifyGoogleError(new ApiError(401, 'Vencido'), true), { kind: 'error', message: GOOGLE_INVALID_TOKEN });
+});

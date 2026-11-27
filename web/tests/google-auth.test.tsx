@@ -11,15 +11,15 @@ Object.assign(dom.window.HTMLDialogElement.prototype, {
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { act, useEffect } from 'react'
-import { createRoot } from 'react-dom/client'
-import { MemoryRouter } from 'react-router-dom'
-import { AuthProvider } from '../src/contexts/AuthContext'
-import { ThemeProvider } from '../src/contexts/ThemeContext'
-import { useAuth } from '../src/hooks/useAuth'
-import LoginPage from '../src/pages/auth/LoginPage'
-import { GoogleSignIn } from '../src/pages/auth/GoogleSignIn'
+const { createRoot } = await import('react-dom/client')
+const { MemoryRouter } = await import('react-router-dom')
+const { AuthProvider } = await import('../src/contexts/AuthContext')
+const { ThemeProvider } = await import('../src/contexts/ThemeContext')
+const { useAuth } = await import('../src/hooks/useAuth')
+const { default: LoginPage } = await import('../src/pages/auth/LoginPage')
+const { GoogleSignIn } = await import('../src/pages/auth/GoogleSignIn')
 import * as http from '../src/services/http'
-import type { TermsAcceptance } from '../src/types/auth'
+import type { RegistrationIdentity, TermsAcceptance } from '../src/types/auth'
 import {
   completeGoogleSignIn,
   GOOGLE_INVALID_TOKEN,
@@ -108,6 +108,31 @@ test('Una autenticación descartada cancela Google tanto al ingresar como al rei
   assert.deepEqual(await completeGoogleSignIn('tok', superseded, async () => ({ termsAccepted: true, termsVersion: '1.0' })), { status: 'cancelled' })
 })
 
+test('El alta pendiente permite cancelar o reintentar 429, 503 y fallos de conexión únicamente a petición del usuario', async () => {
+  const identity = { dni: '01234567', fullName: 'Ana Flores', name: 'Anita' }
+  const required = httpError(428, { code: 'REGISTRATION_DETAILS_REQUIRED' })
+  for (const retryable of [httpError(429), httpError(503), Object.assign(new Error('Red'), { isAxiosError: true })]) {
+    for (const retry of [false, true]) {
+      const prompts: unknown[] = []
+      let attempts = 0
+      const signIn = async (_token: string, _terms?: TermsAcceptance, details?: RegistrationIdentity) => {
+        attempts++
+        if (!details) throw required
+        if (attempts === 2) throw retryable
+        assert.deepEqual(details, identity)
+        return true
+      }
+      const result = await completeGoogleSignIn('tok', signIn, undefined, async (error) => {
+        prompts.push(error)
+        return error && !retry ? null : identity
+      })
+      assert.deepEqual(prompts, [undefined, retryable])
+      assert.equal(attempts, retry ? 3 : 2)
+      assert.equal(result.status, retry ? 'signed-in' : 'cancelled')
+    }
+  }
+})
+
 let ctx: ReturnType<typeof useAuth>
 function Probe() {
   const value = useAuth()
@@ -162,12 +187,15 @@ test('Sin ID de cliente configurado no aparece Google y el acceso con correo sig
   assert.match(container.textContent ?? '', /Entrar/)
 })
 
-test('Google solicita los términos vigentes, cancela sin crear la cuenta y vuelve a pedir aceptación si cambian', async (t) => {
+test('El alta Google requiere términos vigentes y conserva los datos al corregir el DNI tras una respuesta tardía', async (t) => {
   http.clearTokens()
   const bodies: Record<string, unknown>[] = []
   const documentsRead: string[] = []
   let version = '1.0'
   let signedIn = 0
+  let outerFormSubmits = 0
+  let finishLookup: (() => void) | undefined
+  const contrastError = 'Revisa el DNI y los nombres ingresados.'
   const errors: string[] = []
   const data = { accessToken: 'A1', refreshToken: 'R1', tokenType: 'Bearer', expiresInSeconds: 3600, user: { id: 7, name: 'Ana' } }
   http.publicApi.defaults.adapter = async (config) => {
@@ -183,6 +211,11 @@ test('Google solicita los términos vigentes, cancela sin crear la cuenta y vuel
     if (!body.acceptedTermsVersion) throw termsError('TERMS_ACCEPTANCE_REQUIRED', version)
     if (version === '1.0') version = '2.0'
     if (body.acceptedTermsVersion !== version) throw termsError('TERMS_VERSION_OUTDATED', version)
+    if (!body.dni) throw httpError(428, { code: 'REGISTRATION_DETAILS_REQUIRED' })
+    if (body.dni === '11111111') {
+      await new Promise<void>((resolve) => { finishLookup = resolve })
+      throw httpError(400, { fieldErrors: [{ field: 'dni', message: contrastError }] })
+    }
     return { status: 200, statusText: 'OK', data, headers: {}, config }
   }
 
@@ -204,7 +237,9 @@ test('Google solicita los términos vigentes, cancela sin crear la cuenta y vuel
   })
   await act(async () => root.render(
     <AuthProvider>
-      <GoogleSignIn mode="register" clientId="oauth-client-test" onSignedIn={() => { signedIn += 1 }} onError={(message) => errors.push(message)} />
+      <form onSubmit={(event) => { event.preventDefault(); outerFormSubmits++ }}>
+        <GoogleSignIn mode="register" clientId="oauth-client-test" onSignedIn={() => { signedIn += 1 }} onError={(message) => errors.push(message)} />
+      </form>
     </AuthProvider>,
   ))
   const script = document.querySelector('script[src^="https://accounts.google.com/gsi/client"]')
@@ -222,6 +257,15 @@ test('Google solicita los términos vigentes, cancela sin crear la cuenta y vuel
   async function click(element: HTMLElement | undefined) {
     assert.ok(element)
     await act(async () => element.click())
+  }
+  async function type(id: string, value: string) {
+    const input = document.getElementById(id) as HTMLInputElement | null
+    assert.ok(input)
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!.call(input, value)
+      input.dispatchEvent(new window.Event('input', { bubbles: true }))
+    })
+    return input
   }
 
   await start()
@@ -254,6 +298,33 @@ test('Google solicita los términos vigentes, cancela sin crear la cuenta y vuel
     { idToken },
     { idToken, acceptedTermsVersion: '2.0' },
   ])
+  assert.match(dialog()?.textContent ?? '', /Completa tu cuenta/)
+  assert.equal(signedIn, 0)
+  await click(button('Crear cuenta con Google'))
+  assert.match(dialog()?.textContent ?? '', /8 dígitos/)
+  assert.equal(bodies.length, 4)
+  await type('google-signup-dni', '11111111')
+  const fullName = await type('google-signup-full-name', 'Ana Flores')
+  const alias = await type('google-signup-name', 'Anita')
+  const submit = button('Crear cuenta con Google')
+  assert.ok(submit)
+  await act(async () => { submit.click(); submit.click(); triggerGoogle?.({ credential: idToken }) })
+  assert.equal(bodies.length, 5)
+  assert.equal(submit.disabled, true)
+  assert.ok(finishLookup)
+  await act(async () => { finishLookup?.() })
+  assert.match(dialog()?.textContent ?? '', new RegExp(contrastError))
+  assert.equal(document.activeElement?.id, 'google-signup-dni')
+  assert.equal(fullName.value, 'Ana Flores')
+  assert.equal(alias.value, 'Anita')
+  await type('google-signup-dni', '01234567')
+  await click(button('Crear cuenta con Google'))
+  assert.deepEqual(bodies.slice(4), [
+    { idToken, acceptedTermsVersion: '2.0', dni: '11111111', fullName: 'Ana Flores', name: 'Anita' },
+    { idToken, acceptedTermsVersion: '2.0', dni: '01234567', fullName: 'Ana Flores', name: 'Anita' },
+  ])
+  assert.equal(dialog(), null)
+  assert.equal(outerFormSubmits, 0)
   assert.equal(signedIn, 1)
   assert.equal(http.getAccessToken(), 'A1')
   assert.deepEqual(errors, [])

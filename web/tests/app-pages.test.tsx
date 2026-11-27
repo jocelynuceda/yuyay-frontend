@@ -120,13 +120,6 @@ function backend() {
       version: db.termsVersion,
       text: `TÉRMINOS DE USO Y AVISO DE PRIVACIDAD DE YUYAY\nVersión ${db.termsVersion}\n\nDocumento de prueba.`,
     })
-    if (url === '/auth/dni-lookup') {
-      if (body.dni !== '99999999') return ok(config, { fullName: 'ANA QUISPE MAMANI' })
-      const error = fail(config, 400)
-      throw Object.assign(error, { response: { ...error.response, data: {
-        message: 'DNI no existe', fieldErrors: [{ field: 'dni', message: 'DNI no existe, ingresa uno válido' }],
-      } } })
-    }
     if (url === '/auth/register') {
       db.registers.push(body)
       if (body.dni === '88888888') {
@@ -581,7 +574,7 @@ test('Registro: conserva el formulario al leer términos y exige aceptar la vers
   await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
   await type(inputById('auth-name'), 'Ana')
   await type(inputById('auth-dni'), '45678912')
-  await waitFor(() => inputById('auth-full-name').value !== '', 'nombre del DNI')
+  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
   await type(inputById('auth-email'), 'ana@example.test')
   await type(inputById('auth-password'), 'Clave123')
   await waitFor(() => /✓ Una letra \(A-Z\)/.test(text()), 'requisitos actualizados')
@@ -619,7 +612,7 @@ test('Registro: conserva el formulario al leer términos y exige aceptar la vers
   await waitFor(() => b.db.registers.length === 1, 'registro enviado')
   // Sin elegir género: la pregunta se salta y viaja como null.
   assert.deepEqual(b.db.registers[0], {
-    name: 'Ana', fullName: 'ANA QUISPE MAMANI', gender: null, dni: '45678912', email: 'ana@example.test', password: 'Clave123', termsAccepted: true, termsVersion: '1.0',
+    name: 'Ana', fullName: 'Ana Quispe Mamani', gender: null, dni: '45678912', email: 'ana@example.test', password: 'Clave123', termsAccepted: true, termsVersion: '1.0',
   })
 })
 
@@ -630,7 +623,7 @@ test('Registro: el género elegido se envía con la cuenta', async (t) => {
   assert.match(text(), /Género \(opcional, puedes saltarlo\)/)
   await type(inputById('auth-name'), 'Ana')
   await type(inputById('auth-dni'), '45678912')
-  await waitFor(() => inputById('auth-full-name').value !== '', 'nombre del DNI')
+  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
   await click(document.querySelector('input[type="radio"][value="FEMALE"]'), 'Mujer')
   await type(inputById('auth-email'), 'ana@example.test')
   await type(inputById('auth-password'), 'Clave123')
@@ -667,15 +660,12 @@ test('Registro: el DNI es obligatorio y el rechazo del backend aparece bajo el c
   await waitFor(() => /Ingresa los 8 dígitos de tu DNI/.test(text()), 'error de formato')
   assert.equal(b.db.registers.length, 0)
 
-  await type(inputById('auth-dni'), '99999999')
-  await waitFor(() => /DNI no existe, ingresa uno válido/.test(text()), 'rechazo de la consulta')
-  await click(byText('button', 'Registrarme'), 'Registrarme sin nombre')
-  assert.equal(b.db.registers.length, 0)
-  assert.equal(inputById('auth-full-name').value, '')
-
   await type(inputById('auth-dni'), '88888888')
-  await waitFor(() => inputById('auth-full-name').value === 'ANA QUISPE MAMANI', 'nombre del DNI')
-  assert.equal(inputById('auth-full-name').readOnly, true)
+  assert.equal(inputById('auth-full-name').value, '')
+  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
+  assert.equal(b.calls.some((call) => call.includes('dni-lookup')), false)
+  assert.equal(b.db.registers.length, 0)
+  assert.equal(document.querySelector('a[href^="mailto:"]')?.getAttribute('href'), 'mailto:luisfelipe.28h@gmail.com')
   await click(byText('button', 'Registrarme'), 'Registrarme')
   await waitFor(() => /El nombre no coincide con el de este DNI/.test(text()), 'rechazo del backend')
   assert.equal(inputById('auth-dni').getAttribute('aria-invalid'), 'true')
@@ -689,7 +679,7 @@ test('Registro: una versión vencida abre el texto vigente y vuelve a pedir acep
   await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
   await type(inputById('auth-name'), 'Ana')
   await type(inputById('auth-dni'), '45678912')
-  await waitFor(() => inputById('auth-full-name').value !== '', 'nombre del DNI')
+  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
   await type(inputById('auth-email'), 'ana@example.test')
   await type(inputById('auth-password'), 'Clave123')
   await type(inputById('auth-confirm'), 'Clave123')

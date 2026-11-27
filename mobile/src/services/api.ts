@@ -7,6 +7,7 @@ import { collectPages, type Page } from './pagination';
 import type { TermsAcceptance } from '../types/terms';
 import type {
   RegisterInput,
+  RegistrationIdentity,
   Gender,
   AccessLog,
   Attachment,
@@ -50,14 +51,10 @@ export const login = (email: string, password: string) =>
  * Ingreso o alta con el ID token de Google. La versión de los términos solo se envía al crear una
  * cuenta nueva (después de un 428).
  */
-export const loginWithGoogle = (idToken: string, acceptedTermsVersion?: string) =>
-  http.post<AuthResponse>('/auth/google', { idToken, acceptedTermsVersion }).then((r) => r.data);
+export const loginWithGoogle = (idToken: string, acceptedTermsVersion?: string, identity?: RegistrationIdentity) =>
+  http.post<AuthResponse>('/auth/google', { idToken, acceptedTermsVersion, ...identity }).then((r) => r.data);
 
 /** El DNI solo se contrasta con el nombre en el backend; no se guarda. */
-/** Nombre completo del documento, para mostrarlo antes de crear la cuenta. */
-export const lookupDni = (dni: string) =>
-  http.post<{ fullName: string }>('/auth/dni-lookup', { dni }).then((r) => r.data);
-
 export const register = (account: RegisterInput, acceptance: TermsAcceptance) =>
   http.post<AuthResponse>('/auth/register', { ...account, ...acceptance }).then((r) => r.data);
 

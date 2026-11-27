@@ -12,12 +12,6 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
   return data
 }
 
-/** Nombre completo del documento, para mostrarlo antes de crear la cuenta. */
-export async function lookupDni(dni: string, signal?: AbortSignal) {
-  const { data } = await publicApi.post<{ fullName: string }>('/auth/dni-lookup', { dni }, { signal })
-  return data
-}
-
 export async function register(request: RegisterRequest): Promise<AuthResponse> {
   const { data } = await publicApi.post<AuthResponse>('/auth/register', request)
   return data

@@ -17,12 +17,15 @@ export const loginSchema = z.object({
   ),
 })
 
-export const registerSchema = z
-  .object({
-    name: requiredText('Elige un nombre de usuario.', 120),
-    fullName: requiredText('Ingresa tu DNI para obtener tu nombre completo.', 200),
+export const registrationIdentitySchema = z.object({
+  name: requiredText('Elige un nombre de usuario.', 120),
+  fullName: requiredText('Escribe tus nombres y apellidos según tu DNI.', 200),
+  dni: z.string().trim().regex(/^\d{8}$/, 'Ingresa los 8 dígitos de tu DNI.'),
+})
+
+export const registerSchema = registrationIdentitySchema
+  .extend({
     gender: optionalGender(),
-    dni: z.string().trim().regex(/^\d{8}$/, 'Ingresa los 8 dígitos de tu DNI.'),
     email: email(),
     password: newPassword,
     confirmPassword,

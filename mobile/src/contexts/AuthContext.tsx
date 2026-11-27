@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import * as api from '../services/api';
 import { cancelAllReminders, reconcileAllReminders } from '../services/reminders';
 import { NoSessionError, refreshSession, session, setSessionHandlers, vault } from '../services/http';
-import type { AuthResponse, RegisterInput, User } from '../types';
+import type { AuthResponse, RegisterInput, RegistrationIdentity, User } from '../types';
 import type { TermsAcceptance } from '../types/terms';
 
 type AuthStatus = 'loading' | 'locked' | 'authenticated' | 'anonymous' | 'recoverable' | 'logout-failed';
@@ -20,7 +20,7 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (account: RegisterInput, acceptance: TermsAcceptance) => Promise<void>;
   /** Ingresa o crea la cuenta con Google; el backend decide si la persona ya existe. */
-  loginWithGoogle: (idToken: string, acceptedTermsVersion?: string) => Promise<void>;
+  loginWithGoogle: (idToken: string, acceptedTermsVersion?: string, identity?: RegistrationIdentity) => Promise<void>;
   logout: () => Promise<void>;
   /** Actualiza el usuario en memoria después de editar el perfil. */
   updateUser: (user: User) => void;
@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     login: (email, password) => startSession(() => api.login(email, password)),
     register: (account, acceptance) => startSession(() => api.register(account, acceptance)),
-    loginWithGoogle: (idToken, acceptedTermsVersion) => startSession(() => api.loginWithGoogle(idToken, acceptedTermsVersion)),
+    loginWithGoogle: (idToken, acceptedTermsVersion, identity) => startSession(() => api.loginWithGoogle(idToken, acceptedTermsVersion, identity)),
     logout: async () => {
       // Los avisos de citas son de esta cuenta: no deben sonar después de cerrar sesión
       void cancelAllReminders();

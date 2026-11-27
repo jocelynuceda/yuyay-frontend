@@ -14,10 +14,13 @@ export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION' | '
 export type Gender = 'FEMALE' | 'MALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 
 /** Datos del alta por correo. `name` es el nombre de usuario; el DNI no se guarda. */
-export interface RegisterInput {
+export interface RegistrationIdentity {
   name: string;
   fullName: string;
   dni: string;
+}
+
+export interface RegisterInput extends RegistrationIdentity {
   email: string;
   password: string;
 }

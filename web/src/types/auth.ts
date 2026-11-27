@@ -27,15 +27,17 @@ export interface TermsDocument {
 export interface RegisterRequest extends LoginRequest, TermsAcceptance {
   /** Nombre de usuario: el que se muestra en la app. */
   name: string
-  /** El servidor solo lo usa si no puede consultar el DNI. */
+  /** Nombres y apellidos escritos por la persona para contrastarlos en el registro. */
   fullName: string
   /** Opcional: quien no quiera decirlo puede saltar la pregunta. */
   gender?: Gender | null
-  /** Solo sirve para consultar el nombre completo; no se guarda. */
+  /** Se usa durante el alta para contrastar el nombre escrito. */
   dni: string
 }
 
-export interface GoogleAuthRequest {
+export type RegistrationIdentity = Pick<RegisterRequest, 'dni' | 'fullName' | 'name'>
+
+export interface GoogleAuthRequest extends Partial<RegistrationIdentity> {
   idToken: string
   /** Versión aceptada explícitamente para crear una cuenta con Google. */
   acceptedTermsVersion?: string
