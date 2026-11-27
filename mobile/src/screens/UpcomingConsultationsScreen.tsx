@@ -88,7 +88,7 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
       {showEmpty ? (
         <EmptyState
           title="No hay citas próximas"
-          description="Regístralas desde Citas, en el perfil de cada persona."
+          description="Regístralas desde Consultas, en el perfil de cada persona."
         />
       ) : (
         list.map((c) => {

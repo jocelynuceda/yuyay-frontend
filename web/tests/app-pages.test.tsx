@@ -165,6 +165,7 @@ function backend() {
       return ok(config, found)
     }
     if (/^\/care-subjects\/\d+\/relationships$/.test(url)) return ok(config, [])
+    if (/^\/care-subjects\/\d+\/delegations$/.test(url) && method === 'GET') return ok(config, [])
     if (/^\/care-subjects\/\d+\/handoffs$/.test(url) && method === 'GET') {
       return ok(config, [{ id: 81, careSubjectId: 1, createdByUserId: 1, reason: 'Resumen de control anual',
         questions: 'Preguntas de prueba', createdAt: '2026-11-07T00:00:00Z' }])
@@ -344,6 +345,9 @@ for (const [index, role, label] of [
     const header = document.querySelector('h1')!.closest('header')!
     assert.ok(header.textContent?.includes(label))
     assert.match(header.querySelector('h1 + p')!.textContent!, /^\d+ años$/)
+    const headerButtons = [...header.querySelectorAll('button')].map((el) => el.textContent?.trim())
+    assert.ok(headerButtons.includes('Editar perfil'))
+    assert.equal(headerButtons.includes('Eliminar persona'), role === 'PRINCIPAL')
   })
 }
 
@@ -1073,6 +1077,26 @@ test('Perfil: el principal elimina a una persona tras confirmar y vuelve a la li
   await waitFor(() => pathname() === '/people', 'volver a la lista de personas')
   assert.ok(b.calls.includes('DELETE /care-subjects/2'))
   await waitFor(() => /Se eliminó a Pedro/.test(text()), 'confirmar el borrado con un aviso')
+})
+
+test('Perfil: la cabecera ofrece Editar perfil y Eliminar persona juntos y no repite Delegar acceso', async (t) => {
+  const { unmount } = await mountApp('/people/2', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => document.querySelector('h1')?.textContent === 'Pedro', 'mostrar el detalle de Pedro')
+  const header = document.querySelector('h1')!.closest('header')!
+  const headerButton = (label: string) => [...header.querySelectorAll('button')].find((el) => el.textContent?.trim() === label) ?? null
+  const editButton = headerButton('Editar perfil')
+  const deleteButton = headerButton('Eliminar persona')
+  assert.ok(editButton && deleteButton, 'la cabecera tiene ambos botones')
+  assert.ok(editButton.nextElementSibling === deleteButton, 'Eliminar persona va justo debajo de Editar perfil')
+  assert.ok(!deleteButton.closest('nav'), 'Eliminar persona no está en los accesos rápidos')
+  const quickNav = header.querySelector('nav[aria-label="Accesos rápidos"]')
+  assert.ok(quickNav, 'existe la navegación de accesos rápidos')
+  assert.deepEqual([...quickNav.children].map((el) => el.textContent?.trim()), ['Preparar resumen para el médico'])
+  assert.doesNotMatch(header.textContent ?? '', /Delegar acceso/)
+  const accessTab = [...document.querySelectorAll('nav[aria-label="Secciones de la persona"] a')].find((el) => el.textContent === 'Accesos')
+  await click(accessTab ?? null, 'pestaña Accesos')
+  await waitFor(() => Boolean(byText('button', 'Delegar acceso')), 'Delegar acceso sigue en la pestaña Accesos')
 })
 
 test('tras perder acceso, Inicio y Personas consultan el directorio vigente y el aviso anterior protege su contenido', async (t) => {

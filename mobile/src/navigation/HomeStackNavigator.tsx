@@ -78,7 +78,7 @@ export function HomeStackNavigator() {
         })}
       />
       <Stack.Screen name="Exams" component={ExamsScreen} options={{ title: 'Exámenes' }} />
-      <Stack.Screen name="Consultations" component={ConsultationsScreen} options={{ title: 'Citas' }} />
+      <Stack.Screen name="Consultations" component={ConsultationsScreen} options={{ title: 'Consultas' }} />
       <Stack.Screen
         name="NewConsultation"
         component={NewConsultationScreen}
