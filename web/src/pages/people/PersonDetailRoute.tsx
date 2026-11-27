@@ -93,7 +93,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     <>
       <header className="grid gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-4">
             <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-4">
               <AvatarButton onClick={() => setPickingAvatar(true)}>
                 <SubjectAvatar subject={subject} size="xl" animated />
@@ -103,12 +103,16 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
                 {age !== null && <p className="mt-2 text-sm text-muted">{age} años</p>}
               </div>
             </div>
-            <div className="ml-auto flex shrink-0 flex-col items-stretch gap-2">
-              <button type="button" onClick={() => setEditing(true)} className={`min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm ${linkSecondaryClass}`}>
+            {/* La base de 8.5rem decide si el grupo cabe junto al nombre: si baja a su propia línea crece a todo
+                el ancho y los dos botones caben en una fila; si queda junto a un nombre corto, el ancho no
+                alcanza para dos y se apilan. Desde sm la fila no se parte y los botones van apilados a la
+                derecha, junto al nombre. */}
+            <div className="ml-auto flex shrink-0 grow basis-[8.5rem] flex-wrap justify-end gap-2 sm:grow-0 sm:basis-auto sm:flex-col sm:flex-nowrap sm:items-stretch">
+              <button type="button" onClick={() => setEditing(true)} className={`min-h-11 max-sm:min-w-[8.5rem] max-sm:px-3 max-sm:py-2 max-sm:text-sm ${linkSecondaryClass}`}>
                 Editar perfil
               </button>
               {isPrincipal ? (
-                <button type="button" onClick={() => setDeleting(true)} className={`min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm ${linkSecondaryClass.replace('text-ink', 'text-danger')}`}>
+                <button type="button" onClick={() => setDeleting(true)} className={`min-h-11 max-sm:min-w-[8.5rem] max-sm:px-3 max-sm:py-2 max-sm:text-sm ${linkSecondaryClass.replace('text-ink', 'text-danger')}`}>
                   Eliminar persona
                 </button>
               ) : null}
