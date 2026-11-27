@@ -3,25 +3,26 @@ import type { Gender } from '../types'
 /**
  * Catálogo de avatares de león (el mismo de mobile/src/components/LionAvatar.tsx).
  */
-export type LionKind = 'adult' | 'cub' | 'elder'
+/** `default`: sin edad registrada (el león de melena grande). No es una opción del selector. */
+export type LionKind = 'adult' | 'cub' | 'elder' | 'default'
 export type LionVariant = 'lion' | 'lioness'
 export type AvatarChoice = { kind: LionKind; variant: LionVariant }
 export type AvatarId = `${LionKind}-${LionVariant}`
 
-/** Recorte de la cabeza en public/lions (copia de mobile/assets/lions/*-face.png). */
-/** La leona adulta usa la imagen de la leoncita. */
+/** Avatar redondo en public/lions (copia de mobile/assets/lions/*-face.png). Sin edad, la leona usa la adulta. */
 export const avatarSrc = ({ kind, variant }: AvatarChoice) =>
-  kind === 'adult' && variant === 'lioness' ? '/lions/cub-lioness-face.png' : `/lions/${kind}-${variant}-face.png`
+  kind === 'default' && variant === 'lioness' ? '/lions/adult-lioness-face.png' : `/lions/${kind}-${variant}-face.png`
 
 const labels: Record<LionKind, Record<LionVariant, string>> = {
   cub: { lion: 'Leoncito', lioness: 'Leoncita' },
   adult: { lion: 'León', lioness: 'Leona' },
   elder: { lion: 'León abuelo', lioness: 'Leona abuela' },
+  default: { lion: 'León', lioness: 'Leona' },
 }
 
-/** Cachorro si es menor de edad, león viejo desde los 60 y adulto en los demás casos (o sin edad). */
+/** Cachorro si es menor de edad, abuelo desde los 60, adulto entre medio y el de melena si no hay edad. */
 export function lionForAge(age: number | null): LionKind {
-  if (age === null) return 'adult'
+  if (age === null) return 'default'
   if (age < 18) return 'cub'
   if (age >= 60) return 'elder'
   return 'adult'

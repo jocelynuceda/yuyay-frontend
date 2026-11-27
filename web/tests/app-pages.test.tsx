@@ -120,7 +120,7 @@ function backend() {
   const auth = () => {
     tokens += 1
     return { accessToken: `A${tokens}`, refreshToken: `R${tokens}`, tokenType: 'Bearer', expiresInSeconds: 3600,
-      user: { id: db.me.id, name: db.me.name, email: db.me.email } }
+      user: db.me }
   }
   const adapter = async (config: any) => {
     const url: string = config.url.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api\/v1/, '')
@@ -164,7 +164,7 @@ function backend() {
     }
     if (url === '/users/me' && method === 'GET') return ok(config, db.me)
     if (url === '/users/me' && method === 'PATCH') {
-      db.me = { ...db.me, name: body.name }
+      db.me = { ...db.me, name: body.name, ...(body.gender ? { gender: body.gender } : {}), ...(Object.hasOwn(body, 'birthDate') ? { birthDate: body.birthDate } : {}) } as typeof db.me
       return ok(config, db.me)
     }
     if (url === '/care-subjects') return ok(config, db.subjects)
@@ -179,6 +179,7 @@ function backend() {
       return ok(config, found)
     }
     if (/^\/care-subjects\/\d+\/relationships$/.test(url)) return ok(config, [])
+    if (/^\/care-subjects\/\d+\/delegations$/.test(url) && method === 'GET') return ok(config, [])
     if (/^\/care-subjects\/\d+\/handoffs$/.test(url) && method === 'GET') {
       return ok(config, [{ id: 81, careSubjectId: 1, createdByUserId: 1, reason: 'Resumen de control anual',
         questions: 'Preguntas de prueba', createdAt: '2026-11-07T00:00:00Z' }])
@@ -386,6 +387,9 @@ for (const [index, role, label] of [
     const header = document.querySelector('h1')!.closest('header')!
     assert.ok(header.textContent?.includes(label))
     assert.match(header.querySelector('h1 + p')!.textContent!, /^\d+ años$/)
+    const headerButtons = [...header.querySelectorAll('button')].map((el) => el.textContent?.trim())
+    assert.ok(headerButtons.includes('Editar perfil'))
+    assert.equal(headerButtons.includes('Eliminar persona'), role === 'PRINCIPAL')
   })
 }
 
@@ -1111,6 +1115,51 @@ test('Avisos: enlaza la invitación pendiente y el nuevo cuidador, y omite enlac
   await waitFor(() => pathname() === '/invitations/7' && /Lucía/.test(text()), 'abrir la invitación')
 })
 
+test('Perfil: la fecha de nacimiento muestra la edad y el avatar automático sigue la edad y el género', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 1, 10, 12) })
+  const { b, unmount } = await mountApp('/profile', { loggedIn: true })
+  let unmountCurrent = unmount
+  t.after(() => unmountCurrent())
+  const reopenProfile = async (profile = b.db.me) => {
+    await unmountCurrent()
+    unmountCurrent = async () => {}
+    const reloaded = await mountApp('/profile', { loggedIn: true, seed: (db) => { db.me = profile } })
+    unmountCurrent = reloaded.unmount
+    await waitFor(() => reloaded.b.calls.includes('GET /users/me'), 'GET del perfil recargado')
+    return reloaded.b
+  }
+  await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'sin edad todavía')
+  // Nació el 5 de enero de hace 70 años: el calendario propio se abre y se elige año, mes y día
+  const year = new Date().getFullYear() - 70
+  const iso = `${year}-01-05`
+  await click(document.getElementById('profile-birthDate'), 'calendario de la fecha de nacimiento')
+  for (const [name, value] of [['Año', String(year)], ['Mes', '0']]) {
+    const select = document.querySelector<HTMLSelectElement>(`select[aria-label="${name}"]`)!
+    await act(async () => { select.value = value; select.dispatchEvent(new window.Event('change', { bubbles: true })) })
+  }
+  await click(document.querySelector(`button[aria-label="5 de enero de ${year}"]`), 'el día 5')
+  await click(document.querySelector('form input[value="FEMALE"]'), 'Mujer')
+  await click(document.querySelector('form button[type="submit"]'), 'Guardar')
+  await waitFor(() => (b.db.me as { birthDate?: string }).birthDate === iso, 'PATCH con la fecha')
+  const reopenedBackend = await reopenProfile()
+  await waitFor(() => /70 años/.test(text()), 'edad en el perfil recargado')
+  await click(document.querySelector('button[aria-label="Cambiar avatar"]'), 'Cambiar avatar')
+  const automaticImage = () => byText('button[role="radio"]', /^Automático/)?.querySelector('img')?.getAttribute('src')
+  await waitFor(() => automaticImage() === '/lions/elder-lioness-face.png', 'automático: leona abuela')
+  await click(document.querySelector('dialog[open] button[aria-label="Cerrar"]'), 'Cerrar selector')
+
+  await click(document.getElementById('profile-birthDate'), 'calendario de la fecha de nacimiento')
+  await click(byText('button', 'Borrar fecha'), 'Borrar fecha')
+  await click(document.querySelector('form button[type="submit"]'), 'Guardar sin fecha')
+  await waitFor(() => (reopenedBackend.db.me as { birthDate?: string | null }).birthDate === null, 'PATCH con fecha nula')
+  await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'perfil sin edad')
+
+  await reopenProfile(reopenedBackend.db.me)
+  await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'perfil recargado sin edad')
+  await click(document.querySelector('button[aria-label="Cambiar avatar"]'), 'Cambiar avatar')
+  await waitFor(() => automaticImage() === '/lions/adult-lioness-face.png', 'automático: leona sin edad')
+})
+
 test('Perfil: Notas de voz muestra audios sin mezclar documentos y conserva los filtros al navegar', async (t) => {
   const { b, unmount } = await mountApp('/people/1?tab=voice-notes&category=MEDICATION&page=2', { loggedIn: true })
   t.after(unmount)
@@ -1146,6 +1195,26 @@ test('Perfil: el principal elimina a una persona tras confirmar y vuelve a la li
   await waitFor(() => pathname() === '/people', 'volver a la lista de personas')
   assert.ok(b.calls.includes('DELETE /care-subjects/2'))
   await waitFor(() => /Se eliminó a Pedro/.test(text()), 'confirmar el borrado con un aviso')
+})
+
+test('Perfil: la cabecera ofrece Editar perfil y Eliminar persona juntos y no repite Delegar acceso', async (t) => {
+  const { unmount } = await mountApp('/people/2', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => document.querySelector('h1')?.textContent === 'Pedro', 'mostrar el detalle de Pedro')
+  const header = document.querySelector('h1')!.closest('header')!
+  const headerButton = (label: string) => [...header.querySelectorAll('button')].find((el) => el.textContent?.trim() === label) ?? null
+  const editButton = headerButton('Editar perfil')
+  const deleteButton = headerButton('Eliminar persona')
+  assert.ok(editButton && deleteButton, 'la cabecera tiene ambos botones')
+  assert.ok(editButton.nextElementSibling === deleteButton, 'Eliminar persona va justo debajo de Editar perfil')
+  assert.ok(!deleteButton.closest('nav'), 'Eliminar persona no está en los accesos rápidos')
+  const quickNav = header.querySelector('nav[aria-label="Accesos rápidos"]')
+  assert.ok(quickNav, 'existe la navegación de accesos rápidos')
+  assert.deepEqual([...quickNav.children].map((el) => el.textContent?.trim()), ['Preparar resumen para el médico'])
+  assert.doesNotMatch(header.textContent ?? '', /Delegar acceso/)
+  const accessTab = [...document.querySelectorAll('nav[aria-label="Secciones de la persona"] a')].find((el) => el.textContent === 'Accesos')
+  await click(accessTab ?? null, 'pestaña Accesos')
+  await waitFor(() => Boolean(byText('button', 'Delegar acceso')), 'Delegar acceso sigue en la pestaña Accesos')
 })
 
 test('tras perder acceso, Inicio y Personas consultan el directorio vigente y el aviso anterior protege su contenido', async (t) => {

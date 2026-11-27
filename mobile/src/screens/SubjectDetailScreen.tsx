@@ -35,7 +35,13 @@ import { ageFrom, careRoleLabel, formatDate } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'SubjectDetail'>;
 
-type QuickAction = { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void };
+type QuickAction = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress?: () => void;
+  /** Sección actual: se muestra como indicador, sin acción */
+  selected?: boolean;
+};
 
 /** Con dos o más personas a cargo, se pasa de un perfil a otro deslizando a los lados. */
 export function SubjectDetailScreen({ route, navigation }: Props) {
@@ -150,15 +156,16 @@ function SubjectProfile({
   const caregivers = relationships.data?.filter((r) => r.status === 'ACTIVE').length;
   const isPrincipal = s.myRole === 'PRINCIPAL';
 
+  // Mismo orden que las pestañas de la web. Registros es la vista actual (el Perfil clínico de abajo);
+  // los demás abren su pantalla. Exámenes y Clínicas solo existen en el móvil.
   const quickActions: QuickAction[] = [
-    { icon: 'calendar-outline', label: 'Citas', onPress: () => navigation.navigate('Consultations', { subjectId }) },
-    { icon: 'people-outline', label: 'Cuidadores', onPress: () => navigation.navigate('Caregivers', { subjectId, isPrincipal }) },
-    { icon: 'clipboard-outline', label: 'Resumen', onPress: () => navigation.navigate('Handoffs', { subjectId, isPrincipal }) },
-    { icon: 'key-outline', label: 'Delegar', onPress: () => navigation.navigate('Delegations', { subjectId, isPrincipal }) },
+    { icon: 'document-text-outline', label: 'Registros', selected: true },
     { icon: 'document-attach-outline', label: 'Documentos', onPress: () => navigation.navigate('Documents', { subjectId }) },
-    { icon: 'flask-outline', label: 'Exámenes', onPress: () => navigation.navigate('Exams', { subjectId }) },
     { icon: 'mic-outline', label: 'Notas de voz', onPress: () => navigation.navigate('VoiceNotes', { subjectId }) },
-    { icon: 'location-outline', label: 'Clínicas', onPress: () => navigation.navigate('NearbyClinics') },
+    { icon: 'people-outline', label: 'Cuidadores', onPress: () => navigation.navigate('Caregivers', { subjectId, isPrincipal }) },
+    { icon: 'key-outline', label: 'Accesos', onPress: () => navigation.navigate('Delegations', { subjectId, isPrincipal }) },
+    { icon: 'calendar-outline', label: 'Consultas', onPress: () => navigation.navigate('Consultations', { subjectId }) },
+    { icon: 'clipboard-outline', label: 'Resúmenes', onPress: () => navigation.navigate('Handoffs', { subjectId, isPrincipal }) },
     // El backend reserva la bitácora al principal
     ...(isPrincipal
       ? [
@@ -169,6 +176,8 @@ function SubjectProfile({
           } as QuickAction,
         ]
       : []),
+    { icon: 'flask-outline', label: 'Exámenes', onPress: () => navigation.navigate('Exams', { subjectId }) },
+    { icon: 'location-outline', label: 'Clínicas', onPress: () => navigation.navigate('NearbyClinics') },
   ];
 
   function toggle(code: string) {
@@ -238,22 +247,47 @@ function SubjectProfile({
           />
         </View>
       </ProfileCard>
-      {isPrincipal && active && <CareAuthorizationStatus subjectId={subjectId} />}
+      {isPrincipal && active && (
+        <View style={styles.authorization}>
+          <CareAuthorizationStatus subjectId={subjectId} />
+        </View>
+      )}
 
       <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quick}>
-        {quickActions.map((a) => (
-          <Pressable
-            key={a.label}
-            onPress={a.onPress}
-            style={({ pressed }) => [styles.quickItem, pressed && { opacity: 0.8 }]}
-            accessibilityRole="button"
-          >
-            <View style={styles.quickIcon}>
-              <Ionicons name={a.icon} size={22} color={colors.primary} />
-            </View>
-            <Text style={styles.quickLabel}>{a.label}</Text>
-          </Pressable>
-        ))}
+        {quickActions.map((a) => {
+          // Contenido común: círculo del ícono + etiqueta
+          const content = (
+            <>
+              <View style={[styles.quickIcon, a.selected && styles.quickIconSelected]}>
+                <Ionicons name={a.icon} size={22} color={a.selected ? colors.softText : colors.primary} />
+              </View>
+              <Text style={[styles.quickLabel, a.selected && { color: colors.softText }]}>{a.label}</Text>
+            </>
+          );
+          // La sección actual es un indicador, no un botón
+          if (a.selected) {
+            return (
+              <View
+                key={a.label}
+                style={[styles.quickItem, styles.quickItemSelected]}
+                accessible
+                accessibilityLabel={`${a.label}, sección actual`}
+              >
+                {content}
+              </View>
+            );
+          }
+          return (
+            <Pressable
+              key={a.label}
+              onPress={a.onPress}
+              style={({ pressed }) => [styles.quickItem, pressed && { opacity: 0.8 }]}
+              accessibilityRole="button"
+            >
+              {content}
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       <View>
@@ -349,9 +383,10 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   editData: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 12, marginLeft: 6 },
   editDataText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary },
   cta: { marginTop: 14 },
+  authorization: { marginTop: 16 },
   quick: { gap: 10, paddingTop: 16, paddingBottom: 2 },
   quickItem: {
-    width: 84,
+    width: 96,
     alignItems: 'center',
     gap: 6,
     backgroundColor: colors.card,
@@ -361,6 +396,8 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     shadowOpacity: 0.05,
     elevation: 1,
   },
+  // Borde de 2 px: se resta al padding vertical para que mida lo mismo que los demás
+  quickItemSelected: { backgroundColor: colors.soft, borderWidth: 2, borderColor: colors.primary, paddingVertical: 10 },
   quickIcon: {
     width: 42,
     height: 42,
@@ -369,7 +406,8 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickLabel: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
+  quickIconSelected: { backgroundColor: colors.card },
+  quickLabel: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink, textAlign: 'center' },
   section: { fontFamily: fonts.display, fontSize: 22, color: colors.ink, marginTop: 18, marginBottom: 10 },
   clinical: {
     backgroundColor: colors.card,
