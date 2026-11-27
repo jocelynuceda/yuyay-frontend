@@ -39,7 +39,13 @@ export const categoryMeta: Record<
     plural: 'Vacunas',
     image: require('../../assets/categories/immunization.png'),
   },
-  EPISODE: { icon: 'flash-outline', bg: 'amberBg', fg: 'amberText', plural: 'Episodios' },
+  EPISODE: {
+    icon: 'flash-outline',
+    bg: 'amberBg',
+    fg: 'amberText',
+    plural: 'Episodios',
+    image: require('../../assets/categories/episode.png'),
+  },
   EXAM_RESULT: {
     icon: 'flask-outline',
     bg: 'soft',

@@ -26,7 +26,7 @@ const categoryTiles: Record<CategoryCode, { icon: IconName; color: string; image
   CONDITION: { icon: 'pulse', color: 'bg-soft text-soft-text' },
   MEDICATION: { icon: 'medkit', color: 'bg-primary-tint text-primary-fg', image: '/categories/medication.png' },
   IMMUNIZATION: { icon: 'shield', color: 'bg-primary text-white', image: '/categories/immunization.png' },
-  EPISODE: { icon: 'bolt', color: 'bg-danger-bg text-danger' },
+  EPISODE: { icon: 'bolt', color: 'bg-danger-bg text-danger', image: '/categories/episode.png' },
   EXAM_RESULT: { icon: 'flask', color: 'bg-accent-tint text-accent-text', image: '/categories/exam.png' },
 }
 
