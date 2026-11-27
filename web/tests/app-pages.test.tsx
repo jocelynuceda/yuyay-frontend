@@ -531,6 +531,10 @@ test('Consultas: muestra la hora y permite editar la cita y quitarle la hora', a
   const { b, unmount } = await mountApp('/people/1?tab=appointments', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /Control con cardiología/.test(text()), 'lista de consultas')
+  const links = [...document.querySelectorAll('a')].filter((link) => link.textContent?.trim() === 'Consultas')
+  assert.equal(links.length, 1)
+  assert.equal(links[0].closest('nav')?.getAttribute('aria-label'), 'Secciones de la persona')
+  assert.equal(links[0].getAttribute('aria-current'), 'page')
   assert.match(text(), /3:30/)
 
   await click(document.querySelector(`button[aria-label^='Editar la consulta "Control con cardiología"']`), 'Editar')
