@@ -45,17 +45,15 @@ function DocumentPreview({
   }, [url])
 
   if (!url) return loading ? <Skeleton lines={6} /> : null
-  if (pdf) {
-    return (
-      <iframe title={`Vista previa de ${name}`} src={url} className="h-[75vh] w-full rounded-xl border border-line" />
-    )
-  }
   return (
     <div className="grid gap-3">
-      <img src={url} alt={`Vista previa de ${name}`} className="max-h-[75vh] w-full rounded-xl object-contain" />
-      <Button variant="secondary" size="sm" className="justify-self-start" onClick={() => setZoomed(true)}>
-        Ampliar
-      </Button>
+      {pdf
+        ? <iframe title={`Vista previa de ${name}`} src={url} className="h-[75vh] w-full rounded-xl border border-line" />
+        : <img src={url} alt={`Vista previa de ${name}`} className="max-h-[75vh] w-full rounded-xl object-contain" />}
+      <div className="flex flex-wrap items-center gap-3">
+        {!pdf && <Button variant="secondary" size="sm" onClick={() => setZoomed(true)}>Ampliar</Button>}
+        <a href={url} download={name} className={linkClass}>Descargar documento</a>
+      </div>
       <Modal open={zoomed} onClose={() => setZoomed(false)} title={name} className="w-[min(72rem,calc(100%-2rem))]!">
         <div className="max-h-[75vh] overflow-auto">
           <img src={url} alt={`Documento ampliado: ${name}`} className="max-w-none" />

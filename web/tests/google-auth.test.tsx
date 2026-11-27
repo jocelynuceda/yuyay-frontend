@@ -194,7 +194,7 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
   let version = '1.0'
   let signedIn = 0
   let outerFormSubmits = 0
-  let finishLookup: (() => void) | undefined
+  let finishContrast: (() => void) | undefined
   const contrastError = 'Revisa el DNI y los nombres ingresados.'
   const errors: string[] = []
   const data = { accessToken: 'A1', refreshToken: 'R1', tokenType: 'Bearer', expiresInSeconds: 3600, user: { id: 7, name: 'Ana' } }
@@ -213,7 +213,7 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
     if (body.acceptedTermsVersion !== version) throw termsError('TERMS_VERSION_OUTDATED', version)
     if (!body.dni) throw httpError(428, { code: 'REGISTRATION_DETAILS_REQUIRED' })
     if (body.dni === '11111111') {
-      await new Promise<void>((resolve) => { finishLookup = resolve })
+      await new Promise<void>((resolve) => { finishContrast = resolve })
       throw httpError(400, { fieldErrors: [{ field: 'dni', message: contrastError }] })
     }
     return { status: 200, statusText: 'OK', data, headers: {}, config }
@@ -299,6 +299,7 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
     { idToken, acceptedTermsVersion: '2.0' },
   ])
   assert.match(dialog()?.textContent ?? '', /Completa tu cuenta/)
+  assert.doesNotMatch(dialog()?.textContent ?? '', /Ver mi nombre|Sí, soy yo/)
   assert.equal(signedIn, 0)
   await click(button('Crear cuenta con Google'))
   assert.match(dialog()?.textContent ?? '', /8 dígitos/)
@@ -311,8 +312,8 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
   await act(async () => { submit.click(); submit.click(); triggerGoogle?.({ credential: idToken }) })
   assert.equal(bodies.length, 5)
   assert.equal(submit.disabled, true)
-  assert.ok(finishLookup)
-  await act(async () => { finishLookup?.() })
+  assert.ok(finishContrast)
+  await act(async () => { finishContrast?.() })
   assert.match(dialog()?.textContent ?? '', new RegExp(contrastError))
   assert.equal(document.activeElement?.id, 'google-signup-dni')
   assert.equal(fullName.value, 'Ana Flores')

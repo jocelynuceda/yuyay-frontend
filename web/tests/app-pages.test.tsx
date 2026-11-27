@@ -53,6 +53,7 @@ function backend() {
   let tokens = 0
   const calls: string[] = []
   const db = {
+    delegateStatus: 200,
     attachments: [
       { ...attachmentBase, id: 31, originalFilename: 'nota.m4a', contentType: 'audio/mp4', ocrStatus: 'DONE' },
       { ...attachmentBase, id: 32, originalFilename: 'examen.png', contentType: 'image/png', ocrStatus: 'FAILED', ocrError: 'No se pudo extraer el texto.' },
@@ -122,7 +123,7 @@ function backend() {
     })
     if (url === '/auth/register') {
       db.registers.push(body)
-      if (body.dni === '88888888') {
+      if (body.dni === '88888888' && body.fullName !== 'Ana Quispe Mamani') {
         const error = fail(config, 400)
         throw Object.assign(error, { response: { ...error.response, data: {
           message: 'El nombre no coincide', fieldErrors: [{ field: 'dni', message: 'El nombre no coincide con el de este DNI.' }],
@@ -203,6 +204,11 @@ function backend() {
     if (url === '/public/delegations/enlace-citas/exchange') {
       return ok(config, { accessToken: 'D1', tokenType: 'Bearer', expiresAt: '2099-01-01T00:00:00Z', careSubjectId: 1,
         careSubjectName: 'Rosa', granteeName: 'Luz', categoryCodes: [], includeConsultations: true })
+    }
+    if (url === '/delegate/me') {
+      assert.equal(config.headers.Authorization, 'Bearer D1')
+      if (db.delegateStatus !== 200) throw fail(config, db.delegateStatus)
+      return ok(config, {})
     }
     if (url === '/delegate/health-entries') return ok(config, [])
     if (url === '/delegate/consultations') {
@@ -320,6 +326,24 @@ async function chooseFile(input: HTMLInputElement, file: File) {
   await act(async () => {
     Object.defineProperty(input, 'files', { configurable: true, value: [file] })
     input.dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+}
+
+for (const [index, role, label] of [
+  [0, 'PRINCIPAL', 'Tú coordinas el cuidado'],
+  [1, 'CAREGIVER', 'Tú colaboras en el cuidado'],
+] as const) {
+  test(`Personas y perfil explican el rol ${role} desde la perspectiva de quien inició sesión`, async (t) => {
+    const { b, unmount } = await mountApp('/people', { loggedIn: true, seed: db => { db.subjects[index].myRole = role } })
+    t.after(unmount)
+    const person = b.db.subjects[index]
+    const card = () => byText('button', new RegExp(person.name + '.*' + label))
+    await waitFor(() => !!card(), 'tarjeta con el rol del usuario')
+    await click(card(), person.name)
+    await waitFor(() => document.querySelector('h1')?.textContent === person.name, 'perfil de la persona')
+    const header = document.querySelector('h1')!.closest('header')!
+    assert.ok(header.textContent?.includes(label))
+    assert.match(header.querySelector('h1 + p')!.textContent!, /^\d+ años$/)
   })
 }
 
@@ -557,6 +581,32 @@ test('Vista del delegado: muestra solo citas, con hora y sin notas, las próxima
   assert.doesNotMatch(text(), /No hay registros/)
 })
 
+test('La pestaña delegada retira las citas al revocar una lectura abierta, sin canjear de nuevo', async (t) => {
+  const { b, unmount } = await mountApp('/access/enlace-citas', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => /Cardiología/.test(text()), 'lectura abierta')
+  b.db.delegateStatus = 403
+  await waitFor(() => /El acceso ya no está vigente/.test(text()), 'revocación en la pestaña abierta', 16_000)
+  assert.doesNotMatch(text(), /Cardiología|Control pasado/)
+  assert.equal(sessionStorage.getItem('yuyay.delegate.enlace-citas'), null)
+  assert.equal(b.calls.filter(call => call.endsWith('/exchange')).length, 1)
+})
+
+test('El delegado recupera la lectura tras un corte solo cuando el servidor confirma el permiso', async (t) => {
+  const { b, unmount } = await mountApp('/access/enlace-citas', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => /Cardiología/.test(text()), 'lectura abierta')
+  await act(async () => { window.dispatchEvent(new window.Event('offline')) })
+  assert.match(text(), /Lectura en pausa/)
+  b.db.delegateStatus = 503
+  await act(async () => { window.dispatchEvent(new window.Event('online')) })
+  assert.doesNotMatch(text(), /Cardiología/)
+  assert.ok(sessionStorage.getItem('yuyay.delegate.enlace-citas'))
+  b.db.delegateStatus = 200
+  await act(async () => { window.dispatchEvent(new window.Event('focus')) })
+  await waitFor(() => /Cardiología/.test(text()), 'el servidor vuelve a autorizar la lectura')
+})
+
 test('Enlace antiguo /acceso/:token redirige a /access/:token y conserva la query', async (t) => {
   const { unmount } = await mountApp('/acceso/enlace-citas?x=1', { loggedIn: false })
   t.after(unmount)
@@ -643,7 +693,7 @@ test('Registro: el género elegido se envía con la cuenta', async (t) => {
   assert.equal((b.db.registers[0] as { gender?: string }).gender, 'FEMALE')
 })
 
-test('Registro: el DNI es obligatorio y el rechazo del backend aparece bajo el campo', async (t) => {
+test('Registro: exige DNI y permite corregir el nombre sin consultar el directorio antes del alta', async (t) => {
   const { b, unmount } = await mountApp('/register', { loggedIn: false })
   t.after(unmount)
   await waitFor(() => !!inputById('auth-dni'), 'campo DNI')
@@ -666,7 +716,9 @@ test('Registro: el DNI es obligatorio y el rechazo del backend aparece bajo el c
 
   await type(inputById('auth-dni'), '88888888')
   assert.equal(inputById('auth-full-name').value, '')
-  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
+  assert.equal(byText('button', 'Ver mi nombre'), null)
+  assert.equal(byText('button', 'Sí, soy yo'), null)
+  await type(inputById('auth-full-name'), 'Ana Quispe')
   assert.equal(b.calls.some((call) => call.includes('dni-lookup')), false)
   assert.equal(b.db.registers.length, 0)
   assert.equal(document.querySelector('form a[href^="mailto:"]'), null)
@@ -675,6 +727,16 @@ test('Registro: el DNI es obligatorio y el rechazo del backend aparece bajo el c
   assert.equal(inputById('auth-dni').getAttribute('aria-invalid'), 'true')
   assert.equal(inputById('auth-dni').getAttribute('aria-describedby'), 'auth-dni-error')
   assert.equal(pathname(), '/register')
+  assert.equal(inputById('auth-name').value, 'Ana Quispe')
+
+  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
+  await click(byText('button', 'Registrarme'), 'Reintentar con el nombre correcto')
+  await waitFor(() => pathname() === '/', 'registro completado tras corregir el nombre')
+  assert.deepEqual(b.db.registers.map(({ dni, fullName, name }) => ({ dni, fullName, name })), [
+    { dni: '88888888', fullName: 'Ana Quispe', name: 'Ana Quispe' },
+    { dni: '88888888', fullName: 'Ana Quispe Mamani', name: 'Ana Quispe' },
+  ])
+  assert.equal(b.calls.some((call) => call.includes('dni-lookup')), false)
 })
 
 test('Registro: una versión vencida abre el texto vigente y vuelve a pedir aceptación', async (t) => {

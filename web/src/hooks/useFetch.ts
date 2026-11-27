@@ -49,5 +49,9 @@ export function useFetch<T>(fetcher: (signal: AbortSignal) => Promise<T>, deps: 
 
   const reload = useCallback(() => setVersion((v) => v + 1), [])
 
-  return { ...state, reload }
+  const updateData = useCallback((update: (current: T) => T) => {
+    setState((prev) => prev.data === null ? prev : { ...prev, data: update(prev.data) })
+  }, [])
+
+  return { ...state, reload, updateData }
 }
