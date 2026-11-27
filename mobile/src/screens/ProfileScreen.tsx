@@ -18,6 +18,7 @@ import { useCareSubjects, useSubjectNotifications } from '../hooks/useSubjectAcc
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { useToast } from '../hooks/useToast';
 import { updateMe } from '../services/api';
+import { saveProfileEdit } from '../services/profileEdit';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { Gender, RootStackParamList, TabNavigatorParamList } from '../types';
@@ -35,12 +36,12 @@ export function ProfileScreen({ navigation }: Props) {
   const { user, logout, updateUser } = useAuth();
   const terms = useAccountTerms();
   const toast = useToast();
-  // Editar el nombre de la cuenta, como en el perfil de la web
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender | null>(null);
   const [birthParts, setBirthParts] = useState<DateParts>({ day: '', month: '', year: '' });
   const [nameError, setNameError] = useState<string | undefined>();
+  const [birthDateError, setBirthDateError] = useState<string | undefined>();
   const [savingName, setSavingName] = useState(false);
   const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
   const subjects = useCareSubjects();
@@ -64,19 +65,20 @@ export function ProfileScreen({ navigation }: Props) {
     if (birth.error) return;
     setSavingName(true);
     setNameError(undefined);
+    setBirthDateError(undefined);
     try {
-      const nextBirthDate = birth.iso || null;
-      const birthDateChanged = nextBirthDate !== (user?.birthDate ?? null);
-      const updated = await updateMe(name.trim(), gender, birthDateChanged ? nextBirthDate : undefined);
-      if (birthDateChanged && (updated.birthDate ?? null) !== nextBirthDate) {
-        setNameError('No pudimos guardar el cambio de la fecha de nacimiento.');
-        return;
-      }
-      updateUser(updated);
-      setEditingName(false);
-      toast('Perfil actualizado.');
+      await saveProfileEdit({ name, gender, birthDate: birth.iso || null }, user?.birthDate, updateMe, (updated) => {
+        updateUser(updated);
+        setEditingName(false);
+        toast('Perfil actualizado.');
+      }, setBirthDateError);
     } catch (e) {
-      setNameError(e instanceof ApiError ? (e.fieldErrors.name ?? e.message) : 'No pudimos guardar tu perfil.');
+      if (e instanceof ApiError && e.fieldErrors.birthDate) {
+        setBirthDateError(e.fieldErrors.birthDate);
+        setNameError(e.fieldErrors.name);
+      } else {
+        setNameError(e instanceof ApiError ? (e.fieldErrors.name ?? e.message) : 'No pudimos guardar tu perfil.');
+      }
     } finally {
       setSavingName(false);
     }
@@ -185,9 +187,12 @@ export function ProfileScreen({ navigation }: Props) {
           <DateField
             label="Fecha de nacimiento (opcional)"
             initial={user.birthDate ? datePartsOf(user.birthDate) : undefined}
-            onChange={setBirthParts}
+            onChange={(parts) => {
+              setBirthParts(parts);
+              setBirthDateError(undefined);
+            }}
             rules={BIRTH_RULES}
-            error={parseDateParts(birthParts, BIRTH_RULES).error}
+            error={parseDateParts(birthParts, BIRTH_RULES).error ?? birthDateError}
           />
           <Text style={styles.birthHint}>Con ella mostramos tu edad y tu león automático crece contigo.</Text>
           <SubmitButton label="Guardar cambios" onPress={saveName} loading={savingName} />
@@ -202,6 +207,7 @@ export function ProfileScreen({ navigation }: Props) {
             setGender(user.gender ?? null);
             setBirthParts(user.birthDate ? datePartsOf(user.birthDate) : { day: '', month: '', year: '' });
             setNameError(undefined);
+            setBirthDateError(undefined);
             setEditingName(true);
           }}
           hitSlop={8}
