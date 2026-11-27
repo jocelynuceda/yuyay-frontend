@@ -535,7 +535,8 @@ test('Consultas: muestra la hora y permite editar la cita y quitarle la hora', a
   await click(document.querySelector(`button[aria-label^='Editar la consulta "Control con cardiología"']`), 'Editar')
   await waitFor(() => !!document.querySelector('#consultation-time'), 'formulario de edición')
   const time = document.querySelector<HTMLInputElement>('#consultation-time')!
-  assert.equal(time.value, '15:30')
+  assert.equal(time.value, '3:30')
+  assert.equal(byText('button', 'PM')!.getAttribute('aria-pressed'), 'true')
   await type(time, '')
   await click(byText('button', 'Guardar cambios'), 'Guardar cambios')
   await waitFor(() => b.db.consultationUpdates.length === 1, 'cambios enviados')

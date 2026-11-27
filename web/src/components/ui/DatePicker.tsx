@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { todayIso } from '../../schemas/common'
 import { formatDate } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
@@ -24,10 +24,21 @@ export interface DatePickerProps {
   'aria-describedby'?: string
 }
 
-/** Calendario propio en español. Se despliega bajo el campo para no recortarse dentro de un modal. */
+/** Calendario propio en español. Flota sobre el formulario, sin mover los demás campos. */
 export function DatePicker({ id, value, onChange, onBlur, min, max, className, ...aria }: DatePickerProps) {
   const [open, setOpen] = useState(false)
   const [view, setView] = useState({ year: 0, month: 0 })
+  const root = useRef<HTMLDivElement>(null)
+
+  // Un clic fuera lo cierra. No sirve onBlur: Safari no enfoca los botones al hacer clic
+  useEffect(() => {
+    if (!open) return
+    const close = (event: Event) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [open])
 
   function toggle() {
     if (!open) {
@@ -59,7 +70,8 @@ export function DatePicker({ id, value, onChange, onBlur, min, max, className, .
 
   return (
     <div
-      className="grid gap-2"
+      ref={root}
+      className="relative"
       onKeyDown={(event) => {
         if (event.key !== 'Escape' || !open) return
         // Escape cierra solo el calendario, no el modal que lo contiene
@@ -69,12 +81,12 @@ export function DatePicker({ id, value, onChange, onBlur, min, max, className, .
         document.getElementById(id)?.focus()
       }}
     >
-      <button type="button" id={id} aria-expanded={open} onClick={toggle} className={cx(className, 'flex items-center justify-between gap-2 text-left')} {...aria}>
+      <button type="button" id={id} value={value} aria-expanded={open} onClick={toggle} className={cx(className, 'flex items-center justify-between gap-2 text-left')} {...aria}>
         <span className={value ? undefined : 'text-placeholder'}>{value ? formatDate(value) : 'Elige una fecha'}</span>
         <Icon name="calendar" className="h-5 w-5 text-muted" />
       </button>
       {open ? (
-        <div className="grid w-full max-w-80 gap-3 rounded-2xl border border-line bg-card p-3 shadow-[var(--shadow-soft)]">
+        <div className="absolute top-full left-0 z-30 mt-2 grid w-80 max-w-full gap-3 rounded-2xl border border-line bg-card p-3 shadow-[var(--shadow-soft)]">
           <div className="flex items-center justify-between gap-1">
             <button type="button" aria-label="Mes anterior" className={arrow} disabled={toIso(year, month, 1) <= min} onClick={() => shift(-1)}>
               <Icon name="chevron-left" />

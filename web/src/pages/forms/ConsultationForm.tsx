@@ -1,6 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useController, useForm } from 'react-hook-form'
+import { DatePicker } from '../../components/ui/DatePicker'
+import { TimeInput } from '../../components/ui/TimeInput'
 import { MIN_YEAR, maxYear } from '../../schemas/common'
 import {
   consultationFields,
@@ -33,9 +35,9 @@ export function ConsultationForm({
   const editing = !!consultation
   const {
     register,
+    control,
     handleSubmit,
     setError,
-    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<ConsultationFormValues, unknown, ConsultationFormOutput>({
     resolver: zodResolver(consultationSchema),
@@ -45,8 +47,11 @@ export function ConsultationForm({
 
   // Al editar, el botón "Editar" desaparece: el foco pasa al formulario
   useEffect(() => {
-    if (editing) setFocus('date')
-  }, [editing, setFocus])
+    if (editing) document.getElementById('consultation-date')?.focus()
+  }, [editing])
+
+  const { field: date } = useController({ control, name: 'date' })
+  const { field: time } = useController({ control, name: 'time' })
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
@@ -69,12 +74,12 @@ export function ConsultationForm({
     >
       <ServerError message={serverError} />
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid items-start gap-5 sm:grid-cols-2">
         <Field id="consultation-date" label="Fecha" error={errors.date}>
-          <input type="date" min={`${MIN_YEAR}-01-01`} max={`${maxYear(2)}-12-31`} {...a11yProps('consultation-date', errors.date)} {...register('date')} />
+          <DatePicker value={date.value} onChange={date.onChange} onBlur={date.onBlur} min={`${MIN_YEAR}-01-01`} max={`${maxYear(2)}-12-31`} {...a11yProps('consultation-date', errors.date)} />
         </Field>
         <Field id="consultation-time" label="Hora (opcional)" error={errors.time}>
-          <input type="time" {...a11yProps('consultation-time', errors.time)} {...register('time')} />
+          <TimeInput value={time.value} onChange={time.onChange} onBlur={time.onBlur} {...a11yProps('consultation-time', errors.time)} />
         </Field>
       </div>
 
