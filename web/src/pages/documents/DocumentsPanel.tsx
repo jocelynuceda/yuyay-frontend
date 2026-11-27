@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { LoadError } from '../../components/layout/LoadError'
 import { DocumentScopeBadge } from '../../components/DocumentScopeBadge'
 import { Badge } from '../../components/ui/Badge'
@@ -8,14 +8,12 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Icon } from '../../components/ui/Icon'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../hooks/useAuth'
-import { useFetch } from '../../hooks/useFetch'
-import { deleteAttachment, listAttachments, uploadAttachment } from '../../services/api/attachments'
-import type { Attachment, OcrStatus } from '../../types'
+import { AttachmentRow } from './AttachmentRow'
+import { useAttachmentList } from './useAttachmentList'
+import { uploadAttachment } from '../../services/api/attachments'
+import type { OcrStatus } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { DOCUMENT_ACCEPT, documentsOnly, validateDocumentFile } from '../../utils/attachments'
-import { formatDate } from '../../utils/format'
-import { focusRing, linkClass } from '../../utils/styles'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 import { useOcrPolling } from './useOcrPolling'
 
@@ -30,11 +28,10 @@ export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; 
   const navigate = useNavigate()
   const { user } = useAuth()
   const { notify, anchorProps } = useSuccessNotice()
-  const { data, error, loading, reload } = useFetch((signal) => listAttachments(subjectId, signal), [subjectId])
+  const { data, error, loading, reload, applyChange } = useAttachmentList(subjectId)
   const input = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [removing, setRemoving] = useState<Attachment | null>(null)
 
   const documents = data ? documentsOnly(data) : []
   useOcrPolling(documents.some((d) => d.ocrStatus === 'PENDING'), reload)
@@ -56,9 +53,6 @@ export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; 
       setUploading(false)
     }
   }
-
-  // El backend solo deja borrar a quien lo subió o al principal, y no mientras se lee
-  const canDelete = (d: Attachment) => d.ocrStatus !== 'PENDING' && (isPrincipal || d.uploadedById === user?.id)
 
   return (
     <section aria-labelledby="documents-title" className="grid gap-6">
@@ -106,54 +100,20 @@ export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; 
           {documents.map((d) => {
             const badge = ocrBadges[d.ocrStatus]
             return (
-              <li key={d.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-card p-4">
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2">
-                    <Link
-                      to={`/people/${subjectId}/documents/${d.id}`}
-                      className={`${linkClass} break-all`}
-                      aria-label={`Revisar ${d.originalFilename}`}
-                    >
-                      {d.originalFilename}
-                    </Link>
-                    <Badge tone={badge.tone}>{badge.label}</Badge>
-                    <DocumentScopeBadge label={d.scopeLabel} />
-                  </p>
-                  <p className="mt-1 text-sm text-muted">
-                    {d.uploadedByName} · {formatDate(d.uploadedAt)}
-                  </p>
-                </div>
-                {canDelete(d) ? (
-                  <button
-                    type="button"
-                    onClick={() => setRemoving(d)}
-                    aria-label={`Borrar ${d.originalFilename}`}
-                    className={`rounded-xl border border-line px-3 py-1.5 text-sm font-semibold text-danger hover:bg-danger-bg ${focusRing}`}
-                  >
-                    Borrar
-                  </button>
-                ) : null}
-              </li>
+              <AttachmentRow key={d.id} file={d} subjectId={subjectId}
+                canManage={isPrincipal || d.uploadedById === user?.id}
+                documentPath={`/people/${subjectId}/documents/${d.id}`}
+                badges={<><Badge tone={badge.tone}>{badge.label}</Badge><DocumentScopeBadge label={d.scopeLabel} /></>}
+                onAccessLost={reload}
+                onChanged={(updated) => {
+                  applyChange(d.id, updated)
+                  notify(updated ? 'Nombre guardado.' : 'Documento borrado.')
+                }}
+              />
             )
           })}
         </ul>
       )}
-
-      <ConfirmDialog
-        open={!!removing}
-        title="¿Borrar este documento?"
-        message={removing ? `${removing.originalFilename}. Esta acción no se puede deshacer.` : ''}
-        confirmLabel="Borrar documento"
-        cancelLabel="Volver"
-        onCancel={() => setRemoving(null)}
-        onConfirm={async () => {
-          if (!removing) return
-          await deleteAttachment(subjectId, removing.id)
-          notify('Documento borrado.')
-          setRemoving(null)
-          reload()
-        }}
-      />
     </section>
   )
 }

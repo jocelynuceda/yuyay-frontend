@@ -226,6 +226,7 @@ test('el panel lista audio, carga contenido privado y recupera errores de carga,
   assert.match(body(), /otra\.webm/)
   assert.doesNotMatch(body(), /receta\.pdf/)
   assert.equal(button('Borrar otra.webm'), undefined)
+  assert.equal(button('Cambiar nombre de otra.webm'), undefined)
   assert.equal(contentRequests, 0)
   await click('Abrir reproductor de nota.m4a')
   assert.match(body(), /No pudimos abrir el audio/)
@@ -254,17 +255,53 @@ test('el panel lista audio, carga contenido privado y recupera errores de carga,
   assert.equal(url.mock.callCount(), 2)
 
   await click('Borrar nota.m4a')
-  assert.equal(document.querySelector('dialog')?.open, true)
-  await click('Volver')
+  assert.ok(button('Confirmar eliminación de nota.m4a'))
+  assert.equal(deleteRequests, 0)
+  await click('Cancelar')
   assert.equal(deleteRequests, 0)
   await click('Borrar nota.m4a')
-  await click('Borrar nota de voz')
+  await click('Confirmar eliminación de nota.m4a')
   assert.match(body(), /El archivo está vinculado a un registro/)
-  await click('Borrar nota de voz')
+  await click('Confirmar eliminación de nota.m4a')
   assert.equal(deleteRequests, 2)
   assert.doesNotMatch(body(), /nota\.m4a/)
   assert.deepEqual(revoked, ['blob:audio/webm', 'blob:audio/mp4'])
   assert.deepEqual(notices, ['Nota de voz guardada.', 'Nota de voz borrada.'])
+})
+
+test('renombrar audio conserva el reproductor y actualiza el nombre de descarga', async (t) => {
+  t.mock.method(URL, 'createObjectURL', () => 'blob:nota')
+  t.mock.method(URL, 'revokeObjectURL', () => {})
+  let file = attachment()
+  let contentReads = 0
+  const { render } = mountPanel(t, async (config) => {
+    if (config.url?.endsWith('/content')) {
+      contentReads++
+      return ok(config, new Blob(['nota'], { type: 'audio/mp4' }))
+    }
+    if (config.method === 'patch') {
+      assert.equal(config.url, '/care-subjects/1/attachments/1')
+      assert.deepEqual(JSON.parse(config.data), { filename: 'Control de noviembre.m4a' })
+      file = { ...file, originalFilename: 'Control de noviembre.m4a' }
+      return ok(config, file)
+    }
+    return ok(config, [file])
+  })
+  await render()
+  await click('Abrir reproductor de nota.m4a')
+  const audio = document.querySelector('audio')
+  await click('Cambiar nombre de nota.m4a')
+  const input = document.querySelector<HTMLInputElement>('form input')!
+  assert.equal(input.value, 'nota')
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(input, 'Control de noviembre')
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+  })
+  await click('Guardar nombre')
+  assert.ok(button('Cambiar nombre de Control de noviembre.m4a'))
+  assert.equal(document.querySelector('audio'), audio)
+  assert.equal(document.querySelector<HTMLAnchorElement>('a[download]')?.download, file.originalFilename)
+  assert.equal(contentReads, 1)
 })
 
 test('cambiar de persona detiene una grabación y cancela el contenido del perfil anterior', async (t) => {
