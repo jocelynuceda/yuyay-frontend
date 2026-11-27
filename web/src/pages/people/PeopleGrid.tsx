@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LoadError } from '../../components/layout/LoadError'
 import { SubjectAvatar } from '../../components/ui/AvatarPicker'
+import { Icon } from '../../components/ui/Icon'
 import { Modal } from '../../components/ui/Modal'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { useFetch } from '../../hooks/useFetch'
@@ -98,14 +99,18 @@ export function PeopleGrid({
         />
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold">Ordenar por</span>
-          <select
-            value={params.sort}
-            onChange={(e) => onParamsChange({ ...params, sort: e.target.value as PeopleSort })}
-            className={`rounded-xl border border-line bg-card px-4 py-2.5 ${focusRing}`}
-          >
-            <option value="name">Nombre (A–Z)</option>
-            <option value="age">Edad (mayor primero)</option>
-          </select>
+          <span className="relative">
+            {/* appearance-none: sin ella Safari ignora el redondeo y la altura */}
+            <select
+              value={params.sort}
+              onChange={(e) => onParamsChange({ ...params, sort: e.target.value as PeopleSort })}
+              className={`w-full appearance-none rounded-xl border border-line bg-card py-2.5 pr-11 pl-4 ${focusRing}`}
+            >
+              <option value="name">Nombre (A–Z)</option>
+              <option value="age">Edad (mayor primero)</option>
+            </select>
+            <Icon name="chevron-right" className="pointer-events-none absolute top-1/2 right-3.5 h-5 w-5 -translate-y-1/2 rotate-90 text-muted" />
+          </span>
         </label>
       </div>
 
