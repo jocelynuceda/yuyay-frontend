@@ -329,6 +329,24 @@ async function chooseFile(input: HTMLInputElement, file: File) {
   })
 }
 
+for (const [index, role, label] of [
+  [0, 'PRINCIPAL', 'Tú coordinas el cuidado'],
+  [1, 'CAREGIVER', 'Tú colaboras en el cuidado'],
+] as const) {
+  test(`Personas y perfil explican el rol ${role} desde la perspectiva de quien inició sesión`, async (t) => {
+    const { b, unmount } = await mountApp('/people', { loggedIn: true, seed: db => { db.subjects[index].myRole = role } })
+    t.after(unmount)
+    const person = b.db.subjects[index]
+    const card = () => byText('button', new RegExp(person.name + '.*' + label))
+    await waitFor(() => !!card(), 'tarjeta con el rol del usuario')
+    await click(card(), person.name)
+    await waitFor(() => document.querySelector('h1')?.textContent === person.name, 'perfil de la persona')
+    const header = document.querySelector('h1')!.closest('header')!
+    assert.ok(header.textContent?.includes(label))
+    assert.match(header.querySelector('h1 + p')!.textContent!, /^\d+ años$/)
+  })
+}
+
 test('Documentos: sube el archivo, espera la lectura y crea el registro con el texto', async (t) => {
   const { b, unmount } = await mountApp('/people/1?tab=documents', { loggedIn: true })
   t.after(unmount)
