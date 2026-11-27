@@ -8,6 +8,7 @@ import { createHandoff } from '../../services/api/handoffs'
 import { listHealthEntries } from '../../services/api/healthEntries'
 import { CATEGORY_CODES, type ErrorResponse, type HandoffDetail, type HealthEntry } from '../../types'
 import { applyServerErrors, getErrorMessage } from '../../utils/apiErrors'
+import { createAttemptKey } from '../../utils/attemptKey'
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
 import { collectPages } from '../../utils/pagination'
 import { focusRing } from '../../utils/styles'
@@ -32,6 +33,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
   const [serverError, setServerError] = useState<string | null>(null)
   const [needsReview, setNeedsReview] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [attemptKey] = useState(() => createAttemptKey(() => crypto.randomUUID()))
   const {
     register,
     handleSubmit,
@@ -74,7 +76,8 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
       const expectedVersionIds = Object.fromEntries(
         loaded.entries.filter((e) => values.healthEntryIds.includes(e.id)).map((e) => [e.id, e.latestVersion.id]),
       )
-      setCreated(await createHandoff(subjectId, { ...values, expectedVersionIds }))
+      const request = { ...values, healthEntryIds: [...values.healthEntryIds].sort((a, b) => a - b), expectedVersionIds }
+      setCreated(await createHandoff(subjectId, { ...request, requestId: attemptKey(request) }))
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 409) {
         setNeedsReview(true)

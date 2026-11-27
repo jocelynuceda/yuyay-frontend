@@ -257,6 +257,8 @@ export interface HandoffRequest {
   questions: string | null
   healthEntryIds: number[]
   expectedVersionIds?: Record<string, number>
+  /** Reintentar con la misma clave devuelve el resumen ya guardado. */
+  requestId?: string
 }
 
 export type HandoffSessionRequest = (

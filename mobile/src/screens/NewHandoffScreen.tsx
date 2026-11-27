@@ -15,8 +15,10 @@ import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
+import { createAttemptKey } from '../utils/attemptKey';
 import { formatDate } from '../utils/format';
 import { manualHandoffInput } from '../utils/manualHandoff';
+import { newSummaryRequestId } from '../utils/summaryRequestId';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewHandoff'>;
 
@@ -40,6 +42,7 @@ function ManualHandoffScreen({ route, navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
+  const [attemptKey] = useState(() => createAttemptKey(newSummaryRequestId));
 
   if (entries.loading && !entries.data) return <LoadingView />;
 
@@ -62,7 +65,8 @@ function ManualHandoffScreen({ route, navigation }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const handoff = await createHandoff(subjectId, manualHandoffInput(all, selected, reason, questions));
+      const input = manualHandoffInput(all, selected, reason, questions);
+      const handoff = await createHandoff(subjectId, { ...input, requestId: attemptKey(input) });
       navigation.replace('HandoffView', { handoffId: handoff.id, isPrincipal });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {

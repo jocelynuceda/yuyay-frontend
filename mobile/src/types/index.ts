@@ -92,6 +92,8 @@ export interface HandoffInput {
   questions?: string;
   healthEntryIds: number[];
   expectedVersionIds?: Record<string, number>;
+  /** Reintentar con la misma clave devuelve el resumen ya guardado. */
+  requestId?: string;
 }
 
 export interface HandoffSession {
