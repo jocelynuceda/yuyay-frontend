@@ -24,10 +24,10 @@ type ClinicalProfileProps = {
 const categoryTiles: Record<CategoryCode, { icon: IconName; color: string; image?: string }> = {
   ALLERGY: { icon: 'flower', color: 'bg-accent text-on-accent', image: '/categories/allergy.png' },
   CONDITION: { icon: 'pulse', color: 'bg-soft text-soft-text' },
-  MEDICATION: { icon: 'medkit', color: 'bg-primary-tint text-primary-fg' },
-  IMMUNIZATION: { icon: 'shield', color: 'bg-primary text-white' },
+  MEDICATION: { icon: 'medkit', color: 'bg-primary-tint text-primary-fg', image: '/categories/medication.png' },
+  IMMUNIZATION: { icon: 'shield', color: 'bg-primary text-white', image: '/categories/immunization.png' },
   EPISODE: { icon: 'bolt', color: 'bg-danger-bg text-danger' },
-  EXAM_RESULT: { icon: 'flask', color: 'bg-accent-tint text-accent-text' },
+  EXAM_RESULT: { icon: 'flask', color: 'bg-accent-tint text-accent-text', image: '/categories/exam.png' },
 }
 
 /** Una vista breve por categoría; el historial completo está en su página de registros. */

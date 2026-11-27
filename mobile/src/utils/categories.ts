@@ -25,10 +25,28 @@ export const categoryMeta: Record<
     image: require('../../assets/categories/allergy.png'),
   },
   CONDITION: { icon: 'pulse-outline', bg: 'soft', fg: 'softText', plural: 'Condiciones' },
-  MEDICATION: { icon: 'medkit-outline', bg: 'primaryTint', fg: 'primary', plural: 'Medicación' },
-  IMMUNIZATION: { icon: 'shield-checkmark-outline', bg: 'primary', fg: 'white', plural: 'Vacunas' },
+  MEDICATION: {
+    icon: 'medkit-outline',
+    bg: 'primaryTint',
+    fg: 'primary',
+    plural: 'Medicación',
+    image: require('../../assets/categories/medication.png'),
+  },
+  IMMUNIZATION: {
+    icon: 'shield-checkmark-outline',
+    bg: 'primary',
+    fg: 'white',
+    plural: 'Vacunas',
+    image: require('../../assets/categories/immunization.png'),
+  },
   EPISODE: { icon: 'flash-outline', bg: 'amberBg', fg: 'amberText', plural: 'Episodios' },
-  EXAM_RESULT: { icon: 'flask-outline', bg: 'soft', fg: 'softText', plural: 'Exámenes' },
+  EXAM_RESULT: {
+    icon: 'flask-outline',
+    bg: 'soft',
+    fg: 'softText',
+    plural: 'Exámenes',
+    image: require('../../assets/categories/exam.png'),
+  },
 };
 
 export const fallbackCategory = categoryMeta.CONDITION;
