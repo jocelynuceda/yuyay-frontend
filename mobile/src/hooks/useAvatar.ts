@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
+import { ageFrom } from '../utils/format';
 import { avatarId, defaultAvatar, parseAvatarId, type AvatarChoice } from '../components/LionAvatar';
 import type { Gender } from '../types';
 import { useAuth } from './useAuth';
@@ -61,7 +62,7 @@ export function useAvatar(target: AvatarTarget) {
   }, []);
   const key = target.type === 'me' ? `${user?.id ?? 0}:me` : `${user?.id ?? 0}:subject:${target.id}`;
   const stored = useSyncExternalStore(subscribe, () => choices[key] ?? null);
-  const fallback = target.type === 'me' ? defaultAvatar(30, undefined, user?.gender) : defaultAvatar(target.age, target.id, target.gender);
+  const fallback = target.type === 'me' ? defaultAvatar(ageFrom(user?.birthDate), undefined, user?.gender) : defaultAvatar(target.age, target.id, target.gender);
   const chosen = parseAvatarId(stored);
 
   const setAvatar = useCallback((choice: AvatarChoice | null) => save(key, choice ? avatarId(choice) : null), [key]);

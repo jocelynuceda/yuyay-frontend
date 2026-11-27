@@ -2,18 +2,20 @@ import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Image, type ImageSourcePropType } from 'react-native';
 import type { Gender } from '../types';
 
-export type LionKind = 'adult' | 'cub' | 'elder';
+/** `default`: sin edad registrada (el león de melena grande). No es una opción del selector. */
+export type LionKind = 'adult' | 'cub' | 'elder' | 'default';
 export type LionVariant = 'lion' | 'lioness';
 export type AvatarChoice = { kind: LionKind; variant: LionVariant };
 export type AvatarId = `${LionKind}-${LionVariant}`;
 
 type Art = Record<LionVariant, ImageSourcePropType>;
 
-/** Recorte de la cabeza (assets/lions/*-face.png), para los avatares circulares. */
+/** Avatares redondos (assets/lions/*-face.png). Sin edad, la leona usa la adulta. */
 const faces: Record<LionKind, Art> = {
   cub: { lion: require('../../assets/lions/cub-lion-face.png'), lioness: require('../../assets/lions/cub-lioness-face.png') },
-  adult: { lion: require('../../assets/lions/adult-lion-face.png'), lioness: require('../../assets/lions/cub-lioness-face.png') },
+  adult: { lion: require('../../assets/lions/adult-lion-face.png'), lioness: require('../../assets/lions/adult-lioness-face.png') },
   elder: { lion: require('../../assets/lions/elder-lion-face.png'), lioness: require('../../assets/lions/elder-lioness-face.png') },
+  default: { lion: require('../../assets/lions/default-lion-face.png'), lioness: require('../../assets/lions/adult-lioness-face.png') },
 };
 
 /** Cuerpo completo, para pantallas vacías, la bienvenida, etc. */
@@ -21,17 +23,19 @@ export const lionIllustrations: Record<LionKind, Art> = {
   cub: { lion: require('../../assets/lions/cub-lion.png'), lioness: require('../../assets/lions/cub-lioness.png') },
   adult: { lion: require('../../assets/lions/adult-lion.png'), lioness: require('../../assets/lions/cub-lioness.png') },
   elder: { lion: require('../../assets/lions/elder-lion.png'), lioness: require('../../assets/lions/elder-lioness.png') },
+  default: { lion: require('../../assets/lions/adult-lion.png'), lioness: require('../../assets/lions/cub-lioness.png') },
 };
 
 const labels: Record<LionKind, Record<LionVariant, string>> = {
   cub: { lion: 'Leoncito', lioness: 'Leoncita' },
   adult: { lion: 'León', lioness: 'Leona' },
   elder: { lion: 'León abuelo', lioness: 'Leona abuela' },
+  default: { lion: 'León', lioness: 'Leona' },
 };
 
-/** Cachorro si es menor de edad, león viejo desde los 60 y adulto en los demás casos (o sin edad). */
+/** Cachorro si es menor de edad, abuelo desde los 60, adulto entre medio y el de melena si no hay edad. */
 export function lionForAge(age: number | null): LionKind {
-  if (age === null) return 'adult';
+  if (age === null) return 'default';
   if (age < 18) return 'cub';
   if (age >= 60) return 'elder';
   return 'adult';
