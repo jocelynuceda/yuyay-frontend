@@ -30,7 +30,7 @@ export function AppHeader() {
           {count > 0 ? (
             <span
               aria-hidden="true"
-              className="absolute top-0 right-0 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] leading-4 font-bold text-white"
+              className="absolute top-0 right-0 min-w-4 rounded-full bg-danger-solid px-1 text-center text-[10px] leading-4 font-bold text-white"
             >
               {formatBadge(count)}
             </span>

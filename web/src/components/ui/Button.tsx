@@ -7,7 +7,7 @@ const variants = {
   primary: 'bg-primary text-white shadow-[var(--shadow-soft)]',
   secondary: 'bg-card text-ink shadow-[var(--shadow-soft)]',
   ghost: 'text-ink hover:bg-primary-tint',
-  danger: 'bg-danger text-white',
+  danger: 'bg-danger-solid text-white',
 } as const
 
 const sizes = {

@@ -150,7 +150,7 @@ function PersonCard({ subject, onOpen }: { subject: CareSubject; onOpen: () => v
       <span className="min-w-0">
         <span className="block truncate text-lg font-semibold">{subject.name}</span>
         <span className="block text-sm text-muted">{age !== null ? `${age} años` : 'Edad no registrada'}</span>
-        <span className="mt-2 inline-block rounded-full bg-primary-tint px-3 py-0.5 text-xs font-semibold text-primary">
+        <span className="mt-2 inline-block rounded-full bg-primary-tint px-3 py-0.5 text-xs font-semibold text-primary-fg">
           {subject.myRole === 'PRINCIPAL' ? 'Principal' : 'Cuidador/a'}
         </span>
       </span>

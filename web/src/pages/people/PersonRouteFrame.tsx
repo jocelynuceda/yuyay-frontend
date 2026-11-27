@@ -19,7 +19,7 @@ export function PersonRouteFrame({
     (signal) => getCareSubject(subjectId, signal),
     [subjectId],
   )
-  const linkClass = `rounded-sm text-primary underline ${focusRing}`
+  const linkClass = `rounded-sm text-primary-fg underline ${focusRing}`
 
   return (
     <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6">

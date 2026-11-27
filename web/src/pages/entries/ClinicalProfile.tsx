@@ -67,7 +67,7 @@ export function ClinicalProfile({
                   {items.length > 0 ? (
                     <span
                       aria-label={`${items.length} ${items.length === 1 ? 'registro' : 'registros'}`}
-                      className="rounded-full bg-primary-tint px-2.5 py-0.5 text-xs font-semibold text-primary"
+                      className="rounded-full bg-primary-tint px-2.5 py-0.5 text-xs font-semibold text-primary-fg"
                     >
                       {items.length}
                     </span>
@@ -94,7 +94,7 @@ export function ClinicalProfile({
                       <button
                         type="button"
                         onClick={() => onAddEntry(code)}
-                        className={`inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-sm font-semibold text-primary hover:underline ${focusRing}`}
+                        className={`inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-sm font-semibold text-primary-fg hover:underline ${focusRing}`}
                       >
                         <Icon name="plus" className="h-4 w-4" />
                         Agregar {name.toLowerCase()}

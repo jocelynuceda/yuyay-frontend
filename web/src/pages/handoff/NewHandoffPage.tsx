@@ -171,7 +171,7 @@ function Stepper({ current }: { current: number }) {
             key={label}
             aria-current={state === 'current' ? 'step' : undefined}
             className={`rounded-2xl border-2 px-3 py-2 text-sm ${
-              state === 'current' ? 'border-primary bg-card' : state === 'done' ? 'border-accent bg-card' : 'border-transparent bg-card/60 text-muted'
+              state === 'current' ? 'border-primary-fg bg-card' : state === 'done' ? 'border-accent bg-card' : 'border-transparent bg-card/60 text-muted'
             }`}
           >
             <span className="block font-semibold">
@@ -314,7 +314,7 @@ function ReviewBlock({ title, onEdit, children }: { title: string; onEdit: () =>
     <section className="rounded-2xl bg-surface/60 p-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-semibold">{title}</h3>
-        <button type="button" onClick={onEdit} className={`text-sm font-semibold text-primary underline ${focusRing}`}>
+        <button type="button" onClick={onEdit} className={`text-sm font-semibold text-primary-fg underline ${focusRing}`}>
           Cambiar
         </button>
       </div>

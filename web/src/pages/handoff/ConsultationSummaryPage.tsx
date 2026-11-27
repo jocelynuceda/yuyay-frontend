@@ -76,7 +76,7 @@ export function ConsultationSummaryPage({ subjectId, consultationId }: { subject
       <section className="grid gap-4 rounded-3xl bg-card p-6">
         <h1 className="text-2xl font-semibold">Comprueba los resúmenes guardados</h1>
         <p role="alert">Una confirmación anterior puede haberse guardado. Tras recargar o cerrar la página no podemos recuperar su solicitud con seguridad. Comprueba el historial antes de iniciar otro resumen.</p>
-        <Link to={`/people/${subjectId}?tab=handoffs`} className="text-primary underline">Consultar el historial</Link>
+        <Link to={`/people/${subjectId}?tab=handoffs`} className="text-primary-fg underline">Consultar el historial</Link>
         <Button onClick={() => { acknowledgeSummaryHistory(); setHistoryRequired(false) }}>Ya comprobé el historial; iniciar una revisión nueva</Button>
       </section>
     )
@@ -88,7 +88,7 @@ export function ConsultationSummaryPage({ subjectId, consultationId }: { subject
         <p className="whitespace-pre-wrap">{state.saved.reason}</p>
         <p className="whitespace-pre-wrap">{state.saved.questions || 'Sin preguntas.'}</p>
         {state.saved.items.map((item) => <VersionContent key={item.healthEntryVersionId} version={item} />)}
-        <Link to={`/people/${subjectId}?tab=handoffs`} className="text-primary underline">Volver a consultar los resúmenes guardados</Link>
+        <Link to={`/people/${subjectId}?tab=handoffs`} className="text-primary-fg underline">Volver a consultar los resúmenes guardados</Link>
         <CreateHandoffLink handoffId={state.saved.id} />
       </section>
     )

@@ -72,14 +72,14 @@ export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { su
   ) : (
     <li key={c.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-card p-4">
       <div className="min-w-0">
-        <p className={`text-sm font-semibold ${isUpcoming ? 'text-primary' : 'text-muted'}`}>
+        <p className={`text-sm font-semibold ${isUpcoming ? 'text-primary-fg' : 'text-muted'}`}>
           <time dateTime={c.date}>{formatDate(c.date)}</time>
           {c.time ? ` · ${formatTime(c.time)}` : ''}
           {c.date === todayIso() ? ' · Hoy' : ''}
         </p>
         <p className="font-semibold">{c.reason}</p>
         <Link to={`/people/${subjectId}/consultations/${c.id}/summary`}
-          className={`mt-2 inline-block rounded-sm text-sm font-semibold text-primary underline ${focusRing}`}>
+          className={`mt-2 inline-block rounded-sm text-sm font-semibold text-primary-fg underline ${focusRing}`}>
           Preparar resumen
         </Link>
         {c.notes ? <p className="mt-1 whitespace-pre-line text-sm text-muted">{c.notes}</p> : null}
@@ -87,7 +87,7 @@ export function ConsultationsPanel({ subjectId, subjectName, isPrincipal }: { su
           <button
             type="button"
             onClick={() => setChangesFrom(c.id === lastPast?.id ? null : c)}
-            className={`mt-2 rounded-sm text-sm font-semibold text-primary underline ${focusRing}`}
+            className={`mt-2 rounded-sm text-sm font-semibold text-primary-fg underline ${focusRing}`}
           >
             Ver cambios desde esta consulta
           </button>
@@ -229,7 +229,7 @@ function ChangesSinceLast({
             Desde el {formatDate(from.date)} · {from.reason}
           </p>
           {!isLast ? (
-            <button type="button" onClick={onShowLast} className={`mt-1 rounded-sm text-sm font-semibold text-primary underline ${focusRing}`}>
+            <button type="button" onClick={onShowLast} className={`mt-1 rounded-sm text-sm font-semibold text-primary-fg underline ${focusRing}`}>
               Ver desde la última consulta
             </button>
           ) : null}

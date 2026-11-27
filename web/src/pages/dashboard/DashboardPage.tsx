@@ -106,7 +106,7 @@ export default function DashboardPage() {
       ) : null}
       <div className="grid gap-6 lg:grid-cols-3">
         <header
-          className={`${cardAnimation} relative overflow-hidden rounded-[2rem] bg-linear-to-br from-primary to-soft-text p-6 text-white shadow-[var(--shadow-soft)] sm:p-8 lg:col-span-2`}
+          className={`${cardAnimation} relative overflow-hidden rounded-[2rem] bg-linear-to-br from-primary to-soft-text p-6 text-white dark:from-hero-from dark:via-hero-via dark:to-hero-to shadow-[var(--shadow-soft)] sm:p-8 lg:col-span-2`}
         >
           <svg viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true" className="absolute inset-x-0 bottom-0 h-32 w-full text-white/10">
             <path fill="currentColor" d="M0 80C40 40 70 40 100 70s60 40 100 0 60-50 100-10 70 30 100 0V120H0Z" />
@@ -121,7 +121,7 @@ export default function DashboardPage() {
               <li key={to}>
                 <Link
                   to={to}
-                  className={`${heroPill} ${index === 0 ? 'bg-card text-primary' : 'bg-white/15 text-white hover:bg-white/25'}`}
+                  className={`${heroPill} ${index === 0 ? 'bg-card text-primary-fg' : 'bg-white/15 text-white hover:bg-white/25'}`}
                 >
                   <Icon name={icon} />
                   {label}
@@ -132,10 +132,10 @@ export default function DashboardPage() {
         </header>
 
         <section
-          className={`${cardAnimation} grid content-start gap-3 rounded-[2rem] bg-accent p-6 text-on-accent shadow-[var(--shadow-soft)] sm:p-8`}
+          className={`${cardAnimation} grid content-start gap-3 rounded-[2rem] bg-accent p-6 text-on-accent shadow-[var(--shadow-soft)] dark:bg-cream dark:text-ink dark:ring-1 dark:ring-accent/25 sm:p-8`}
         >
           <div className="flex items-center gap-3">
-            <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/35">
+            <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/35 dark:bg-accent-tint dark:text-accent">
               <Icon name="calendar" />
             </span>
             <h2 className="text-xl font-semibold">Próxima cita</h2>
@@ -156,7 +156,7 @@ export default function DashboardPage() {
               <p>{next.consultation.reason}</p>
               <Link
                 to={`/people/${next.subject.id}?tab=appointments`}
-                className={`${heroPill} mt-3 justify-self-start bg-on-accent text-accent hover:opacity-90`}
+                className={`${heroPill} mt-3 justify-self-start bg-on-accent text-accent hover:opacity-90 dark:bg-accent dark:text-on-accent`}
               >
                 Ver consultas de {next.subject.name}
               </Link>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
                   ? 'Cuando agregues a una persona, aquí verás su próxima consulta.'
                   : 'No hay consultas programadas. Registra la próxima desde la ficha de una persona.'}
               </p>
-              <Link to="/people" className={`${heroPill} bg-on-accent text-accent hover:opacity-90`}>
+              <Link to="/people" className={`${heroPill} bg-on-accent text-accent hover:opacity-90 dark:bg-accent dark:text-on-accent`}>
                 {people.data.subjects.length === 0 ? 'Agregar persona' : 'Ir a personas'}
               </Link>
             </div>

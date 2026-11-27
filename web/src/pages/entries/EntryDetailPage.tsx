@@ -174,7 +174,7 @@ function VersionItem({
         <p className="font-semibold">
           Versión {version.versionNumber} · {changeTypeLabels[version.changeType]}
         </p>
-        {isCurrent ? <span className="text-sm font-semibold text-primary">Actual</span> : null}
+        {isCurrent ? <span className="text-sm font-semibold text-primary-fg">Actual</span> : null}
       </div>
       <p className="text-sm text-muted">
         {version.declaredBy.name} · <time dateTime={version.declaredAt}>{formatDateTime(version.declaredAt)}</time>

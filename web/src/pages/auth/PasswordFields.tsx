@@ -37,7 +37,7 @@ export function PasswordInput({
           onClick={onToggle}
           aria-pressed={shown}
           aria-label={shown ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-          className={`absolute inset-y-1 right-1 rounded-lg px-3 text-sm font-semibold text-primary ${focusRing}`}
+          className={`absolute inset-y-1 right-1 rounded-lg px-3 text-sm font-semibold text-primary-fg ${focusRing}`}
         >
           {shown ? 'Ocultar' : 'Mostrar'}
         </button>
