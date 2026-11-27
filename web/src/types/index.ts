@@ -348,6 +348,7 @@ export interface UserProfile {
   role: string
   gender?: Gender | null
   createdAt: string
+  birthDate?: string | null
 }
 
 // ---- Documentos ----

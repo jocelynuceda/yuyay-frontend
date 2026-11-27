@@ -106,7 +106,7 @@ function backend() {
   const auth = () => {
     tokens += 1
     return { accessToken: `A${tokens}`, refreshToken: `R${tokens}`, tokenType: 'Bearer', expiresInSeconds: 3600,
-      user: { id: db.me.id, name: db.me.name, email: db.me.email } }
+      user: db.me }
   }
   const adapter = async (config: any) => {
     const url: string = config.url.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api\/v1/, '')
@@ -150,7 +150,7 @@ function backend() {
     }
     if (url === '/users/me' && method === 'GET') return ok(config, db.me)
     if (url === '/users/me' && method === 'PATCH') {
-      db.me = { ...db.me, name: body.name }
+      db.me = { ...db.me, name: body.name, ...(body.gender ? { gender: body.gender } : {}), ...(Object.hasOwn(body, 'birthDate') ? { birthDate: body.birthDate } : {}) } as typeof db.me
       return ok(config, db.me)
     }
     if (url === '/care-subjects') return ok(config, db.subjects)
@@ -249,9 +249,9 @@ function backend() {
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 async function waitFor(condition: () => boolean, message: string, timeoutMs = 3000) {
-  const start = Date.now()
+  const start = performance.now()
   while (!condition()) {
-    if (Date.now() - start > timeoutMs) throw new Error(`No se cumplió a tiempo: ${message} (ruta: ${pathname()}${search()})`)
+    if (performance.now() - start > timeoutMs) throw new Error(`No se cumplió a tiempo: ${message} (ruta: ${pathname()}${search()})`)
     await act(async () => { await wait(10) })
   }
 }
@@ -847,13 +847,34 @@ test('Inicio sin sesión: muestra la landing con accesos a crear cuenta e inicia
   t.after(unmount)
   await waitFor(() => !!document.querySelector('h1'), 'título de la landing')
   assert.equal(pathname(), '/', 'se queda en el inicio, sin redirigir al login')
-  assert.match(document.querySelector('h1')?.textContent ?? '', /memoria de salud/)
+  assert.match(document.querySelector('h1')?.textContent ?? '', /La salud de tu familia, en un solo lugar/)
   assert.ok(document.querySelector('header a[href="/register"]'), 'botón Crear cuenta en la barra')
   assert.ok(document.querySelector('header a[href="/login"]'), 'Iniciar sesión en la barra')
-  for (const id of ['que-es', 'que-hace', 'por-que', 'equipo']) {
+  for (const id of ['que-es', 'como-funciona', 'producto', 'funcionalidades', 'por-que', 'privacidad', 'preguntas', 'nosotros']) {
     assert.ok(document.getElementById(id), `sección #${id}`)
-    assert.ok(document.querySelector(`a[href="#${id}"]`), `enlace a #${id}`)
   }
+  for (const id of ['que-es', 'como-funciona', 'funcionalidades', 'privacidad', 'nosotros']) {
+    assert.ok(document.querySelector(`header a[href="#${id}"]`), `enlace a #${id} en el menú`)
+  }
+  assert.ok(byText('button', /términos de uso y el aviso de privacidad/i), 'acceso a los términos')
+  assert.equal(document.querySelectorAll('details').length, 8, 'preguntas frecuentes')
+})
+
+test('Landing: permite recorrer la demo con el teclado', async (t) => {
+  const { unmount } = await mountApp('/', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!document.querySelector('[role="tablist"]'), 'pestañas de la demo')
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tablist"] [role="tab"]')]
+  assert.equal(tabs.length, 6)
+  tabs[0].focus()
+  await act(async () => {
+    tabs[0].dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+  })
+  assert.equal(document.activeElement, tabs[1])
+  assert.equal(tabs[1].getAttribute('aria-selected'), 'true')
+  const panel = document.querySelector('[role="tabpanel"]')
+  assert.equal(panel?.getAttribute('aria-labelledby'), tabs[1].id)
+  assert.match(panel?.textContent ?? '', /Medicación/)
 })
 
 test('Landing: Escape cierra el menú de secciones y devuelve el foco al botón', async (t) => {
@@ -970,6 +991,51 @@ test('Avisos: enlaza la invitación pendiente y el nuevo cuidador, y omite enlac
 
   await click(invitation, 'Ver invitación')
   await waitFor(() => pathname() === '/invitations/7' && /Lucía/.test(text()), 'abrir la invitación')
+})
+
+test('Perfil: la fecha de nacimiento muestra la edad y el avatar automático sigue la edad y el género', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 1, 10, 12) })
+  const { b, unmount } = await mountApp('/profile', { loggedIn: true })
+  let unmountCurrent = unmount
+  t.after(() => unmountCurrent())
+  const reopenProfile = async (profile = b.db.me) => {
+    await unmountCurrent()
+    unmountCurrent = async () => {}
+    const reloaded = await mountApp('/profile', { loggedIn: true, seed: (db) => { db.me = profile } })
+    unmountCurrent = reloaded.unmount
+    await waitFor(() => reloaded.b.calls.includes('GET /users/me'), 'GET del perfil recargado')
+    return reloaded.b
+  }
+  await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'sin edad todavía')
+  // Nació el 5 de enero de hace 70 años: el calendario propio se abre y se elige año, mes y día
+  const year = new Date().getFullYear() - 70
+  const iso = `${year}-01-05`
+  await click(document.getElementById('profile-birthDate'), 'calendario de la fecha de nacimiento')
+  for (const [name, value] of [['Año', String(year)], ['Mes', '0']]) {
+    const select = document.querySelector<HTMLSelectElement>(`select[aria-label="${name}"]`)!
+    await act(async () => { select.value = value; select.dispatchEvent(new window.Event('change', { bubbles: true })) })
+  }
+  await click(document.querySelector(`button[aria-label="5 de enero de ${year}"]`), 'el día 5')
+  await click(document.querySelector('form input[value="FEMALE"]'), 'Mujer')
+  await click(document.querySelector('form button[type="submit"]'), 'Guardar')
+  await waitFor(() => (b.db.me as { birthDate?: string }).birthDate === iso, 'PATCH con la fecha')
+  const reopenedBackend = await reopenProfile()
+  await waitFor(() => /70 años/.test(text()), 'edad en el perfil recargado')
+  await click(document.querySelector('button[aria-label="Cambiar avatar"]'), 'Cambiar avatar')
+  const automaticImage = () => byText('button[role="radio"]', /^Automático/)?.querySelector('img')?.getAttribute('src')
+  await waitFor(() => automaticImage() === '/lions/elder-lioness-face.png', 'automático: leona abuela')
+  await click(document.querySelector('dialog[open] button[aria-label="Cerrar"]'), 'Cerrar selector')
+
+  await click(document.getElementById('profile-birthDate'), 'calendario de la fecha de nacimiento')
+  await click(byText('button', 'Borrar fecha'), 'Borrar fecha')
+  await click(document.querySelector('form button[type="submit"]'), 'Guardar sin fecha')
+  await waitFor(() => (reopenedBackend.db.me as { birthDate?: string | null }).birthDate === null, 'PATCH con fecha nula')
+  await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'perfil sin edad')
+
+  await reopenProfile(reopenedBackend.db.me)
+  await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'perfil recargado sin edad')
+  await click(document.querySelector('button[aria-label="Cambiar avatar"]'), 'Cambiar avatar')
+  await waitFor(() => automaticImage() === '/lions/adult-lioness-face.png', 'automático: leona sin edad')
 })
 
 test('Perfil: Notas de voz muestra audios sin mezclar documentos y conserva los filtros al navegar', async (t) => {

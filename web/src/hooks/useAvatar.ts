@@ -63,7 +63,7 @@ export function useAvatar(target: AvatarTarget) {
   const key = target.type === 'me' ? `${user?.id ?? 0}:me` : `${user?.id ?? 0}:subject:${target.id}`
   const stored = useSyncExternalStore(subscribe, () => readAll()[key] ?? null, () => null)
   const automatic =
-    target.type === 'me' ? defaultAvatar(30, undefined, user?.gender) : defaultAvatar(ageFrom(target.birthDate), target.id, target.gender)
+    target.type === 'me' ? defaultAvatar(ageFrom(user?.birthDate), undefined, user?.gender) : defaultAvatar(ageFrom(target.birthDate), target.id, target.gender)
   const chosen = parseAvatarId(stored)
   const setAvatar = useCallback((choice: AvatarChoice | null) => save(key, choice ? avatarId(choice) : null), [key])
   return { avatar: chosen ?? automatic, automatic, isCustom: chosen !== null, setAvatar }
