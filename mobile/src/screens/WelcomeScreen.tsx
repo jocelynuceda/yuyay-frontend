@@ -1,3 +1,4 @@
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
@@ -8,7 +9,7 @@ import { AppearancePicker } from '../components/AppearancePicker';
 import { Logo } from '../components/Logo';
 import { useAccountTerms } from '../hooks/useAccountTerms';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { AuthStackParamList } from '../types';
+import type { AuthStackParamList, RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -94,6 +95,7 @@ function Question({ title, answer }: { title: string; answer: string }) {
 export function WelcomeScreen({ navigation }: Props) {
   const styles = useStyles();
   const terms = useAccountTerms();
+  const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
   const login = () => navigation.navigate('Login');
   const register = () => navigation.navigate('Register');
 
@@ -110,9 +112,14 @@ export function WelcomeScreen({ navigation }: Props) {
           <Text style={styles.eyebrow}>Yuyay · «recordar» en quechua</Text>
           <Text accessibilityRole="header" style={styles.title}>La salud de tu familia, en un solo lugar.</Text>
           <Text style={styles.body}>Organiza medicamentos, recetas y citas. Comparte el cuidado con tu familia y llega preparado a cada consulta.</Text>
-          <Pressable accessibilityRole="button" onPress={register} style={styles.primary}>
-            <Text style={styles.primaryText}>Crear cuenta</Text>
-          </Pressable>
+          <View style={styles.heroActions}>
+            <Pressable accessibilityRole="button" onPress={register} style={styles.primary}>
+              <Text style={styles.primaryText}>Crear cuenta</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => rootNavigation.navigate('Delegate')} style={styles.topAction}>
+              <Text style={styles.optionText}>Tengo un código</Text>
+            </Pressable>
+          </View>
           <Image
             source={require('../../assets/landing/abuelo-hija.webp')}
             accessible
@@ -182,6 +189,7 @@ const useStyles = makeStyles(({ colors }) => ({
   optionActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   optionText: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 15 },
   card: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, padding: 16, gap: 10 },
+  heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitle: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 16, flexShrink: 1 },
   example: { backgroundColor: colors.soft, padding: 12, borderRadius: 14, gap: 4 },

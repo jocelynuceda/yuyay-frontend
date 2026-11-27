@@ -63,7 +63,7 @@ function HeroVisual() {
         <Illustration
           image={art.abueloHija}
           eager
-          alt="Ilustración: un adulto mayor sonríe junto a su hija, que lo acompaña."
+          alt="Una mujer mayor sonríe junto a su hija."
           className="relative mx-auto max-w-md px-6 pt-6"
         />
       </div>
@@ -107,7 +107,7 @@ function HeroVisual() {
 }
 
 function Hero() {
-  const trust = ['Sin anuncios', 'El médico no necesita una cuenta', 'Tú decides qué compartir']
+  const trust = ['El médico no necesita una cuenta', 'Tú decides qué compartir']
   return (
     <section id="que-es" aria-labelledby="hero-titulo" className="landing-section band-light -mt-14 overflow-hidden pt-[calc(var(--landing-section-y)+3.5rem)]">
       <div className="landing-container grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
@@ -123,7 +123,7 @@ function Hero() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link to="/register" className={linkButtonClass}>
-              Comenzar gratis
+              Crear cuenta
               <Icon name="chevron-right" />
             </Link>
             <a href="#como-funciona" className={linkSecondaryClass}>
@@ -415,7 +415,7 @@ function Closing() {
         <p className="landing-lead mt-4">Tu información de salud organizada, disponible y lista para compartir.</p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Link to="/register" className={linkButtonClass}>
-            Crear cuenta gratis
+            Crear cuenta
             <Icon name="chevron-right" />
           </Link>
           <Link to="/login" className={cx('inline-flex min-h-12 items-center rounded-full px-5 font-semibold underline underline-offset-4', focusRing)}>

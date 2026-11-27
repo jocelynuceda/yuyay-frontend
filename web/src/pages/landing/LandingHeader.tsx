@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ThemeToggle } from '../../components/layout/ThemeToggle'
-import { Logo } from '../../components/ui/Brand'
+import { Isotipo, Logo } from '../../components/ui/Brand'
 import { cx } from '../../components/ui/cx'
 import { Icon } from '../../components/ui/Icon'
 import { focusRing, linkButtonClass } from '../../utils/styles'
@@ -71,9 +71,10 @@ export function LandingHeader() {
         scrolled || open ? 'border-line bg-surface/85 backdrop-blur-md' : 'border-transparent bg-transparent',
       )}
     >
-      <div className="landing-container flex h-14 items-center gap-3 px-4 sm:px-6">
-        <Link to="/" aria-label="Yuyay, inicio" className={`rounded-xl ${focusRing}`}>
-          <Logo />
+      <div className="landing-container flex h-14 items-center gap-2 px-3 sm:gap-3 sm:px-6">
+        <Link to="/" aria-label="Yuyay, inicio" className={`shrink-0 rounded-xl ${focusRing}`}>
+          <Isotipo className="min-[380px]:hidden" />
+          <span className="hidden min-[380px]:inline-flex"><Logo /></span>
         </Link>
 
         <nav aria-label="Secciones" className="mx-auto hidden lg:block">
@@ -96,12 +97,12 @@ export function LandingHeader() {
           </ul>
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+        <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
           <ThemeToggle />
           <Link to="/login" className={`hidden sm:inline-flex ${navLink} text-ink`}>
             Iniciar sesión
           </Link>
-          <Link to="/register" className={`${linkButtonClass} whitespace-nowrap px-4! py-2! text-sm`}>
+          <Link to="/register" className={`${linkButtonClass} whitespace-nowrap px-3! py-2! text-sm sm:px-4!`}>
             Crear cuenta
           </Link>
           <button
