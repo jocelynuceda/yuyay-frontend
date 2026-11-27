@@ -7,24 +7,30 @@ import { LoadError } from '../../components/layout/LoadError'
 import { Pagination } from '../../components/ui/Pagination'
 import { useFetch } from '../../hooks/useFetch'
 
-/**
- * Pestaña "Registros" del detalle de persona: listado paginado del backend, con filtro por
- * categoría y tamaño de página en la URL (?category=ALLERGY&page=2&size=25).
- * Tabla en escritorio y tarjetas en el celular.
- */
-export function EntriesPanel({
-  subjectId,
-  params,
-  onParamsChange,
-  onOpenEntry,
-  onNewEntry,
-}: {
+interface EntriesPanelProps {
   subjectId: number
   params: EntriesParams
   onParamsChange: (params: EntriesParams) => void
   onOpenEntry: (entry: HealthEntry) => void
   onNewEntry?: (category: CategoryCode | null) => void
-}) {
+  headingLevel?: 1 | 2
+}
+
+/** Cada consulta monta su propia carga: ninguna fila ni error de otra página o persona se conserva. */
+export function EntriesPanel(props: EntriesPanelProps) {
+  const { subjectId, params: { category, page, size } } = props
+  return <EntriesResults key={`${subjectId}:${category ?? 'ALL'}:${page}:${size}`} {...props} />
+}
+
+/** Listado paginado del backend: tabla en escritorio y tarjetas en el celular. */
+function EntriesResults({
+  subjectId,
+  params,
+  onParamsChange,
+  onOpenEntry,
+  onNewEntry,
+  headingLevel = 2,
+}: EntriesPanelProps) {
   const { category, page, size } = params
   const { data: result, error, errorStatus, loading, reload } = useFetch(
     (signal) => listHealthEntries(subjectId, { category: category ?? undefined, page: page - 1, size, sort: 'createdAt,desc' }, signal),
@@ -34,19 +40,21 @@ export function EntriesPanel({
   const setFilter = (changes: Partial<EntriesParams>) => onParamsChange({ ...params, ...changes, page: 1 })
 
   const totalPages = result?.totalPages ?? 0
-  const outOfRange = result !== null && totalPages > 0 && page > totalPages
+  const outOfRange = result !== null && page > Math.max(1, totalPages)
+  const Heading = headingLevel === 1 ? 'h1' : 'h2'
+  const visibleResult = !loading && !error ? result : null
 
   return (
     <section aria-labelledby="entries-title" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="entries-title" className="text-2xl font-semibold">
-          Registros
-        </h2>
+        <Heading id="entries-title" className={`${headingLevel === 1 ? 'text-3xl' : 'text-2xl'} font-semibold`}>
+          {category ? categoryLabels[category].plural : 'Todos los registros'}
+        </Heading>
         {onNewEntry ? (
           <button
             type="button"
             onClick={() => onNewEntry(category)}
-            className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
+            className={`control-interactive rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
           >
             Nuevo registro
           </button>
@@ -74,11 +82,11 @@ export function EntriesPanel({
         </nav>
       </div>
 
-      {loading && !result ? <p className="text-muted">Cargando registros…</p> : null}
+      {loading ? <p role="status" className="text-muted">Cargando registros…</p> : null}
       {error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : null}
 
-      {result ? (
-        result.content.length === 0 ? (
+      {visibleResult ? (
+        visibleResult.content.length === 0 ? (
           <div className="rounded-2xl bg-card p-6 text-muted">
             {outOfRange ? (
               <>
@@ -99,17 +107,17 @@ export function EntriesPanel({
           </div>
         ) : (
           <>
-            <EntriesTable entries={result.content} onOpen={onOpenEntry} />
-            <EntriesCards entries={result.content} onOpen={onOpenEntry} />
+            <EntriesTable entries={visibleResult.content} onOpen={onOpenEntry} />
+            <EntriesCards entries={visibleResult.content} onOpen={onOpenEntry} />
           </>
         )
       ) : null}
 
-      {result && result.totalElements > 0 && !outOfRange ? (
+      {visibleResult && visibleResult.totalElements > 0 && !outOfRange ? (
         <Pagination
           page={page}
           totalPages={totalPages}
-          totalElements={result.totalElements}
+          totalElements={visibleResult.totalElements}
           size={size}
           onPageChange={(p) => onParamsChange({ ...params, page: p })}
           onSizeChange={(n) => setFilter({ size: n })}

@@ -1,53 +1,63 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { ScrollView, Text } from 'react-native';
+import { DurationField } from '../components/DurationField';
 import { ChoiceChips, FormCard, formStyles, SubmitButton } from '../components/FormKit';
-import { DateField, parseDateParts } from '../components/DateField';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
-import { createDelegation, getHealthCategories } from '../services/api';
+import { createDelegation, getHealthEntriesPage, getConsultations } from '../services/api';
 import { API_URL, ApiError } from '../services/http';
 import { fonts, makeStyles } from '../theme';
 import type { DelegationCreated, HomeStackParamList } from '../types';
+import { defaultDelegationDuration, delegationExpiry } from '../utils/accessDurations';
 import { categoryMeta } from '../utils/categories';
 import { shareText } from '../utils/confirm';
-import { oneYearFrom } from '../utils/dates';
-import { formatDate, isEmail, todayIso } from '../utils/format';
+import { formatDateTime, isEmail } from '../utils/format';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewDelegation'>;
-
 
 /** Las citas se eligen junto a las categorías, pero no son una categoría de salud. */
 const CONSULTATIONS = 'CONSULTATIONS';
 
-export function NewDelegationScreen({ route, navigation }: Props) {
+export function NewDelegationScreen(props: Props) {
+  return <DelegationEditor key={props.route.params.subjectId} {...props} />;
+}
+
+function DelegationEditor({ route, navigation }: Props) {
   const styles = useStyles();
   const { subjectId } = route.params;
-  const categories = useFetch(getHealthCategories);
+  const categories = useFetch(async () => {
+    const knownCodes = Object.keys(categoryMeta);
+    const [pages, consultations] = await Promise.all([
+      Promise.all(knownCodes.map(code => getHealthEntriesPage(subjectId, 0, code, 1))),
+      getConsultations(subjectId),
+    ]);
+    const options = knownCodes.filter((_, i) => (Array.isArray(pages[i]) ? pages[i] : pages[i].content).length > 0)
+      .map(code => ({ value: code, label: categoryMeta[code].plural }));
+    if (consultations.length) options.push({ value: CONSULTATIONS, label: 'Citas' });
+    return options;
+  }, [subjectId]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [codes, setCodes] = useState<string[]>([]);
-  const [dateParts, setDateParts] = useState({ day: '', month: '', year: '' });
+  const [duration, setDuration] = useState(defaultDelegationDuration);
   const [submitted, setSubmitted] = useState(false);
+  const [durationEdited, setDurationEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<DelegationCreated | null>(null);
 
-  const today = todayIso();
-  // Desde hoy y hasta un año después, igual que en la web
-  const dateRules = { allowFuture: true, notBefore: today, notAfter: oneYearFrom(today) };
-  const date = parseDateParts(dateParts, dateRules);
-  const { year, month, day } = dateParts;
-  const dateError = !dateParts.day && !dateParts.month && !dateParts.year ? 'Elige hasta cuándo.' : date.error;
+  const preview = delegationExpiry(duration);
   const errors = {
-    name: !name.trim() ? 'Ingresa su nombre.' : undefined,
+    name: !name.trim() ? 'Introduce tu nombre' : undefined,
     email: !isEmail(email) ? 'Ingresa un correo válido.' : undefined,
     codes: codes.length === 0 ? 'Elige al menos una opción.' : undefined,
-    date: dateError,
   };
+
+  const available = !!categories.data?.length && !categories.loading && !categories.error;
 
   function toggleCode(code: string) {
     setCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
@@ -55,7 +65,8 @@ export function NewDelegationScreen({ route, navigation }: Props) {
 
   async function handleSave() {
     setSubmitted(true);
-    if (Object.values(errors).some(Boolean)) return;
+    const { validUntil } = delegationExpiry(duration);
+    if (saving || !available || Object.values(errors).some(Boolean) || !validUntil) return;
     setSaving(true);
     setError(null);
     try {
@@ -64,8 +75,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
         granteeEmail: email.trim(),
         categoryCodes: codes.filter((code) => code !== CONSULTATIONS),
         includeConsultations: codes.includes(CONSULTATIONS),
-        // Vale hasta el final del día elegido, en hora local
-        validUntil: new Date(Number(year), Number(month) - 1, Number(day), 23, 59, 59).toISOString(),
+        validUntil,
       });
       setCreated(res);
     } catch (e) {
@@ -83,12 +93,14 @@ export function NewDelegationScreen({ route, navigation }: Props) {
   if (created) {
     // En desarrollo el backend no conoce la IP de la computadora: el enlace pasa por Metro, igual que la API
     const link = __DEV__ ? `${API_URL}/access/${created.token}` : created.shareLink;
-    const shareMessage = `${created.delegation.granteeName}, te compartieron información de salud en Yuyay hasta el ${formatDate(created.delegation.validUntil)}. Ábrela aquí, sin crear cuenta: ${link}\n\nSi usas la app: en el inicio de sesión toca "Tengo un código" (si ya tienes sesión: Perfil, "Tengo un código de acceso") y pega este código: ${created.token}`;
+    const expires = formatDateTime(created.delegation.validUntil);
+    const shareMessage = `${created.delegation.granteeName}, te compartieron información de salud en Yuyay hasta el ${expires}. Ábrela aquí, sin crear cuenta: ${link}\n\nSi usas la app: en el inicio de sesión toca "Tengo un código" (si ya tienes sesión: Perfil, "Tengo un código de acceso") y pega este código: ${created.token}`;
     return (
       <ScrollView contentContainerStyle={formStyles.container}>
         <StatusMessage tone="info" message={`Listo. Ahora compártele el enlace a ${created.delegation.granteeName}.`} />
         <FormCard title="Enlace de acceso">
           <Text style={styles.help}>Lo abre en su navegador, sin crear una cuenta.</Text>
+          <Text style={styles.help}>Vence el {expires}.</Text>
           <Text selectable style={styles.value}>
             {link}
           </Text>
@@ -116,9 +128,13 @@ export function NewDelegationScreen({ route, navigation }: Props) {
       <FormCard title="¿A quién le das acceso?">
         <FormField
           label="Nombre"
+          placeholder="Dr. Pedro Ramos"
           icon="account-outline"
           value={name}
-          onChangeText={setName}
+          onChangeText={(value) => {
+            setName(value);
+            setFieldErrors(({ granteeName: _granteeName, ...rest }) => rest);
+          }}
           maxLength={120}
           error={(submitted ? errors.name : undefined) ?? fieldErrors.granteeName}
         />
@@ -136,12 +152,29 @@ export function NewDelegationScreen({ route, navigation }: Props) {
         />
       </FormCard>
 
+      <FormCard title="¿Hasta cuándo?">
+        <DurationField
+          label="El acceso vence en"
+          value={duration}
+          onChange={(value) => {
+            setDuration(value);
+            setDurationEdited(true);
+            setFieldErrors(({ validUntil: _validUntil, ...rest }) => rest);
+          }}
+          hint={preview.validUntil ? `Vence aproximadamente el ${formatDateTime(preview.validUntil)}. Máximo: 365 días.` : 'El tiempo comienza al crear el acceso. Máximo: 365 días.'}
+          error={(submitted || durationEdited ? preview.error : undefined) ?? fieldErrors.validUntil}
+          disabled={saving}
+        />
+      </FormCard>
+
       <FormCard title="¿Qué podrá ver?">
+        {categories.error ? <>
+          <StatusMessage message={categories.error} />
+          <SubmitButton label="Reintentar" onPress={categories.reload} />
+        </> : categories.loading ? <Text style={styles.help}>Cargando opciones…</Text> :
+          !available ? <Text style={styles.help}>Aún no hay registros ni citas para compartir.</Text> : null}
         <ChoiceChips
-          options={[
-            ...(categories.data ?? []).map((c) => ({ value: c.code, label: categoryMeta[c.code]?.plural ?? c.name })),
-            { value: CONSULTATIONS, label: 'Citas' },
-          ]}
+          options={categories.data ?? []}
           selected={codes}
           onToggle={toggleCode}
         />
@@ -151,19 +184,7 @@ export function NewDelegationScreen({ route, navigation }: Props) {
         {submitted && errors.codes ? <Text style={formStyles.error}>{errors.codes}</Text> : null}
       </FormCard>
 
-      <FormCard title="¿Hasta cuándo?">
-        <DateField
-          label="Último día de acceso"
-          onChange={(p) => {
-            setDateParts(p);
-            setFieldErrors(({ validUntil: _validUntil, ...rest }) => rest);
-          }}
-          rules={dateRules}
-          error={(submitted ? errors.date : undefined) ?? fieldErrors.validUntil}
-        />
-      </FormCard>
-
-      <SubmitButton label="Crear acceso" icon="key" onPress={handleSave} loading={saving} />
+      <SubmitButton label="Crear acceso" icon="key" onPress={handleSave} loading={saving} disabled={!available} />
     </FormScroll>
   );
 }

@@ -186,12 +186,14 @@ function ReviewForm({
     <>
       <FormCard title="Texto leído">
         <Text style={styles.help}>Compara el texto con el documento y corrige los errores antes de continuar.</Text>
+        <Text style={styles.help}>El texto revisado se guardará en los detalles del registro y podrá incluirse en el resumen para la consulta.</Text>
+        {!value.trim() ? <Text style={styles.help}>No hay texto para revisar. Puedes escribirlo aquí o continuar para crear el registro manualmente.</Text> : null}
         <TextArea
           accessibilityLabel="Texto leído"
           value={value}
           onChangeText={setValue}
           placeholder="No encontramos texto en este documento."
-          maxLength={5000}
+          maxLength={null}
           autoCorrect={false}
           spellCheck={false}
           style={styles.editor}
@@ -251,7 +253,7 @@ function ReviewForm({
           })}
         </FormCard>
       ) : null}
-      <SubmitButton label="Continuar al registro" icon="arrow-right" onPress={() => onConfirm(value, suggestion)} />
+      <SubmitButton label={value.trim() ? 'Continuar al registro' : 'Escribir el registro'} icon="arrow-right" onPress={() => onConfirm(value, suggestion)} />
     </>
   );
 }

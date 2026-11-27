@@ -65,7 +65,7 @@ export function FormActions({
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          className={`rounded-full border border-line px-6 py-2.5 font-semibold ${focusRing}`}
+          className={`control-interactive rounded-full border border-line px-6 py-2.5 font-semibold ${focusRing}`}
         >
           Cancelar
         </button>
@@ -74,7 +74,7 @@ export function FormActions({
         type="submit"
         disabled={submitting || submitDisabled}
         aria-busy={submitting}
-        className={`rounded-full bg-primary px-6 py-2.5 font-semibold text-white shadow-[var(--shadow-soft)] disabled:opacity-60 ${focusRing}`}
+        className={`control-interactive rounded-full bg-primary px-6 py-2.5 font-semibold text-white shadow-[var(--shadow-soft)] disabled:opacity-60 ${focusRing}`}
       >
         {submitting ? submittingLabel : submitLabel}
       </button>

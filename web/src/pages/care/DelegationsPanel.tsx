@@ -19,7 +19,7 @@ function delegationStatus(d: Delegation) {
 /**
  * Accesos delegados de una persona: crear (solo principal), copiar el enlace y revocar con confirmación.
  */
-export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number; isPrincipal: boolean }) {
+export function DelegationsPanel({ subjectId, subjectName, isPrincipal }: { subjectId: number; subjectName: string; isPrincipal: boolean }) {
   const { data, error, errorStatus, reload } = useFetch((signal) => listDelegations(subjectId, signal), [subjectId])
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<DelegationCreated | null>(null)
@@ -54,6 +54,8 @@ export function DelegationsPanel({ subjectId, isPrincipal }: { subjectId: number
 
       {creating ? (
         <DelegationForm
+          key={subjectId}
+          subjectName={subjectName}
           subjectId={subjectId}
           onCancel={() => setCreating(false)}
           onSaved={(result) => {
@@ -125,6 +127,7 @@ function ShareDelegation({ created, onClose }: { created: DelegationCreated; onC
       <h3 id="share-delegation-title" className="text-xl font-semibold">
         Acceso creado para {created.delegation.granteeName}
       </h3>
+      <p className="text-sm text-muted">Vence el {formatDateTime(created.delegation.validUntil)}.</p>
       <p className="text-muted">
         También se envía por correo a {created.delegation.granteeEmail}. Si quieres compartirlo por otro medio, cópialo
         ahora: por seguridad no se vuelve a mostrar. Solo se puede abrir una vez y el acceso se cierra cuando la persona

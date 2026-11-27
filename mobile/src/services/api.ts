@@ -2,6 +2,7 @@ import type { ConsultationPreparation, ConfirmPreparation } from '../types/consu
 import { Platform } from 'react-native';
 import { API_URL, CLIENT_HEADERS, http, session } from './http';
 import { attachmentUploadOptions } from './attachmentUpload';
+import { createHandoffAccessApi } from './security/handoffAccessCodeApi';
 import { collectPages, type Page } from './pagination';
 import type { TermsAcceptance } from '../types/terms';
 import type {
@@ -22,7 +23,6 @@ import type {
   HandoffDetail,
   HandoffInput,
   HandoffSession,
-  HandoffSessionCreated,
   HealthCategory,
   HealthEntry,
   HealthEntryInput,
@@ -122,9 +122,9 @@ export const acceptInvitation = (relationshipId: number) =>
 
 export const getHealthCategories = () => http.get<HealthCategory[]>('/health-categories').then((r) => r.data);
 
-export const getHealthEntriesPage = (subjectId: number, page = 0, category?: string) =>
+export const getHealthEntriesPage = (subjectId: number, page = 0, category?: string, size = 100) =>
   http.get<Page<HealthEntry> | HealthEntry[]>(`/care-subjects/${subjectId}/health-entries`, {
-    params: { page, size: 100, category, sort: 'createdAt,desc' },
+    params: { page, size, category, sort: 'createdAt,desc' },
   }).then((r) => r.data);
 
 export const getHealthEntries = (subjectId: number, category?: string) =>
@@ -164,10 +164,9 @@ export const deleteHandoff = (handoffId: number) => http.delete(`/handoffs/${han
 export const getHandoffSessions = (handoffId: number) =>
   http.get<HandoffSession[]>(`/handoffs/${handoffId}/sessions`).then((r) => r.data);
 
-export const createHandoffSession = (handoffId: number, expiresInHours: number, sessionWindowMinutes: number) =>
-  http
-    .post<HandoffSessionCreated>(`/handoffs/${handoffId}/sessions`, { expiresInHours, sessionWindowMinutes })
-    .then((r) => r.data);
+const handoffAccessApi = createHandoffAccessApi(http);
+export const createHandoffSession = handoffAccessApi.createSession;
+export const getHandoffAccessCode = handoffAccessApi.getCode;
 
 export const revokeHandoffSession = (sessionId: number) => http.delete(`/handoff-sessions/${sessionId}`);
 

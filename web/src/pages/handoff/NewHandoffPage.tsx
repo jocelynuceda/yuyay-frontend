@@ -8,7 +8,7 @@ import { createHandoff } from '../../services/api/handoffs'
 import { listHealthEntries } from '../../services/api/healthEntries'
 import { CATEGORY_CODES, type ErrorResponse, type HandoffDetail, type HealthEntry } from '../../types'
 import { applyServerErrors, getErrorMessage } from '../../utils/apiErrors'
-import { categoryLabels, confidenceLabels } from '../../utils/format'
+import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
 import { collectPages } from '../../utils/pagination'
 import { focusRing } from '../../utils/styles'
 import { a11yProps } from '../forms/fieldProps'
@@ -30,6 +30,8 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
   const [step, setStep] = useState(0)
   const [created, setCreated] = useState<HandoffDetail | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
+  const [needsReview, setNeedsReview] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const {
     register,
     handleSubmit,
@@ -37,6 +39,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
     setError,
     trigger,
     control,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<HandoffFormValues, unknown, z.output<typeof handoffSchema>>({
     resolver: zodResolver(handoffSchema),
@@ -47,22 +50,37 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
   useEffect(() => {
     let active = true
     collectPages((page) => listHealthEntries(subjectId, { page, size: 100, sort: 'createdAt,desc' }))
-      .then((entries) => active && setLoaded({ status: 'ready', entries: entries.filter((e) => !e.deletedAt) }))
+      .then((entries) => {
+        if (!active) return
+        const available = entries.filter((e) => !e.deletedAt)
+        setLoaded({ status: 'ready', entries: available })
+        setValue('healthEntryIds', getValues('healthEntryIds').filter((id) => available.some((e) => e.id === id)))
+        setNeedsReview(false)
+      })
       .catch((error) => active && setLoaded({ status: 'error', message: getErrorMessage(error) }))
     return () => {
       active = false
     }
-  }, [subjectId])
+  }, [subjectId, reloadKey, getValues, setValue])
 
   async function next() {
     if (await trigger(handoffStepFields[step])) setStep((s) => s + 1)
   }
 
   const onSubmit = handleSubmit(async (values) => {
+    if (needsReview || loaded.status !== 'ready') return
     setServerError(null)
     try {
-      setCreated(await createHandoff(subjectId, values))
+      const expectedVersionIds = Object.fromEntries(
+        loaded.entries.filter((e) => values.healthEntryIds.includes(e.id)).map((e) => [e.id, e.latestVersion.id]),
+      )
+      setCreated(await createHandoff(subjectId, { ...values, expectedVersionIds }))
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        setNeedsReview(true)
+        setServerError('Un registro cambió mientras preparabas el resumen. Actualiza los registros y revisa el contenido antes de crearlo.')
+        return
+      }
       setServerError(applyServerErrors(error, setError, handoffFields))
       // Si el backend marca un campo, volver al paso donde está
       const failed = axios.isAxiosError<ErrorResponse>(error) ? (error.response?.data?.fieldErrors ?? []) : []
@@ -75,16 +93,20 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
   if (loaded.status === 'loading') return <p className="p-6 text-muted">Cargando registros…</p>
   if (loaded.status === 'error') {
     return (
-      <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">
-        {loaded.message}
-      </p>
+      <div className="grid gap-3">
+        <p role="alert" className="rounded-2xl bg-danger-bg p-6 text-danger">{loaded.message}</p>
+        <button type="button" className={`justify-self-start font-semibold text-primary-fg underline ${focusRing}`}
+          onClick={() => { setLoaded({ status: 'loading' }); setReloadKey((key) => key + 1) }}>
+          Reintentar carga de registros
+        </button>
+      </div>
     )
   }
 
   return (
     <div className="grid gap-6">
       <header>
-        <h1 className="text-3xl font-semibold">Nuevo resumen para el médico</h1>
+        <h1 className="text-3xl font-semibold">Nuevo resumen</h1>
         {subjectName ? <p className="mt-1 text-muted">{subjectName}</p> : null}
       </header>
 
@@ -92,6 +114,12 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
 
       <form onSubmit={onSubmit} noValidate className="grid gap-6 rounded-3xl bg-card p-6 sm:p-8">
         <ServerError message={serverError} />
+        {needsReview ? (
+          <button type="button" className={`justify-self-start font-semibold text-primary-fg underline ${focusRing}`}
+            onClick={() => { setStep(0); setLoaded({ status: 'loading' }); setReloadKey((key) => key + 1); setServerError(null) }}>
+            Actualizar registros y revisar
+          </button>
+        ) : null}
 
         {step === 0 ? (
           <EntryPicker
@@ -104,6 +132,8 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
 
         {step === 1 ? (
           <>
+            <SelectedContent entries={loaded.entries} control={control} />
+            <p className="text-sm text-muted">El contenido de los registros ya está incluido arriba. Añade el motivo de esta consulta y tus preguntas; no necesitas volver a copiar el texto del documento.</p>
             <Field id="handoff-reason" label="Motivo de la consulta" error={errors.reason}>
               <textarea
                 rows={3}
@@ -141,6 +171,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
               key="next"
               type="button"
               onClick={next}
+              disabled={needsReview}
               className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white ${focusRing}`}
             >
               Siguiente
@@ -149,7 +180,7 @@ export function NewHandoffPage({ subjectId, subjectName }: { subjectId: number; 
             <button
               key="submit"
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || needsReview}
               className={`rounded-xl bg-primary px-5 py-2.5 font-semibold text-white disabled:opacity-60 ${focusRing}`}
             >
               {isSubmitting ? 'Creando…' : 'Crear resumen'}
@@ -297,16 +328,37 @@ function Review({
         <p className="whitespace-pre-line">{questions?.trim() || <span className="text-muted">Sin preguntas</span>}</p>
       </ReviewBlock>
       <ReviewBlock title={`Registros (${chosen.length})`} onEdit={() => onEdit(0)}>
-        <ul className="grid gap-1">
-          {chosen.map((e) => (
-            <li key={e.id}>
-              <span className="text-sm text-muted">{e.categoryName}:</span> {e.latestVersion.title}
-            </li>
-          ))}
-        </ul>
+        <EntryContents entries={chosen} />
       </ReviewBlock>
     </div>
   )
+}
+
+function SelectedContent({ entries, control }: { entries: HealthEntry[]; control: HandoffControl }) {
+  const ids = useWatch({ control, name: 'healthEntryIds' })
+  return (
+    <section className="grid gap-3" aria-label="Contenido incluido en el resumen">
+      <h2 className="text-xl font-semibold">Contenido del resumen</h2>
+      <EntryContents entries={entries.filter((e) => ids.includes(e.id))} />
+    </section>
+  )
+}
+
+function EntryContents({ entries }: { entries: HealthEntry[] }) {
+  return <ul className="grid gap-4">{entries.map((entry) => {
+    const v = entry.latestVersion
+    return <li key={entry.id} className="rounded-xl border border-line p-4">
+      <div className="flex flex-wrap justify-between gap-2">
+        <h3 className="font-semibold">{v.title}</h3>
+        <span className="text-sm text-muted">{confidenceLabels[v.confidenceLevel]}</span>
+      </div>
+      <p className="text-sm text-muted">{entry.categoryName}{v.occurredOn ? ` · ${formatDate(v.occurredOn)}` : ''}</p>
+      {v.dose || v.frequency ? <p className="mt-2">{[v.dose, v.frequency].filter(Boolean).join(' · ')}</p> : null}
+      {v.details ? <p className="mt-3 whitespace-pre-wrap break-words">{v.details}</p> : <p className="mt-3 text-sm text-muted">Este registro no tiene texto en Detalles.</p>}
+      {v.notes ? <p className="mt-2 whitespace-pre-wrap break-words text-muted">{v.notes}</p> : null}
+      {v.sourceAttachmentId ? <p className="mt-3 text-sm text-muted">Incluye el documento original como respaldo para el médico.</p> : null}
+    </li>
+  })}</ul>
 }
 
 function ReviewBlock({ title, onEdit, children }: { title: string; onEdit: () => void; children: ReactNode }) {

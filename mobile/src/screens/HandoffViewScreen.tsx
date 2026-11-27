@@ -3,11 +3,16 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button } from 'react-native-paper';
 import { Badge } from '../components/Badge';
-import { ChoiceChips, FormCard, SubmitButton } from '../components/FormKit';
+import { DurationField } from '../components/DurationField';
+import { DownloadPermission } from '../components/DownloadPermission';
+import { FormCard, SubmitButton } from '../components/FormKit';
+import { FormScroll } from '../components/FormScroll';
 import { IconButton, ListItem } from '../components/ListItem';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
+import { HandoffAccessCode } from '../components/security/HandoffAccessCode';
 import { useAuth } from '../hooks/useAuth';
 import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
@@ -20,22 +25,15 @@ import {
 } from '../services/api';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { HandoffItem, HandoffSession, HomeStackParamList } from '../types';
+import type { HandoffItem, HandoffSession, HandoffSessionCreated, HomeStackParamList } from '../types';
+import { defaultHandoffExpiry, defaultHandoffReading, handoffDurations } from '../utils/accessDurations';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
 import { shareText } from '../utils/confirm';
 import { formatDate } from '../utils/format';
 import { canManageHandoffLinks, handoffLinkState, type HandoffLinkState } from '../utils/handoffLinks';
+import { handoffPublicLink, handoffPublicOrigin } from '../utils/handoffPublicLink';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HandoffView'>;
-
-const expiryOptions = [
-  { value: 2, label: '2 horas' },
-  { value: 24, label: '1 día' },
-  { value: 72, label: '3 días' },
-];
-
-/** Minutos que dura la vista una vez que el médico abre el enlace. */
-const SESSION_WINDOW_MINUTES = 30;
 
 const dateTime = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
@@ -57,8 +55,13 @@ export function HandoffViewScreen({ route, navigation }: Props) {
   const { handoffId, isPrincipal } = route.params;
   const { user } = useAuth();
   const [doctorMode, setDoctorMode] = useState(false);
-  const [expiresIn, setExpiresIn] = useState(24);
+  const [expiry, setExpiry] = useState(defaultHandoffExpiry);
+  const [reading, setReading] = useState(defaultHandoffReading);
+  const [allowDownload, setAllowDownload] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [sharing, setSharing] = useState(false);
+  const [createdLink, setCreatedLink] = useState<{ session: HandoffSessionCreated; url: string } | null>(null);
+  const [accessSessionId, setAccessSessionId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; tone: 'error' | 'info' } | null>(null);
   const runAction = useConfirmedAction((text) => setMessage(text ? { text, tone: 'error' } : null));
   const handoff = useFetch(() => getHandoff(handoffId), [handoffId]);
@@ -78,32 +81,56 @@ export function HandoffViewScreen({ route, navigation }: Props) {
 
   const h = handoff.data;
   const groups = groupByCategory(h.items);
+  const durations = handoffDurations(expiry, reading);
 
   async function handleShare() {
-    setSharing(true);
     setMessage(null);
+    setFieldErrors({});
+    if (!durations.request || sharing) return;
+    setSharing(true);
     try {
-      const s = await createHandoffSession(handoffId, expiresIn, SESSION_WINDOW_MINUTES);
-      const result = await shareText(
-        `Resumen de salud en Yuyay: "${h.reason}".\nCódigo de acceso: ${s.token}\nVence el ${dateTime.format(new Date(s.expiresAt))}.`,
-      );
+      const origin = handoffPublicOrigin(process.env.EXPO_PUBLIC_WEB_URL, __DEV__);
+      const s = await createHandoffSession(handoffId, { ...durations.request, ...(allowDownload ? { allowDownload: true } : {}) });
       sessions.reload();
-      if (result === 'copied') setMessage({ text: 'Copiamos el código de acceso.', tone: 'info' });
-      if (result === 'failed') setMessage({ text: `Código de acceso: ${s.token}`, tone: 'info' });
+      if (s.accessCodeRequired !== true || (allowDownload && s.allowDownload !== true)) {
+        setCreatedLink(null);
+        setAccessSessionId(null);
+        try { await revokeHandoffSession(s.id); } catch { /* El token no se muestra aunque falle la revocación. */ }
+        setMessage({ text: s.accessCodeRequired === true
+          ? 'El servidor todavía no admite el permiso de descarga. No compartimos este enlace. Desactiva la descarga o inténtalo cuando el servicio esté actualizado.'
+          : 'El servidor todavía no admite enlaces protegidos con código. No compartimos el enlace creado.', tone: 'error' });
+        sessions.reload();
+        return;
+      }
+      const url = handoffPublicLink(origin, s.token);
+      setCreatedLink({ session: s, url });
+      setAccessSessionId(s.id);
     } catch (e) {
+      if (e instanceof ApiError) setFieldErrors(e.fieldErrors);
       setMessage({ text: e instanceof ApiError ? e.message : 'No pudimos crear el enlace.', tone: 'error' });
     } finally {
       setSharing(false);
     }
   }
 
+  async function shareCreatedLink() {
+    if (!createdLink) return;
+    const result = await shareText(`Resumen de salud en Yuyay: "${h.reason}".\n${createdLink.url}\nVence el ${dateTime.format(new Date(createdLink.session.expiresAt))}.\nPide al cuidador el código de acceso cuando vayas a abrirlo.`);
+    if (result === 'copied') setMessage({ text: 'Copiamos el enlace.', tone: 'info' });
+    if (result === 'failed') setMessage({ text: 'No pudimos compartirlo. Puedes seleccionar y copiar el enlace que aparece debajo.', tone: 'error' });
+  }
+
   const handleRevoke = (sessionId: number) =>
     runAction({
-      confirm: ['Revocar enlace', 'Quien tenga el código ya no podrá abrir el resumen.', 'Revocar'],
+      confirm: ['Revocar enlace', 'Quien tenga el enlace ya no podrá abrir el resumen.', 'Revocar'],
       action: () => revokeHandoffSession(sessionId),
       success: 'Enlace revocado.',
       fallback: 'No pudimos revocar el enlace.',
-      onDone: sessions.reload,
+      onDone: () => {
+        if (accessSessionId === sessionId) setAccessSessionId(null);
+        if (createdLink?.session.id === sessionId) setCreatedLink(null);
+        sessions.reload();
+      },
     });
 
   const handleDelete = () =>
@@ -155,7 +182,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.list}>
+    <FormScroll contentContainerStyle={styles.list}>
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>{formatDate(h.createdAt)}</Text>
         <Text style={styles.reason}>{h.reason}</Text>
@@ -188,11 +215,42 @@ export function HandoffViewScreen({ route, navigation }: Props) {
       {canManageLinks ? (
         <FormCard title="Compartir con un enlace temporal">
           <Text style={styles.help}>
-            Se genera un código de un solo uso. Al abrirlo, el médico ve el resumen durante {SESSION_WINDOW_MINUTES}{' '}
-            minutos.
+            El médico necesitará el enlace y un código de 6 dígitos.
           </Text>
-          <ChoiceChips options={expiryOptions} selected={[expiresIn]} onToggle={setExpiresIn} />
-          <SubmitButton label="Compartir" icon="share-variant" onPress={handleShare} loading={sharing} />
+          <DurationField
+            label="El enlace vence en"
+            value={expiry}
+            onChange={(value) => {
+              setExpiry(value);
+              setFieldErrors({});
+            }}
+            hint="Límite máximo: 3 días. Después de ese momento, el enlace y el permiso caducan."
+            error={durations.errors?.expiry ?? fieldErrors.expiresInMinutes ?? fieldErrors.expiresInHours}
+            disabled={sharing}
+          />
+          <DurationField
+            label="Tiempo de lectura desde la primera apertura"
+            value={reading}
+            onChange={(value) => {
+              setReading(value);
+              setFieldErrors({});
+            }}
+            hint="Empieza al abrir el enlace de resumen correctamente."
+            error={durations.errors?.reading ?? fieldErrors.sessionWindowMinutes}
+            disabled={sharing}
+          />
+          <DownloadPermission allowed={allowDownload} onChange={setAllowDownload} disabled={sharing} />
+          {durations.errors ? <StatusMessage tone="info" message="Ajusta los tiempos para continuar." /> : null}
+          <SubmitButton label="Generar enlace y código" icon="link-variant" onPress={handleShare} loading={sharing} disabled={!durations.request} />
+          {createdLink ? (
+            <View style={styles.readyLink}>
+              <Text style={styles.itemTitle}>Enlace listo</Text>
+              <Text style={styles.help}>{createdLink.session.allowDownload === true ? 'Descarga del resumen en PDF autorizada.' : 'Descarga del resumen en PDF desactivada.'}</Text>
+              <Text selectable style={styles.link}>{createdLink.url}</Text>
+              <Button icon="share-variant" mode="outlined" onPress={() => void shareCreatedLink()}>Compartir enlace</Button>
+            </View>
+          ) : null}
+          {accessSessionId !== null && createdLink?.session.id === accessSessionId ? <HandoffAccessCode key={accessSessionId} sessionId={accessSessionId} /> : null}
           {(sessions.data ?? []).map((s) => {
             const state = sessionState(s);
             const live = state.label === 'Sin abrir' || state.label === 'Abierto';
@@ -201,7 +259,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
                 key={s.id}
                 icon="link-outline"
                 title={`Vence ${dateTime.format(new Date(s.expiresAt))}`}
-                subtitle={s.firstOpenedAt ? `Abierto ${dateTime.format(new Date(s.firstOpenedAt))}` : null}
+                subtitle={`${s.accessCodeRequired === true ? 'Protegido con código' : 'Sin protección por código'}${s.firstOpenedAt ? ` · Abierto ${dateTime.format(new Date(s.firstOpenedAt))}` : ''}`}
                 dimmed={!live}
                 right={
                   <View style={styles.right}>
@@ -216,6 +274,14 @@ export function HandoffViewScreen({ route, navigation }: Props) {
                     ) : null}
                   </View>
                 }
+                footer={live && s.accessCodeRequired === true ? (
+                  <View style={styles.readyLink}>
+                    <Button icon="key-outline" onPress={() => setAccessSessionId(accessSessionId === s.id ? null : s.id)}>
+                      {accessSessionId === s.id ? 'Ocultar código' : 'Mostrar código de acceso'}
+                    </Button>
+                    {accessSessionId === s.id && createdLink?.session.id !== s.id ? <HandoffAccessCode key={s.id} sessionId={s.id} /> : null}
+                  </View>
+                ) : undefined}
               />
             );
           })}
@@ -230,7 +296,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
         <Ionicons name="trash-outline" size={18} color={colors.danger} />
         <Text style={styles.deleteText}>Borrar resumen</Text>
       </Pressable>
-    </ScrollView>
+    </FormScroll>
   );
 }
 
@@ -265,6 +331,8 @@ const useStyles = makeStyles(({ colors }) => ({
   itemTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
   itemMeta: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.muted },
   help: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.muted },
+  readyLink: { gap: 10, paddingVertical: 10 },
+  link: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.primary },
   right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   deleteText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },

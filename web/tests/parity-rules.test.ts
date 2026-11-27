@@ -25,9 +25,10 @@ test('Fecha de un registro: hoy o antes, desde 1900', () => {
   assert.equal(message(healthEntrySchema.safeParse({ ...entry, occurredOn: '1899-12-31' })), 'El año debe ser 1900 o posterior.')
 })
 
-test('Límites de texto de la app móvil: detalles 2000, notas 500', () => {
+test('Texto OCR completo sin límite artificial en detalles; notas de hasta 500 caracteres', () => {
   assert.equal(healthEntrySchema.safeParse({ ...entry, details: 'x'.repeat(2000), notes: 'x'.repeat(500) }).success, true)
-  assert.equal(message(healthEntrySchema.safeParse({ ...entry, details: 'x'.repeat(2001) })), 'Máximo 2000 caracteres.')
+  const longText = 'Texto OCR completo. '.repeat(500).trim()
+  assert.equal(healthEntrySchema.parse({ ...entry, details: longText }).details, longText)
   assert.equal(message(healthEntrySchema.safeParse({ ...entry, notes: 'x'.repeat(501) })), 'Máximo 500 caracteres.')
 })
 
@@ -45,14 +46,11 @@ test('Cita: puede ser pasada o futura, hasta dentro de 2 años', () => {
   assert.equal(message(consultationSchema.safeParse({ ...c, date: `${maxYear(3)}-01-01` })), `El año debe ser ${maxYear(2)} o anterior.`)
 })
 
-test('Delegación: se elige el día, desde hoy hasta el año próximo, y vence al final de ese día', () => {
+test('La delegación requiere elegir una duración entera mayor que cero', () => {
   const d = { granteeName: 'Luz', granteeEmail: 'luz@example.test', categoryCodes: ['ALLERGY'], includeConsultations: false }
-  const today = delegationSchema.parse({ ...d, validUntil: todayIso() })
-  const end = new Date(today.validUntil)
-  assert.equal(end.getHours(), 23)
-  assert.equal(end.getMinutes(), 59)
-  assert.equal(message(delegationSchema.safeParse({ ...d, validUntil: shift(-1) })), 'La fecha no puede ser anterior a hoy.')
-  assert.equal(message(delegationSchema.safeParse({ ...d, validUntil: `${maxYear(2)}-01-01` })), 'Máximo un año desde hoy.')
+  assert.equal(delegationSchema.safeParse({ ...d, duration: { amount: '1', unit: 'minutes' } }).success, true)
+  assert.equal(message(delegationSchema.safeParse({ ...d, duration: { amount: '', unit: 'days' } })), 'Introduce una cantidad.')
+  assert.equal(message(delegationSchema.safeParse({ ...d, duration: { amount: '1.5', unit: 'hours' } })), 'Introduce un número entero.')
 })
 
 test('Resumen: motivo de hasta 200 caracteres y preguntas de hasta 500', () => {

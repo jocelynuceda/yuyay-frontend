@@ -13,7 +13,6 @@ import type { CareSubject, CategoryCode, HealthEntry } from '../../types'
 import { ageFrom } from '../../utils/format'
 import { focusRing, linkActiveClass, linkButtonClass, linkSecondaryClass } from '../../utils/styles'
 import { entriesSearch, parseEntriesParams, parseRouteId } from '../../utils/urlParams'
-import type { EntriesParams } from '../../utils/urlParams'
 import { AccessLogPanel } from '../care/AccessLogPanel'
 import { CaregiversPanel } from '../care/CaregiversPanel'
 import { ConsultationsPanel } from '../care/ConsultationsPanel'
@@ -22,7 +21,6 @@ import { HandoffsPanel } from '../care/HandoffsPanel'
 import { DocumentsPanel } from '../documents/DocumentsPanel'
 import { VoiceNotesPanel } from '../documents/VoiceNotesPanel'
 import { ClinicalProfile } from '../entries/ClinicalProfile'
-import { EntriesPanel } from '../entries/EntriesPanel'
 import { CareSubjectForm } from '../forms/CareSubjectForm'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
 import NotFoundPage from '../NotFoundPage'
@@ -42,7 +40,7 @@ const tabs = [
 ] as const
 
 function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onSubjectChanged: () => void }) {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const subjectId = subject.id
   const isPrincipal = subject.myRole === 'PRINCIPAL'
@@ -58,6 +56,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     if (newEntry) newEntryRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   }, [newEntry])
   const [entriesVersion, setEntriesVersion] = useState(0)
+  const [lastCreatedCategory, setLastCreatedCategory] = useState<CategoryCode>()
   const toast = useToast()
   const { notify, anchorProps } = useSuccessNotice()
   const [editing, setEditing] = useState(false)
@@ -82,34 +81,21 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     return { search: `?${next}` }
   }
 
-  function updateEntriesParams(params: EntriesParams) {
-    const filters = new URLSearchParams(entriesSearch(params))
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current)
-      next.set('tab', 'entries')
-      for (const key of ['category', 'page', 'size']) {
-        const value = filters.get(key)
-        if (value === null) next.delete(key)
-        else next.set(key, value)
-      }
-      return next
-    })
-  }
-
   function handleEntrySaved(entry: HealthEntry | null) {
     setNewEntry(null)
     if (entry === null) return
-    const params = parseEntriesParams(searchParams)
-    // Si el filtro ocultaría el registro nuevo, se pasa a "Todas"
-    const category = params.category === null || params.category === entry.categoryCode ? params.category : null
-    updateEntriesParams({ ...params, category, page: 1 })
-    // Cambiar la key remonta el panel y recarga la lista aunque la URL no cambie
+    setLastCreatedCategory(entry.categoryCode)
+    // Recargar el perfil y abrir la categoría del registro recién creado.
     setEntriesVersion((v) => v + 1)
     notify('Registro guardado.')
   }
 
   if (!isPrincipal && requestedTab === 'access-log') {
     return <Navigate to={tabLocation('entries')} replace />
+  }
+  if (activeTab === 'entries' && ['category', 'page', 'size'].some((key) => searchParams.has(key))) {
+    const search = entriesSearch(parseEntriesParams(searchParams))
+    return <Navigate to={`/people/${subjectId}/entries${search ? `?${search}` : ''}`} replace />
   }
 
   return (
@@ -229,18 +215,10 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
           <ClinicalProfile
             key={`profile-${entriesVersion}`}
             subjectId={subjectId}
+            initialCategory={lastCreatedCategory}
+            onNewEntry={() => setNewEntry({ category: null })}
             onOpenEntry={(entry) => void navigate(`/people/${subjectId}/entries/${entry.id}`)}
             onAddEntry={(category) => setNewEntry({ category })}
-          />
-          <EntriesPanel
-            key={entriesVersion}
-            subjectId={subjectId}
-            params={parseEntriesParams(searchParams)}
-            onParamsChange={updateEntriesParams}
-            onOpenEntry={(entry) => void navigate(`/people/${subjectId}/entries/${entry.id}`)}
-            onNewEntry={(category) => {
-              setNewEntry({ category })
-            }}
           />
         </>
       )}
@@ -249,7 +227,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
       {activeTab === 'caregivers' && (
         <CaregiversPanel subjectId={subjectId} isPrincipal={isPrincipal} onChanged={caregivers.reload} />
       )}
-      {activeTab === 'access' && <DelegationsPanel subjectId={subjectId} isPrincipal={isPrincipal} />}
+      {activeTab === 'access' && <DelegationsPanel key={subjectId} subjectName={subject.name} subjectId={subjectId} isPrincipal={isPrincipal} />}
       {activeTab === 'appointments' && <ConsultationsPanel subjectId={subjectId} subjectName={subject.name} isPrincipal={isPrincipal} />}
       {activeTab === 'handoffs' && <HandoffsPanel key={subjectId} subjectId={subjectId} isPrincipal={isPrincipal} userId={userId} />}
       {isPrincipal && activeTab === 'access-log' && <AccessLogPanel subjectId={subjectId} />}

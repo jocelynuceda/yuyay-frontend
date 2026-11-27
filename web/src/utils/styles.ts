@@ -6,9 +6,9 @@ export const focusRing =
 export const linkClass = `rounded-sm font-semibold text-primary underline underline-offset-2 ${focusRing}`
 
 /** Enlace con aspecto de botón primario. */
-export const linkButtonClass = `inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 font-semibold text-white shadow-[var(--shadow-soft)] ${focusRing}`
+export const linkButtonClass = `control-interactive inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 font-semibold text-white shadow-[var(--shadow-soft)] ${focusRing}`
 
 /** Enlace con aspecto de botón secundario. */
-export const linkSecondaryClass = `inline-flex items-center justify-center gap-2 rounded-full bg-card px-6 py-3 font-semibold text-ink shadow-[var(--shadow-soft)] ${focusRing}`
+export const linkSecondaryClass = `control-interactive inline-flex items-center justify-center gap-2 rounded-full bg-card px-6 py-3 font-semibold text-ink shadow-[var(--shadow-soft)] ${focusRing}`
 /** Igual que linkSecondaryClass, pero pintado como activo (por ejemplo, el atajo de la pestaña abierta). */
 export const linkActiveClass = linkSecondaryClass.replace('bg-card', 'bg-primary').replace('text-ink', 'text-white')

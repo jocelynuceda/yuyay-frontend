@@ -91,22 +91,27 @@ export interface HandoffInput {
   reason: string;
   questions?: string;
   healthEntryIds: number[];
+  expectedVersionIds?: Record<string, number>;
 }
 
 export interface HandoffSession {
+  allowDownload?: boolean;
   id: number;
   expiresAt: string;
   sessionWindowMinutes: number;
   firstOpenedAt: string | null;
   revokedAt: string | null;
   createdAt: string;
+  accessCodeRequired?: boolean;
 }
 
 export interface HandoffSessionCreated {
+  allowDownload?: boolean;
   id: number;
   token: string;
   expiresAt: string;
   sessionWindowMinutes: number;
+  accessCodeRequired?: boolean;
 }
 
 export interface Delegation {

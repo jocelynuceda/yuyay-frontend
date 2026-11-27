@@ -105,3 +105,21 @@ test('escribir desde un documento que no se pudo leer conserva el adjunto y empi
   assert.equal(initialEntryFields(params).details, '');
   assert.equal(initialEntryFields(params).confidenceLevel, 'UNCERTAIN');
 });
+
+test('conserva más de 5000 caracteres revisados hasta el final del borrador sin confirmar el OCR', () => {
+  const text = `RECETA\n${'Indicación revisada por el cuidador.\n'.repeat(180)}ÚLTIMA LÍNEA REVISADA`;
+  assert.ok(text.length > 5000);
+  const params = ocrEntryParams(7, 23, text, suggestEntryFromOcr(text));
+  const initial = initialEntryFields(params);
+  assert.equal(initial.details, text);
+  assert.equal(initial.confidenceLevel, 'UNCERTAIN');
+  assert.equal(params.sourceAttachmentId, 23);
+});
+
+test('un texto vacío revisado no inventa datos ni marca el documento como confirmado', () => {
+  const initial = initialEntryFields(ocrEntryParams(7, 23, ' \n\t ', suggestEntryFromOcr(' \n\t ')));
+  assert.equal(initial.details, '');
+  assert.equal(initial.title, '');
+  assert.equal(initial.categoryCode, '');
+  assert.equal(initial.confidenceLevel, 'UNCERTAIN');
+});

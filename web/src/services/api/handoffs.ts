@@ -44,11 +44,19 @@ export async function revokeHandoffSession(sessionId: number) {
 
 /** Genera el enlace temporal (token) para el médico. */
 export async function createHandoffSession(handoffId: number, request: HandoffSessionRequest) {
-  const { data } = await api.post<HandoffSessionCreated>(`/handoffs/${handoffId}/sessions`, request)
+  const { data } = await api.post<HandoffSessionCreated>(`/handoffs/${handoffId}/sessions`, { ...request, requireAccessCode: true })
   return data
 }
 
 // ---- Vista pública del médico (/handoff/:token) ----
+export async function getHandoffAccessRequirements(token: string, signal: AbortSignal) {
+  const { data } = await publicApi.get<{ accessCodeRequired: boolean }>(
+    `/public/handoff-sessions/${encodeURIComponent(token)}/access-requirements`,
+    { signal },
+  )
+  return data.accessCodeRequired
+}
+
 
 export async function openHandoffSession(token: string, request: OpenHandoffRequest) {
   const { data } = await publicApi.post<HandoffPublicView>(
@@ -56,4 +64,34 @@ export async function openHandoffSession(token: string, request: OpenHandoffRequ
     request,
   )
   return data
+}
+
+/** PDF del snapshot autorizado, con el permiso de esta apertura. */
+export async function getHandoffSummaryPdf(token: string, accessGrant?: string | null, signal?: AbortSignal) {
+  const { data } = await publicApi.get<Blob>(
+    `/public/handoff-sessions/${encodeURIComponent(token)}/summary.pdf`,
+    { responseType: 'blob', timeout: 60000, signal, ...(accessGrant ? { headers: { 'X-Handoff-Access': accessGrant } } : {}) },
+  )
+  if (!(data instanceof Blob) || data.type.split(';')[0] !== 'application/pdf') throw new Error('El servidor no devolvió un PDF válido.')
+  return data
+}
+
+/** Respaldo de una versión incluida, sujeto a la vigencia del mismo enlace del resumen. */
+export async function openHandoffSource(token: string, versionId: number, accessGrant?: string | null) {
+  const tab = window.open('', '_blank')
+  if (!tab) return false
+  tab.opener = null
+  try {
+    const { data } = await publicApi.get<Blob>(
+      `/public/handoff-sessions/${encodeURIComponent(token)}/versions/${versionId}/source/content`,
+      { responseType: 'blob', timeout: 60000, ...(accessGrant ? { headers: { 'X-Handoff-Access': accessGrant } } : {}) },
+    )
+    const url = URL.createObjectURL(data)
+    tab.location.href = url
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+    return true
+  } catch (error) {
+    tab.close()
+    throw error
+  }
 }

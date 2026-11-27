@@ -1,15 +1,18 @@
-import { EXAM_RESULT } from '../schemas/healthEntry'
-import { CATEGORY_CODES, type CategoryCode, type HealthEntry } from '../types'
+import { CATEGORY_CODES, type CategoryCode, type HealthEntry, type Page } from '../types'
 
-/** Categorías del perfil clínico, igual que en la app móvil: los exámenes tienen su propio filtro. */
-export const PROFILE_CATEGORIES = CATEGORY_CODES.filter((code) => code !== EXAM_RESULT)
+/** El perfil incluye todas las categorías, también los resultados de exámenes. */
+export const PROFILE_CATEGORIES = CATEGORY_CODES
 
-/** Agrupa los registros vigentes por categoría del perfil, en el orden en que llegan. */
-export function groupByCategory(entries: readonly HealthEntry[]) {
-  const groups = new Map<CategoryCode, HealthEntry[]>(PROFILE_CATEGORIES.map((code) => [code, []]))
-  for (const entry of entries) {
-    if (entry.deletedAt) continue
-    groups.get(entry.categoryCode)?.push(entry)
-  }
-  return groups
+export const profileHistoryLabels: Record<CategoryCode, string> = {
+  ALLERGY: 'Ver todas las alergias',
+  CONDITION: 'Ver todas las condiciones',
+  MEDICATION: 'Ver todas las medicaciones',
+  IMMUNIZATION: 'Ver todas las vacunas',
+  EPISODE: 'Ver todos los episodios',
+  EXAM_RESULT: 'Ver todos los exámenes',
+}
+
+/** La API ordena por creación y devuelve sólo una fila; el total corresponde a toda la categoría. */
+export function clinicalCategoryOverview(page: Page<HealthEntry>) {
+  return { latest: page.content[0] ?? null, total: page.totalElements }
 }
