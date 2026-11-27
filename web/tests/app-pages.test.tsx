@@ -53,6 +53,7 @@ function backend() {
   let tokens = 0
   const calls: string[] = []
   const db = {
+    delegateStatus: 200,
     attachments: [
       { ...attachmentBase, id: 31, originalFilename: 'nota.m4a', contentType: 'audio/mp4', ocrStatus: 'DONE' },
       { ...attachmentBase, id: 32, originalFilename: 'examen.png', contentType: 'image/png', ocrStatus: 'FAILED', ocrError: 'No se pudo extraer el texto.' },
@@ -204,6 +205,11 @@ function backend() {
       return ok(config, { accessToken: 'D1', tokenType: 'Bearer', expiresAt: '2099-01-01T00:00:00Z', careSubjectId: 1,
         careSubjectName: 'Rosa', granteeName: 'Luz', categoryCodes: [], includeConsultations: true })
     }
+    if (url === '/delegate/me') {
+      assert.equal(config.headers.Authorization, 'Bearer D1')
+      if (db.delegateStatus !== 200) throw fail(config, db.delegateStatus)
+      return ok(config, {})
+    }
     if (url === '/delegate/health-entries') return ok(config, [])
     if (url === '/delegate/consultations') {
       return ok(config, [
@@ -320,6 +326,24 @@ async function chooseFile(input: HTMLInputElement, file: File) {
   await act(async () => {
     Object.defineProperty(input, 'files', { configurable: true, value: [file] })
     input.dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+}
+
+for (const [index, role, label] of [
+  [0, 'PRINCIPAL', 'Tú coordinas el cuidado'],
+  [1, 'CAREGIVER', 'Tú colaboras en el cuidado'],
+] as const) {
+  test(`Personas y perfil explican el rol ${role} desde la perspectiva de quien inició sesión`, async (t) => {
+    const { b, unmount } = await mountApp('/people', { loggedIn: true, seed: db => { db.subjects[index].myRole = role } })
+    t.after(unmount)
+    const person = b.db.subjects[index]
+    const card = () => byText('button', new RegExp(person.name + '.*' + label))
+    await waitFor(() => !!card(), 'tarjeta con el rol del usuario')
+    await click(card(), person.name)
+    await waitFor(() => document.querySelector('h1')?.textContent === person.name, 'perfil de la persona')
+    const header = document.querySelector('h1')!.closest('header')!
+    assert.ok(header.textContent?.includes(label))
+    assert.match(header.querySelector('h1 + p')!.textContent!, /^\d+ años$/)
   })
 }
 
@@ -530,6 +554,10 @@ test('Consultas: muestra la hora y permite editar la cita y quitarle la hora', a
   const { b, unmount } = await mountApp('/people/1?tab=appointments', { loggedIn: true })
   t.after(unmount)
   await waitFor(() => /Control con cardiología/.test(text()), 'lista de consultas')
+  const links = [...document.querySelectorAll('a')].filter((link) => link.textContent?.trim() === 'Consultas')
+  assert.equal(links.length, 1)
+  assert.equal(links[0].closest('nav')?.getAttribute('aria-label'), 'Secciones de la persona')
+  assert.equal(links[0].getAttribute('aria-current'), 'page')
   assert.match(text(), /3:30/)
 
   await click(document.querySelector(`button[aria-label^='Editar la consulta "Control con cardiología"']`), 'Editar')
@@ -551,6 +579,32 @@ test('Vista del delegado: muestra solo citas, con hora y sin notas, las próxima
   assert.ok(text().indexOf('Cardiología') < text().indexOf('Control pasado'), 'la próxima va primero')
   assert.equal(document.querySelector('nav[aria-label="Filtrar por categoría"]'), null, 'sin categorías no hay filtro')
   assert.doesNotMatch(text(), /No hay registros/)
+})
+
+test('La pestaña delegada retira las citas al revocar una lectura abierta, sin canjear de nuevo', async (t) => {
+  const { b, unmount } = await mountApp('/access/enlace-citas', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => /Cardiología/.test(text()), 'lectura abierta')
+  b.db.delegateStatus = 403
+  await waitFor(() => /El acceso ya no está vigente/.test(text()), 'revocación en la pestaña abierta', 16_000)
+  assert.doesNotMatch(text(), /Cardiología|Control pasado/)
+  assert.equal(sessionStorage.getItem('yuyay.delegate.enlace-citas'), null)
+  assert.equal(b.calls.filter(call => call.endsWith('/exchange')).length, 1)
+})
+
+test('El delegado recupera la lectura tras un corte solo cuando el servidor confirma el permiso', async (t) => {
+  const { b, unmount } = await mountApp('/access/enlace-citas', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => /Cardiología/.test(text()), 'lectura abierta')
+  await act(async () => { window.dispatchEvent(new window.Event('offline')) })
+  assert.match(text(), /Lectura en pausa/)
+  b.db.delegateStatus = 503
+  await act(async () => { window.dispatchEvent(new window.Event('online')) })
+  assert.doesNotMatch(text(), /Cardiología/)
+  assert.ok(sessionStorage.getItem('yuyay.delegate.enlace-citas'))
+  b.db.delegateStatus = 200
+  await act(async () => { window.dispatchEvent(new window.Event('focus')) })
+  await waitFor(() => /Cardiología/.test(text()), 'el servidor vuelve a autorizar la lectura')
 })
 
 test('Enlace antiguo /acceso/:token redirige a /access/:token y conserva la query', async (t) => {

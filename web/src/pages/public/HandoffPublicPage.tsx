@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useState, type ReactNode } from 'react'
+import axios from 'axios'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 import { getHandoffAccessRequirements, openHandoffSession, openHandoffSource } from '../../services/api/handoffs'
@@ -13,6 +14,8 @@ import { PublicShell, StatusPanel } from './PublicShell'
 import { SummaryPdfDownload } from './SummaryPdfDownload'
 import { resumeReading, supportsReadingCookie } from '../../services/api/readingCookie'
 import { ReadingCookiePanel } from './ReadingCookiePanel'
+import { useReadingAvailability } from './useReadingAvailability'
+import { isAccessLost } from '../../utils/accessStatus'
 
 /**
  * Vista para el médico (/handoff/:token). Pide nombre y rol del visitante,
@@ -24,7 +27,10 @@ export function HandoffPublicPage({ token }: { token: string }) {
 
 function HandoffSessionContent({ token }: { token: string }) {
   const [opened, setOpened] = useState<{ view: HandoffPublicView; deadline: number | null } | null>(null)
-  const [expired, setExpired] = useState(false)
+  const [closed, setClosed] = useState<'expired' | 'unavailable' | null>(null)
+  const endReading = useCallback(() => { setOpened(null); setClosed('unavailable') }, [])
+  const checkAccess = useCallback((signal: AbortSignal) => getHandoffAccessRequirements(token, signal), [token])
+  const paused = useReadingAvailability(opened !== null, checkAccess, endReading)
   const [codeRequired, setCodeRequired] = useState<boolean>()
   const [rememberAvailable, setRememberAvailable] = useState(false)
   const [requirementsError, setRequirementsError] = useState<string | null>(null)
@@ -49,10 +55,12 @@ function HandoffSessionContent({ token }: { token: string }) {
         setCodeRequired(required)
       })
       .catch((error: unknown) => {
-        if (!controller.signal.aborted) setRequirementsError(getErrorMessage(error))
+        if (controller.signal.aborted) return
+        if (axios.isAxiosError(error) && isAccessLost(error.response?.status)) endReading()
+        else setRequirementsError(getErrorMessage(error))
       })
     return () => controller.abort()
-  }, [token])
+  }, [token, endReading])
 
   function acceptView(view: HandoffPublicView, startedAt: number) {
     const now = performance.now()
@@ -60,10 +68,10 @@ function HandoffSessionContent({ token }: { token: string }) {
       ? Date.parse(view.accessExpiresAt) - (view.serverTime ? Date.parse(view.serverTime) : Date.now()) - (now - startedAt)
       : null
     if (remaining !== null && (!Number.isFinite(remaining) || remaining <= 0)) {
-      setExpired(true)
+      setClosed('expired')
       return
     }
-    setExpired(false)
+    setClosed(null)
     setOpened({ view, deadline: remaining === null ? null : now + remaining })
   }
 
@@ -71,7 +79,7 @@ function HandoffSessionContent({ token }: { token: string }) {
     if (opened?.deadline == null) return
     const deadline = opened.deadline
     const check = () => {
-      if (performance.now() >= deadline) { setOpened(null); setExpired(true) }
+      if (performance.now() >= deadline) { setOpened(null); setClosed('expired') }
     }
     const timer = setTimeout(check, Math.max(0, deadline - performance.now()))
     window.addEventListener('focus', check)
@@ -85,10 +93,14 @@ function HandoffSessionContent({ token }: { token: string }) {
 
   return (
     <PublicShell compact>
-      {expired ? <p role="status" className="mb-4 rounded-xl bg-accent-tint p-4 text-accent-text">Terminó el tiempo de lectura de este resumen. Solicita un nuevo acceso a quien lo compartió.</p> : null}
-      {opened ? <HandoffSummary view={opened.view} token={token} deadline={opened.deadline} /> : null}
-      {opened?.view.accessGrant && rememberAvailable && <ReadingCookiePanel token={token} grant={opened.view.accessGrant} />}
-      {!opened && !expired && (requirementsError
+      {closed === 'expired' && <StatusPanel tone="error" title="Terminó el tiempo de lectura" message="Si necesitas volver a consultar el resumen, pide un nuevo enlace a quien lo compartió." />}
+      {closed === 'unavailable' && <StatusPanel tone="error" title="Ya no tienes acceso a este resumen" message="Si necesitas volver a leerlo, pide un nuevo enlace a quien lo compartió." />}
+      {opened && paused && <StatusPanel title="Lectura en pausa" message="Estamos comprobando que el enlace siga activo. La lectura continuará cuando podamos confirmarlo." />}
+      {opened && <div hidden={paused}>
+        <HandoffSummary view={opened.view} token={token} deadline={opened.deadline} onUnavailable={endReading} />
+        {opened.view.accessGrant && rememberAvailable && <ReadingCookiePanel token={token} grant={opened.view.accessGrant} />}
+      </div>}
+      {!opened && !closed && (requirementsError
         ? <StatusPanel title="No pudimos abrir el enlace" message={requirementsError} tone="error" />
         : codeRequired === undefined
           ? <StatusPanel title="Comprobando enlace…" />
@@ -217,7 +229,7 @@ function VisitorForm({ token, codeRequired, onOpened }: {
   )
 }
 
-function HandoffSummary({ view, token, deadline }: { view: HandoffPublicView; token: string; deadline: number | null }) {
+function HandoffSummary({ view, token, deadline, onUnavailable }: { view: HandoffPublicView; token: string; deadline: number | null; onUnavailable: () => void }) {
   const byCategory = CATEGORY_CODES.map((code) => ({
     code,
     items: view.items.filter((item) => item.categoryCode === code),
@@ -235,7 +247,7 @@ function HandoffSummary({ view, token, deadline }: { view: HandoffPublicView; to
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="min-w-0 max-w-full text-3xl font-semibold tracking-tight">Resumen de {view.careSubjectName}</h1>
           {view.downloadAllowed === true && deadline !== null
-            ? <SummaryPdfDownload token={token} accessGrant={view.accessGrant} deadline={deadline} /> : null}
+            ? <SummaryPdfDownload token={token} accessGrant={view.accessGrant} deadline={deadline} onUnavailable={onUnavailable} /> : null}
         </div>
         <p className="mt-1 text-sm text-muted">Preparado el {formatDate(view.createdAt)}</p>
       </header>
@@ -260,7 +272,7 @@ function HandoffSummary({ view, token, deadline }: { view: HandoffPublicView; to
           </h2>
           <ul className="mt-2 grid grid-cols-1 gap-4">
             {items.map((item) => (
-              <HandoffItemCard key={item.healthEntryVersionId} item={item} token={token} accessGrant={view.accessGrant} />
+              <HandoffItemCard key={item.healthEntryVersionId} item={item} token={token} accessGrant={view.accessGrant} onUnavailable={onUnavailable} />
             ))}
           </ul>
         </section>
@@ -269,18 +281,24 @@ function HandoffSummary({ view, token, deadline }: { view: HandoffPublicView; to
   )
 }
 
-function HandoffItemCard({ item, token, accessGrant }: { item: HandoffItem; token: string; accessGrant?: string | null }) {
+function HandoffItemCard({ item, token, accessGrant, onUnavailable }: { item: HandoffItem; token: string; accessGrant?: string | null; onUnavailable: () => void }) {
   const [opening, setOpening] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const pending = useRef<AbortController | null>(null)
+  useEffect(() => () => pending.current?.abort(), [])
   async function openSource() {
+    const controller = new AbortController()
+    pending.current = controller
     setOpening(true)
     setError(null)
     try {
-      if (!(await openHandoffSource(token, item.healthEntryVersionId, accessGrant))) {
+      if (!(await openHandoffSource(token, item.healthEntryVersionId, accessGrant, controller.signal))) {
         setError('Permita abrir una nueva pestaña para ver el documento original.')
       }
     } catch (cause) {
-      setError(getErrorMessage(cause))
+      if (controller.signal.aborted) return
+      if (axios.isAxiosError(cause) && cause.response?.status === 410) onUnavailable()
+      else setError(getErrorMessage(cause))
     } finally {
       setOpening(false)
     }

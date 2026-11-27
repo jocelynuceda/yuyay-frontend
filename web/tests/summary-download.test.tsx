@@ -171,7 +171,7 @@ test('lectura reanudada autorizada descarga con cookie de mismo origen sin inven
   assert.notEqual(request?.withCredentials, true, 'no habilita cookies entre orígenes')
 })
 
-test('410 rechaza descarga sin crear archivo, muestra error y permite reintentar', async (t) => {
+test('un 410 al descargar retira el resumen y no crea el archivo', async (t) => {
   fakeClock(t)
   let blobs = 0
   t.mock.method(URL, 'createObjectURL', () => { blobs++; return 'blob:prohibido' })
@@ -184,8 +184,8 @@ test('410 rechaza descarga sin crear archivo, muestra error y permite reintentar
   await identify(container)
   await click(container, 'Descargar PDF')
   assert.equal(blobs, 0)
-  assert.match(container.querySelector('[role=alert]')!.textContent!, /ya no está disponible/)
-  assert.equal([...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Descargar PDF')!.disabled, false)
+  assert.match(container.textContent!, /Ya no tienes acceso a este resumen/)
+  assert.doesNotMatch(container.textContent!, /FIN DEL SNAPSHOT|Descargar PDF/)
 })
 
 test('al expirar aborta una descarga pendiente y no guarda una respuesta tardía', async (t) => {

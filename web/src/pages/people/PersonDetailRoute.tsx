@@ -27,6 +27,7 @@ import { HealthEntryForm } from '../forms/HealthEntryForm'
 import NotFoundPage from '../NotFoundPage'
 import { CareAuthorizationStatus } from './CareAuthorizationStatus'
 import { PersonRouteFrame } from './PersonRouteFrame'
+import { MyCareRoleBadge } from './MyCareRoleBadge'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
 
 const tabs = [
@@ -103,17 +104,19 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     <>
       <header className="grid gap-4">
         <div>
-          <div className="flex items-center gap-4">
-            <AvatarButton onClick={() => setPickingAvatar(true)}>
-              <SubjectAvatar subject={subject} size="xl" animated />
-            </AvatarButton>
-            <div className="min-w-0">
-              <h1 className="text-3xl font-semibold wrap-break-word">{subject.name}</h1>
-              <p className="mt-2 text-sm text-muted">
-                {age !== null && `${age} años · `}
-                {isPrincipal ? 'Cuidador principal' : 'Cuidador/a'}
-              </p>
+          <div className="flex flex-wrap items-center gap-2 min-[360px]:flex-nowrap sm:gap-4">
+            <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-4">
+              <AvatarButton onClick={() => setPickingAvatar(true)}>
+                <SubjectAvatar subject={subject} size="xl" animated />
+              </AvatarButton>
+              <div className="min-w-0">
+                <h1 className="text-3xl font-semibold wrap-break-word">{subject.name}</h1>
+                {age !== null && <p className="mt-2 text-sm text-muted">{age} años</p>}
+              </div>
             </div>
+            <button type="button" onClick={() => setEditing(true)} className={`ml-auto min-h-11 shrink-0 max-sm:px-3 max-sm:py-2 max-sm:text-sm ${linkSecondaryClass}`}>
+              Editar perfil
+            </button>
           </div>
           <AvatarPicker
             open={pickingAvatar}
@@ -122,30 +125,25 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
             target={{ type: 'subject', id: subject.id, birthDate: subject.birthDate, gender: subject.gender }}
           />
           {subject.notes ? <p className="mt-2 whitespace-pre-line">{subject.notes}</p> : null}
-          {activeCaregivers.length > 0 ? (
-            <p className="mt-2 text-sm">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            {activeCaregivers.length > 0 && <p className="text-sm">
               <span className="font-semibold">Cuidadores: </span>
               {activeCaregivers
                 .map((r) => (r.relationshipLabel ? `${r.user.name} (${r.relationshipLabel})` : r.user.name))
                 .join(', ')}
-            </p>
-          ) : null}
+            </p>}
+            <MyCareRoleBadge role={subject.myRole} />
+          </div>
         </div>
         <nav aria-label="Accesos rápidos" className="flex flex-wrap gap-2">
           <Link to={`/people/${subjectId}/handoff/new`} className={linkButtonClass}>
             Preparar resumen para el médico
-          </Link>
-          <Link {...quickLinkProps('appointments')}>
-            Consultas
           </Link>
           {isPrincipal ? (
             <Link {...quickLinkProps('access')}>
               Delegar acceso
             </Link>
           ) : null}
-          <button type="button" onClick={() => setEditing(true)} className={linkSecondaryClass}>
-            Editar datos
-          </button>
           {isPrincipal ? (
             <button type="button" onClick={() => setDeleting(true)} className={linkSecondaryClass.replace('text-ink', 'text-danger')}>
               Eliminar persona

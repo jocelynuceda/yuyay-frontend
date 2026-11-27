@@ -1,7 +1,7 @@
 import axios from 'axios'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { todayIso } from '../../schemas/common'
-import { listDelegateConsultations, listDelegateHealthEntries } from '../../services/api/delegations'
+import { checkDelegateAccess, listDelegateConsultations, listDelegateHealthEntries } from '../../services/api/delegations'
 import type { CategoryCode, DelegateConsultation, DelegateSession, HealthEntry } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { forgetDelegateSession, getDelegateSession } from '../../utils/delegateSession'
@@ -15,6 +15,8 @@ import {
 } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import { PublicShell, StatusPanel } from './PublicShell'
+import { useReadingAvailability } from './useReadingAvailability'
+import { isAccessLost } from '../../utils/accessStatus'
 
 type State =
   | { status: 'loading' }
@@ -26,8 +28,21 @@ type State =
  * de las categorías que la familia permitió y, si las compartió, las citas.
  */
 export function DelegateAccessPage({ token }: { token: string }) {
+  return <DelegateReading key={token} token={token} />
+}
+
+const denied = (status?: number) => status === 401 || isAccessLost(status)
+
+function DelegateReading({ token }: { token: string }) {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [category, setCategory] = useState<CategoryCode | 'ALL'>('ALL')
+  const accessToken = state.status === 'ready' ? state.session.accessToken : undefined
+  const check = useCallback((signal: AbortSignal) => checkDelegateAccess(accessToken!, signal), [accessToken])
+  const close = useCallback(() => {
+    forgetDelegateSession(token)
+    setState({ status: 'error', ...describeError(403, '') })
+  }, [token])
+  const paused = useReadingAvailability(!!accessToken, check, close, denied)
 
   useEffect(() => {
     let active = true
@@ -42,8 +57,7 @@ export function DelegateAccessPage({ token }: { token: string }) {
       } catch (error) {
         if (!active) return
         const status = axios.isAxiosError(error) ? error.response?.status : undefined
-        // 401: el acceso guardado venció o fue revocado
-        if (status === 401) forgetDelegateSession(token)
+        if (denied(status)) forgetDelegateSession(token)
         setState({ status: 'error', ...describeError(status, getErrorMessage(error)) })
       }
     }
@@ -66,6 +80,10 @@ export function DelegateAccessPage({ token }: { token: string }) {
         <StatusPanel tone="error" title={state.title} message={state.message} />
       </PublicShell>
     )
+  }
+
+  if (paused) {
+    return <PublicShell><StatusPanel title="Lectura en pausa" message="Estamos comprobando que tu acceso siga vigente." /></PublicShell>
   }
 
   const { session, entries, consultations } = state
