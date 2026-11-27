@@ -11,6 +11,7 @@ import { ageFrom } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 import type { PeopleParams, PeopleSort } from '../../utils/urlParams'
 import { CareSubjectForm } from '../forms/CareSubjectForm'
+import { MyCareRoleBadge } from './MyCareRoleBadge'
 
 /** Sin tildes ni mayúsculas, para que "jose" encuentre a "José". */
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
@@ -154,9 +155,7 @@ function PersonCard({ subject, onOpen }: { subject: CareSubject; onOpen: () => v
       <span className="min-w-0">
         <span className="block truncate text-lg font-semibold">{subject.name}</span>
         <span className="block text-sm text-muted">{age !== null ? `${age} años` : 'Edad no registrada'}</span>
-        <span className="mt-2 inline-block rounded-full bg-primary-tint px-3 py-0.5 text-xs font-semibold text-primary-fg">
-          {subject.myRole === 'PRINCIPAL' ? 'Principal' : 'Cuidador/a'}
-        </span>
+        <span className="mt-2 block"><MyCareRoleBadge role={subject.myRole} /></span>
       </span>
     </button>
   )
