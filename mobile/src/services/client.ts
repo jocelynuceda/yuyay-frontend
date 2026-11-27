@@ -15,6 +15,11 @@ export class ApiError extends Error {
   }
 }
 
+/** El servidor ya no deja ver el recurso (sin permiso o retirado). Sin conexión llega con estado 0. */
+export function isAccessLost(error: unknown): boolean {
+  return error instanceof ApiError && [403, 404, 410].includes(error.status);
+}
+
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;
   if (!(error instanceof AxiosError) || !error.response) {

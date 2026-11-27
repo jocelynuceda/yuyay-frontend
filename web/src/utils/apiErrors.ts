@@ -13,6 +13,11 @@ export function getErrorStatus(error: unknown): number | undefined {
   return axios.isAxiosError(error) ? error.response?.status : undefined
 }
 
+/** El servidor ya no deja ver el recurso (sin permiso o retirado): lo que se había cargado debe ocultarse. */
+export function isAccessLost(status: number | undefined): boolean {
+  return status === 403 || status === 404 || status === 410
+}
+
 /**
  * Pasa los fieldErrors del backend a los campos del formulario (React Hook Form).
  * Los nombres de campo del backend coinciden con los de los esquemas.
