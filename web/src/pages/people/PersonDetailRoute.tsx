@@ -102,17 +102,22 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     <>
       <header className="grid gap-4">
         <div>
-          <div className="flex items-center gap-4">
-            <AvatarButton onClick={() => setPickingAvatar(true)}>
-              <SubjectAvatar subject={subject} size="xl" animated />
-            </AvatarButton>
-            <div className="min-w-0">
-              <h1 className="text-3xl font-semibold wrap-break-word">{subject.name}</h1>
-              <p className="mt-2 text-sm text-muted">
-                {age !== null && `${age} años · `}
-                {isPrincipal ? 'Cuidador principal' : 'Cuidador/a'}
-              </p>
+          <div className="flex flex-wrap items-center gap-2 min-[360px]:flex-nowrap sm:gap-4">
+            <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-4">
+              <AvatarButton onClick={() => setPickingAvatar(true)}>
+                <SubjectAvatar subject={subject} size="xl" animated />
+              </AvatarButton>
+              <div className="min-w-0">
+                <h1 className="text-3xl font-semibold wrap-break-word">{subject.name}</h1>
+                <p className="mt-2 text-sm text-muted">
+                  {age !== null && `${age} años · `}
+                  {isPrincipal ? 'Cuidador principal' : 'Cuidador/a'}
+                </p>
+              </div>
             </div>
+            <button type="button" onClick={() => setEditing(true)} className={`ml-auto min-h-11 shrink-0 max-sm:px-3 max-sm:py-2 max-sm:text-sm ${linkSecondaryClass}`}>
+              Editar perfil
+            </button>
           </div>
           <AvatarPicker
             open={pickingAvatar}
@@ -134,17 +139,11 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
           <Link to={`/people/${subjectId}/handoff/new`} className={linkButtonClass}>
             Preparar resumen para el médico
           </Link>
-          <Link {...quickLinkProps('appointments')}>
-            Consultas
-          </Link>
           {isPrincipal ? (
             <Link {...quickLinkProps('access')}>
               Delegar acceso
             </Link>
           ) : null}
-          <button type="button" onClick={() => setEditing(true)} className={linkSecondaryClass}>
-            Editar datos
-          </button>
           {isPrincipal ? (
             <button type="button" onClick={() => setDeleting(true)} className={linkSecondaryClass.replace('text-ink', 'text-danger')}>
               Eliminar persona
