@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { AttachmentPreview } from '../components/AttachmentPreview';
@@ -10,9 +10,11 @@ import { StatusMessage } from '../components/StatusMessage';
 import medicalTerms from '../data/medicalTerms.json';
 import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
+import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { deleteAttachment, getAttachment, retryOcr } from '../services/api';
 import { openAttachmentFile } from '../services/attachmentFiles';
 import { ApiError } from '../services/http';
+import { ocrDrafts } from '../services/ocrDrafts';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { deleteErrorMessage, isImage } from '../utils/attachments';
@@ -37,6 +39,18 @@ export function ReviewOcrScreen({ route, navigation }: Props) {
   const runAction = useConfirmedAction(setError);
   const attachment = useFetch(() => getAttachment(subjectId, attachmentId), [subjectId, attachmentId]);
   const { reload } = attachment;
+  useRefreshOnFocus(reload);
+  const outgoingDraft = useRef<number>(undefined);
+  useEffect(() => () => {
+    if (outgoingDraft.current !== undefined) ocrDrafts.discard(outgoingDraft.current);
+  }, []);
+
+  function openEntry(details: string, suggestion: OcrSuggestion) {
+    const prefill = ocrEntryParams(subjectId, attachmentId, details, suggestion);
+    const ocrDraftId = ocrDrafts.save(subjectId, prefill);
+    outgoingDraft.current = ocrDraftId;
+    navigation.navigate('NewEntry', { subjectId, sourceAttachmentId: attachmentId, ocrDraftId });
+  }
 
   const reading = attachment.data?.ocrStatus === 'PENDING';
   useEffect(() => {
@@ -115,9 +129,7 @@ export function ReviewOcrScreen({ route, navigation }: Props) {
           <SubmitButton
             label="Escribir el registro"
             icon="pencil-outline"
-            onPress={() =>
-              navigation.navigate('NewEntry', ocrEntryParams(subjectId, attachmentId, '', { evidence: {} }))
-            }
+            onPress={() => openEntry('', { evidence: {} })}
           />
         </>
       ) : null}
@@ -125,9 +137,7 @@ export function ReviewOcrScreen({ route, navigation }: Props) {
       {a.ocrStatus === 'DONE' ? (
         <ReviewForm
           text={a.ocrText ?? ''}
-          onConfirm={(details, suggestion) =>
-            navigation.navigate('NewEntry', ocrEntryParams(subjectId, attachmentId, details, suggestion))
-          }
+          onConfirm={openEntry}
         />
       ) : null}
 

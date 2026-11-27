@@ -147,7 +147,7 @@ function ResetForm({ email }: { email: string }) {
         type="button"
         onClick={() => void resend()}
         disabled={resending || isSubmitting}
-        className="justify-self-center rounded-sm text-sm font-semibold text-primary underline disabled:opacity-60"
+        className="justify-self-center rounded-sm text-sm font-semibold text-primary-fg underline disabled:opacity-60"
       >
         {resending ? 'Enviando…' : 'Enviar otro código'}
       </button>

@@ -118,14 +118,14 @@ export function DelegationForm({
           {available?.categories.map((code) => (
             <label
               key={code}
-              className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-card px-4 py-2 has-checked:border-primary has-checked:bg-primary-tint"
+              className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-card px-4 py-2 has-checked:border-primary-fg has-checked:bg-primary-tint"
             >
               <input type="checkbox" value={code} className={`accent-primary ${focusRing}`} name="categoryCodes" checked={selected.includes(code)}
                 onChange={(event) => setValue('categoryCodes', event.target.checked ? [...selected, code] : selected.filter(value => value !== code), { shouldValidate: true })} />
               {categoryLabels[code].plural}
             </label>
           ))}
-          {available?.appointments && <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-card px-4 py-2 has-checked:border-primary has-checked:bg-primary-tint">
+          {available?.appointments && <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-card px-4 py-2 has-checked:border-primary-fg has-checked:bg-primary-tint">
             <input
               type="checkbox"
               className={`accent-primary ${focusRing}`}

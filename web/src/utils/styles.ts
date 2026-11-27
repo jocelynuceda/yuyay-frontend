@@ -3,7 +3,7 @@ export const focusRing =
   'focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
 /** Enlace de texto dentro de contenido. */
-export const linkClass = `rounded-sm font-semibold text-primary underline underline-offset-2 ${focusRing}`
+export const linkClass = `rounded-sm font-semibold text-primary-fg underline underline-offset-2 ${focusRing}`
 
 /** Enlace con aspecto de botón primario. */
 export const linkButtonClass = `control-interactive inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 font-semibold text-white shadow-[var(--shadow-soft)] ${focusRing}`

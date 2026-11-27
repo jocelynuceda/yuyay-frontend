@@ -38,7 +38,7 @@ export function HandoffWorkspacePage({ showBack = true, ...props }: WorkspacePro
 }
 
 function WorkspaceContent({ subjectId, subjectName, handoffId, isPrincipal, userId, mode, sessionId }: WorkspaceProps) {
-  const { data, error, errorStatus, loading, reload } = useFetch((signal) => getHandoff(handoffId, signal), [handoffId])
+  const { data, error, errorStatus, loading, reload } = useFetch((signal) => getHandoff(handoffId, signal, subjectId), [handoffId, subjectId])
   if (loading) return <p role="status" className="text-muted">Cargando resumen…</p>
   if (error) return <LoadError message={error} status={errorStatus} onRetry={reload} />
   if (!data || data.id !== handoffId || data.careSubjectId !== subjectId) {
@@ -50,7 +50,7 @@ function WorkspaceContent({ subjectId, subjectName, handoffId, isPrincipal, user
   }
   if (mode === 'share') return (
     <div className="mx-auto grid w-full max-w-2xl gap-5">
-      <CreateHandoffLink handoffId={handoffId} subjectName={subjectName} />
+      <CreateHandoffLink handoffId={handoffId} subjectId={subjectId} subjectName={subjectName} />
     </div>
   )
   if (mode === 'code') return <ExistingCodePage subjectId={subjectId} handoff={data} sessionId={sessionId} />
@@ -96,13 +96,13 @@ function HandoffDetails({ subjectId, handoff, canManage }: { subjectId: number; 
       <div><Button variant="secondary" className="text-danger" onClick={() => setDeleting(true)}>Borrar resumen</Button></div>
       <ConfirmDialog open={deleting} title="¿Borrar este resumen?" message={`"${handoff.reason}". Los enlaces que compartiste dejarán de funcionar.`}
         confirmLabel="Borrar resumen" cancelLabel="Volver" onCancel={() => setDeleting(false)}
-        onConfirm={async () => { await deleteHandoff(handoff.id); void navigate(`/people/${subjectId}?tab=handoffs`, { replace: true }) }} />
+        onConfirm={async () => { await deleteHandoff(handoff.id, subjectId); void navigate(`/people/${subjectId}?tab=handoffs`, { replace: true }) }} />
     </div>
   )
 }
 
 function SessionHistory({ subjectId, handoffId }: { subjectId: number; handoffId: number }) {
-  const { data, error, errorStatus, loading, reload } = useFetch((signal) => listHandoffSessions(handoffId, signal), [handoffId])
+  const { data, error, errorStatus, loading, reload } = useFetch((signal) => listHandoffSessions(handoffId, signal, subjectId), [handoffId, subjectId])
   const [page, setPage] = useState(1)
   const [notice, setNotice] = useState('')
   const [revoking, setRevoking] = useState<HandoffSession | null>(null)
@@ -132,13 +132,13 @@ function SessionHistory({ subjectId, handoffId }: { subjectId: number; handoffId
       {!loading && !error && totalPages > 1 ? <Pagination page={shownPage} totalPages={totalPages} totalElements={sessions.length} size={size} onPageChange={setPage} /> : null}
       <ConfirmDialog open={!!revoking} title="¿Revocar este enlace?" message="Quien tenga el enlace ya no podrá abrir el resumen."
         confirmLabel="Revocar enlace" workingLabel="Revocando…" cancelLabel="Volver" onCancel={() => setRevoking(null)}
-        onConfirm={async () => { if (!revoking) return; await revokeHandoffSession(revoking.id); setRevoking(null); setNotice('Enlace revocado.'); reload() }} />
+        onConfirm={async () => { if (!revoking) return; await revokeHandoffSession(revoking.id, subjectId); setRevoking(null); setNotice('Enlace revocado.'); reload() }} />
     </>
   )
 }
 
 function ExistingCodePage({ subjectId, handoff, sessionId }: { subjectId: number; handoff: HandoffDetail; sessionId?: number }) {
-  const { data, error, errorStatus, loading, reload } = useFetch((signal) => listHandoffSessions(handoff.id, signal), [handoff.id])
+  const { data, error, errorStatus, loading, reload } = useFetch((signal) => listHandoffSessions(handoff.id, signal, subjectId), [handoff.id, subjectId])
   const [revoking, setRevoking] = useState(false)
   const [revoked, setRevoked] = useState(false)
   const session = data?.find((candidate) => candidate.id === sessionId && candidate.handoffId === handoff.id)
@@ -151,7 +151,7 @@ function ExistingCodePage({ subjectId, handoff, sessionId }: { subjectId: number
     <div className="mx-auto grid w-full max-w-2xl gap-5">
       <header><h1 className="text-3xl font-semibold">Código para el médico</h1><p className="mt-2 break-words text-muted">{handoff.reason}</p></header>
       <p className="text-sm text-muted">{state} · vence el {formatDateTime(session.expiresAt)}</p>
-      {active && session.accessCodeRequired === true ? <HandoffAccessCode sessionId={session.id} /> : (
+      {active && session.accessCodeRequired === true ? <HandoffAccessCode sessionId={session.id} subjectId={subjectId} /> : (
         <p role="status" className="rounded-2xl bg-card p-5">{active ? 'Este enlace anterior no requiere código de acceso adicional.' : 'Este enlace ya no está disponible. Puedes generar uno nuevo.'}</p>
       )}
       <div className="flex flex-wrap items-center gap-4">
@@ -160,7 +160,7 @@ function ExistingCodePage({ subjectId, handoff, sessionId }: { subjectId: number
       </div>
       <ConfirmDialog open={revoking} title="¿Revocar este enlace?" message="Quien tenga el enlace ya no podrá abrir el resumen."
         confirmLabel="Revocar enlace" workingLabel="Revocando…" cancelLabel="Volver" onCancel={() => setRevoking(false)}
-        onConfirm={async () => { await revokeHandoffSession(session.id); setRevoking(false); setRevoked(true) }} />
+        onConfirm={async () => { await revokeHandoffSession(session.id, subjectId); setRevoking(false); setRevoked(true) }} />
     </div>
   )
 }

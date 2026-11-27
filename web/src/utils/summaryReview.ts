@@ -1,5 +1,6 @@
 import type { ConsultationPreparation, ConfirmPreparation } from '../types/consultationPreparation'
 import type { HandoffDetail } from '../types'
+import { isAccessLost } from './accessStatus'
 
 export interface SummaryReviewState {
   phase: 'loading' | 'editing' | 'review' | 'saving' | 'uncertain' | 'error' | 'saved'
@@ -21,9 +22,10 @@ interface Dependencies {
 
 /** Conserva el cuerpo de una escritura incierta. Sólo una revisión nueva crea otra clave. */
 export function createSummaryReview(deps: Dependencies) {
-  let state: SummaryReviewState = {
+  const initialState: SummaryReviewState = {
     phase: 'loading', preparation: null, selected: [], reason: '', questions: '', message: null, saved: null,
   }
+  let state = initialState
   let pending: ConfirmPreparation | null = null
   let generation = 0
   let preserveDraft = false
@@ -50,7 +52,7 @@ export function createSummaryReview(deps: Dependencies) {
     } catch (error) {
       if (current !== generation) return
       const status = deps.status(error)
-      const denied = status === 401 || status === 403 || status === 404
+      const denied = status === 401 || isAccessLost(status)
       update({
         phase: 'error', preparation: null,
         ...(denied ? { reason: '', questions: '', selected: [] } : {}),
@@ -102,7 +104,7 @@ export function createSummaryReview(deps: Dependencies) {
         pending = null
         preserveDraft = true
         await load(true)
-      } else if (status === 401 || status === 403 || status === 404) {
+      } else if (status === 401 || isAccessLost(status)) {
         pending = null
         update({ phase: 'error', preparation: null, selected: [], reason: '', questions: '', message: deps.errorMessage(error) })
       } else if (status === 400) {
@@ -126,6 +128,11 @@ export function createSummaryReview(deps: Dependencies) {
       update({ preparation: null, selected: [], reason: '', questions: '', phase: 'error' })
       return true
     },
-    dispose: () => { generation++ },
+    dispose: () => {
+      generation++
+      pending = null
+      preserveDraft = false
+      state = initialState
+    },
   }
 }

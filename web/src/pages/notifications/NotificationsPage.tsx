@@ -10,7 +10,9 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Pagination } from '../../components/ui/Pagination'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useFetch } from '../../hooks/useFetch'
+import { useAccessiblePeople } from '../../hooks/useAccessiblePeople'
 import { usePagination } from '../../hooks/usePagination'
+import { useRefreshOnReturn } from '../../hooks/useRefreshOnReturn'
 import { useToast } from '../../hooks/useToast'
 import { useUnreadCount } from '../../hooks/useUnreadCount'
 import { listMyPendingInvitations } from '../../services/api/caregivers'
@@ -37,6 +39,9 @@ export default function NotificationsPage() {
     (signal) => listNotifications({ unread: onlyUnread ? true : undefined, page: apiPage, size }, signal),
     [onlyUnread, apiPage, size],
   )
+  useRefreshOnReturn(reload, !loading)
+  const people = useAccessiblePeople()
+  const accessible = new Set(people.data?.map(({ id }) => id))
 
   // Independiente de la lista: su carga o error no bloquea los avisos
   const invitations = useFetch((signal) => listMyPendingInvitations(signal), [])
@@ -154,7 +159,10 @@ export default function NotificationsPage() {
             <ul className={`grid gap-3 ${loading ? 'opacity-60' : ''}`}>
               {items.map((item) => {
                 const read = item.read || markedRead.has(item.id)
-                const link = getNotificationLink(item, pending)
+                const hideContent = item.careSubjectId !== null && !accessible.has(item.careSubjectId)
+                  && item.type !== 'INVITATION' && item.type !== 'CAREGIVER_JOINED'
+                const link = hideContent ? null : getNotificationLink(item, pending)
+                const body = hideContent ? 'La información de este aviso ya no está disponible.' : item.body
                 return (
                   <li key={item.id}>
                     <Card as="article" padding="sm" className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start sm:gap-4">
@@ -166,10 +174,10 @@ export default function NotificationsPage() {
                               <span className="sr-only">Sin leer.</span>
                             </>
                           )}
-                          <h2 className="font-sans text-base font-semibold">{item.title}</h2>
+                          <h2 className="font-sans text-base font-semibold">{hideContent ? 'Aviso de salud' : item.title}</h2>
                           <Badge>{notificationTypeLabels[item.type] ?? item.type}</Badge>
                         </div>
-                        <p className="text-muted">{item.body}</p>
+                        {body ? <p className="text-muted">{body}</p> : null}
                         <p className="text-sm text-muted">
                           <time dateTime={item.createdAt} title={formatDateTime(item.createdAt)}>
                             {formatRelative(item.createdAt)}

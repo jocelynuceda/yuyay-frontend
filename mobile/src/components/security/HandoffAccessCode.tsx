@@ -8,11 +8,11 @@ import { getHandoffAccessCode } from '../../services/api';
 import { fonts, makeStyles, radius, useTheme } from '../../theme';
 
 /** El código permanece sólo en memoria y se borra cuando el panel deja de estar visible. */
-export function HandoffAccessCode({ sessionId }: { sessionId: number }) {
+export function HandoffAccessCode({ subjectId, sessionId }: { subjectId: number; sessionId: number }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const focused = useIsFocused();
-  const model = useMemo(() => createHandoffAccessCode((signal) => getHandoffAccessCode(sessionId, signal)), [sessionId]);
+  const model = useMemo(() => createHandoffAccessCode((signal) => getHandoffAccessCode(subjectId, sessionId, signal)), [subjectId, sessionId]);
   const state = useSyncExternalStore(model.subscribe, model.getSnapshot);
 
   useEffect(() => {

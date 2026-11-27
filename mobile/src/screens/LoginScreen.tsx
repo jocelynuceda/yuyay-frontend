@@ -68,57 +68,58 @@ export function LoginScreen({ navigation }: Props) {
         </>
       }
     >
-      <GoogleSignInSection disabled={loading} />
-      <StatusMessage message={error} />
-      <FormField
-        label="Correo electrónico"
-        icon="email-outline"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="off"
-        textContentType="none"
-        autoCorrect={false}
-        spellCheck={false}
-        error={emailError}
-      />
-      <FormField
-        label="Contraseña"
-        icon="lock-outline"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry={!showPassword}
-        {...passwordInputProps}
-        error={passwordError}
-        right={
-          <TextInput.Icon
-            icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
-            onPress={() => setShowPassword((s) => !s)}
-            accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-          />
-        }
-        onSubmitEditing={handleSubmit}
-      />
-      <Text
-        style={[styles.link, styles.forgot]}
-        onPress={() => navigation.navigate('ForgotPassword')}
-        accessibilityRole="link"
-      >
-        ¿Olvidaste tu contraseña?
-      </Text>
-      <Button
-        mode="contained"
-        onPress={handleSubmit}
-        loading={loading}
-        disabled={loading}
-        icon="arrow-right"
-        contentStyle={styles.buttonContent}
-        labelStyle={styles.buttonLabel}
-        style={styles.button}
-      >
-        Iniciar sesión
-      </Button>
+      <GoogleSignInSection disabled={loading}>
+        <StatusMessage message={error} />
+        <FormField
+          label="Correo electrónico"
+          icon="email-outline"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="off"
+          textContentType="none"
+          autoCorrect={false}
+          spellCheck={false}
+          error={emailError}
+        />
+        <FormField
+          label="Contraseña"
+          icon="lock-outline"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+          {...passwordInputProps}
+          error={passwordError}
+          right={
+            <TextInput.Icon
+              icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+              onPress={() => setShowPassword((s) => !s)}
+              accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            />
+          }
+          onSubmitEditing={handleSubmit}
+        />
+        <Text
+          style={[styles.link, styles.forgot]}
+          onPress={() => navigation.navigate('ForgotPassword')}
+          accessibilityRole="link"
+        >
+          ¿Olvidaste tu contraseña?
+        </Text>
+        <Button
+          mode="contained"
+          onPress={handleSubmit}
+          loading={loading}
+          disabled={loading}
+          icon="arrow-right"
+          contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
+          style={styles.button}
+        >
+          Iniciar sesión
+        </Button>
+      </GoogleSignInSection>
     </AuthLayout>
   );
 }

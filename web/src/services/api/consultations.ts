@@ -22,13 +22,13 @@ export async function createConsultation(careSubjectId: number, request: Consult
   return data
 }
 
-export async function updateConsultation(consultationId: number, request: ConsultationUpdate) {
-  const { data } = await api.patch<ConsultationDetail>(`/consultations/${consultationId}`, request)
+export async function updateConsultation(consultationId: number, request: ConsultationUpdate, careSubjectId?: number) {
+  const { data } = await api.patch<ConsultationDetail>(`/consultations/${consultationId}`, request, { careSubjectId })
   return data
 }
 
-export async function deleteConsultation(consultationId: number) {
-  await api.delete(`/consultations/${consultationId}`)
+export async function deleteConsultation(consultationId: number, careSubjectId?: number) {
+  await api.delete(`/consultations/${consultationId}`, { careSubjectId })
 }
 
 /** Versiones declaradas después de la fecha de esa consulta. 404 si la consulta no existe. */
@@ -40,16 +40,16 @@ export async function listChangesSinceConsultation(careSubjectId: number, sinceC
   return data
 }
 
-export async function prepareConsultation(consultationId: number, signal?: AbortSignal) {
+export async function prepareConsultation(consultationId: number, signal?: AbortSignal, careSubjectId?: number) {
   const { data } = await api.get<ConsultationPreparation>(
-    `/consultations/${consultationId}/preparation`, { signal },
+    `/consultations/${consultationId}/preparation`, { signal, careSubjectId },
   )
   return data
 }
 
-export async function confirmConsultation(consultationId: number, body: ConfirmPreparation) {
+export async function confirmConsultation(consultationId: number, body: ConfirmPreparation, careSubjectId?: number) {
   const { data } = await api.post<HandoffDetail>(
-    `/consultations/${consultationId}/preparation/confirm`, body,
+    `/consultations/${consultationId}/preparation/confirm`, body, { careSubjectId },
   )
   return data
 }

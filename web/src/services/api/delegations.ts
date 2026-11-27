@@ -20,8 +20,8 @@ export async function createDelegation(careSubjectId: number, request: Delegatio
   return data
 }
 
-export async function revokeDelegation(delegationId: number) {
-  await api.delete(`/delegations/${delegationId}`)
+export async function revokeDelegation(delegationId: number, careSubjectId?: number) {
+  await api.delete(`/delegations/${delegationId}`, { careSubjectId })
 }
 
 // ---- Vista pública del delegado (/access/:token) ----

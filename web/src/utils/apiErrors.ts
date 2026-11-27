@@ -3,6 +3,8 @@ import { getHttpErrorMessage } from '../services/http'
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form'
 import type { ErrorResponse } from '../types'
 
+export { isAccessLost } from './accessStatus'
+
 /** Mensaje legible para un toast a partir de cualquier error de la API. */
 export function getErrorMessage(error: unknown): string {
   return getHttpErrorMessage(error)

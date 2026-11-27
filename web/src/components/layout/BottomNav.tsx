@@ -12,7 +12,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Principal"
-      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 rounded-full bg-primary p-1.5 shadow-[var(--shadow-soft)] lg:hidden"
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 rounded-full bg-primary p-1.5 shadow-[var(--shadow-soft)] dark:bg-card dark:ring-1 dark:ring-white/6 lg:hidden"
     >
       <ul className="grid grid-cols-4 gap-1">
         {navItems.map(({ to, label, icon }) => (
@@ -24,7 +24,7 @@ export function BottomNav() {
               className={({ isActive }) =>
                 cx(
                   'flex flex-col items-center gap-0.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors',
-                  isActive ? 'bg-card text-primary' : 'text-white hover:bg-white/15',
+                  isActive ? 'bg-card text-primary-fg dark:bg-accent dark:text-on-accent' : 'text-white hover:bg-white/15 dark:text-muted dark:hover:bg-white/10 dark:hover:text-ink',
                   focusRing,
                 )
               }
@@ -34,7 +34,7 @@ export function BottomNav() {
                 {to === '/notifications' && count > 0 ? (
                   <span
                     aria-hidden="true"
-                    className="absolute -top-1 -right-3 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] leading-4 font-bold text-white"
+                    className="absolute -top-1 -right-3 min-w-4 rounded-full bg-danger-solid px-1 text-center text-[10px] leading-4 font-bold text-white"
                   >
                     {formatBadge(count)}
                   </span>

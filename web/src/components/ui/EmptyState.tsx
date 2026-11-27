@@ -14,7 +14,7 @@ export function EmptyState({ icon, title, description, action, className }: Empt
   return (
     <div className={cx('grid justify-items-center gap-3 rounded-3xl bg-card p-8 text-center', className)}>
       {icon ? (
-        <div aria-hidden="true" className="text-primary">
+        <div aria-hidden="true" className="text-primary-fg">
           {icon}
         </div>
       ) : null}

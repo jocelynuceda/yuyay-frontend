@@ -2,7 +2,11 @@ import type { ConfidenceLevel, HomeStackParamList } from '../types';
 import { datePartsOf } from './dates.ts';
 import type { OcrSuggestion } from './ocrSuggestions.ts';
 
-type EntryParams = HomeStackParamList['NewEntry'];
+type NewEntryParams = HomeStackParamList['NewEntry'];
+export type EntryPrefill = NewEntryParams & {
+  details?: string;
+  ocrDraft?: { title?: string; occurredOn?: string; confidenceLevel: 'UNCERTAIN' };
+};
 
 /** El texto revisado se usa una sola vez, como valor inicial de Detalles. */
 export function ocrEntryParams(
@@ -10,7 +14,7 @@ export function ocrEntryParams(
   sourceAttachmentId: number,
   text: string,
   suggestion: OcrSuggestion,
-): EntryParams {
+): EntryPrefill {
   return {
     subjectId,
     sourceAttachmentId,
@@ -24,7 +28,7 @@ export function ocrEntryParams(
   };
 }
 
-export function initialEntryFields({ categoryCode, details, ocrDraft }: EntryParams) {
+export function initialEntryFields({ categoryCode, details, ocrDraft }: EntryPrefill) {
   const confidenceLevel: ConfidenceLevel = ocrDraft?.confidenceLevel ?? 'CONFIRMED';
   return {
     categoryCode: categoryCode ?? (ocrDraft ? '' : 'MEDICATION'),

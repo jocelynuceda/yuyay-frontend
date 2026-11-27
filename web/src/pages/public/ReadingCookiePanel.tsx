@@ -47,7 +47,7 @@ export function ReadingCookiePanel({ token, grant }: { token: string; grant: str
     className={`${position} ${surface} ${focusRing} flex min-h-11 items-center gap-2 rounded-full px-4 text-sm`}><Shield /> Permiso de lectura</button>
   if (mode === 'ball') return <button ref={handle} aria-label="Abrir el permiso de lectura"
     title="Abrir el permiso de lectura. Arrastra o usa las flechas para moverlo."
-    className={`${position} ${surface} ${focusRing} grid size-11 touch-none cursor-grab place-items-center rounded-full text-primary active:cursor-grabbing`}
+    className={`${position} ${surface} ${focusRing} grid size-11 touch-none cursor-grab place-items-center rounded-full text-primary-fg active:cursor-grabbing`}
     onPointerDown={event => {
       if (!event.isPrimary || event.button !== 0) return
       suppressClick.current = false
@@ -80,7 +80,7 @@ export function ReadingCookiePanel({ token, grant }: { token: string; grant: str
   return <aside aria-labelledby="reading-cookie-title"
     className={`${position} ${surface} max-h-[calc(100dvh-2rem)] w-[min(23.5rem,calc(100%-2rem))] overflow-auto rounded-2xl p-4`}>
     <div className="flex items-center gap-2">
-      <span className="rounded-lg bg-primary-tint p-2 text-primary"><Shield /></span>
+      <span className="rounded-lg bg-primary-tint p-2 text-primary-fg"><Shield /></span>
       <h2 id="reading-cookie-title" className="grow text-base font-semibold">¿Guardar esta lectura?</h2>
       <button ref={minimize} disabled={saving} onClick={() => setMode('tab')} aria-label="Minimizar" className={`size-9 rounded-lg ${focusRing}`}>−</button>
       <button disabled={saving} onClick={() => setMode('ball')} aria-label="Reducir a un escudo" className={`grid size-9 place-items-center rounded-lg ${focusRing}`}><Icon name="x" className="size-4" /></button>

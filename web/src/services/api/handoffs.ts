@@ -17,8 +17,8 @@ export async function listHandoffs(careSubjectId: number, params: PageParams = {
   return data
 }
 
-export async function getHandoff(handoffId: number, signal?: AbortSignal) {
-  const { data } = await api.get<HandoffDetail>(`/handoffs/${handoffId}`, { signal })
+export async function getHandoff(handoffId: number, signal?: AbortSignal, careSubjectId?: number) {
+  const { data } = await api.get<HandoffDetail>(`/handoffs/${handoffId}`, { signal, careSubjectId })
   return data
 }
 
@@ -28,23 +28,23 @@ export async function createHandoff(careSubjectId: number, request: HandoffReque
 }
 
 /** Los enlaces compartidos dejan de funcionar. */
-export async function deleteHandoff(handoffId: number) {
-  await api.delete(`/handoffs/${handoffId}`)
+export async function deleteHandoff(handoffId: number, careSubjectId?: number) {
+  await api.delete(`/handoffs/${handoffId}`, { careSubjectId })
 }
 
-export async function listHandoffSessions(handoffId: number, signal?: AbortSignal) {
-  const { data } = await api.get<HandoffSession[]>(`/handoffs/${handoffId}/sessions`, { signal })
+export async function listHandoffSessions(handoffId: number, signal?: AbortSignal, careSubjectId?: number) {
+  const { data } = await api.get<HandoffSession[]>(`/handoffs/${handoffId}/sessions`, { signal, careSubjectId })
   return data
 }
 
 /** Lo puede hacer quien creó el resumen o el cuidador principal. */
-export async function revokeHandoffSession(sessionId: number) {
-  await api.delete(`/handoff-sessions/${sessionId}`)
+export async function revokeHandoffSession(sessionId: number, careSubjectId?: number) {
+  await api.delete(`/handoff-sessions/${sessionId}`, { careSubjectId })
 }
 
 /** Genera el enlace temporal (token) para el médico. */
-export async function createHandoffSession(handoffId: number, request: HandoffSessionRequest) {
-  const { data } = await api.post<HandoffSessionCreated>(`/handoffs/${handoffId}/sessions`, { ...request, requireAccessCode: true })
+export async function createHandoffSession(handoffId: number, request: HandoffSessionRequest, careSubjectId?: number) {
+  const { data } = await api.post<HandoffSessionCreated>(`/handoffs/${handoffId}/sessions`, { ...request, requireAccessCode: true }, { careSubjectId })
   return data
 }
 

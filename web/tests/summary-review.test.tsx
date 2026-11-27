@@ -4,7 +4,7 @@ import { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { JSDOM } from 'jsdom'
 import { act, StrictMode } from 'react'
 import { AuthContext } from '../src/contexts/auth-context'
-import { forgetSummarySession, summarySession } from '../src/utils/summaryAttempts'
+import { acquireSummaryAttempt, forgetSubjectSummaryAttempts, forgetSummarySession, summarySession } from '../src/utils/summaryAttempts'
 import { api } from '../src/services/http'
 import { ConsultationSummaryPage } from '../src/pages/handoff/ConsultationSummaryPage'
 import { createSummaryReview } from '../src/utils/summaryReview'
@@ -95,7 +95,7 @@ test('cancelar y desmarcar no escriben; preparación vacía permite guardar', as
   assert.equal(empty.getSnapshot().phase, 'saved')
 })
 test('403 borra los datos privados y 400 permite corregir el formulario', async () => {
-  for (const status of [400, 401, 403, 404]) {
+  for (const status of [400, 401, 403, 404, 410]) {
     const review = model(async () => { throw { status } })
     await review.load()
     review.review()
@@ -155,6 +155,38 @@ Object.assign(globalThis, { window: dom.window, document: dom.window.document, H
 const { createRoot } = await import('react-dom/client')
 const { MemoryRouter, BrowserRouter, Routes, Route, Link } = await import('react-router-dom')
 const ok = (config: InternalAxiosRequestConfig, data: unknown) => ({ config, data, status: 200, statusText: 'OK', headers: {} })
+
+test('retirar el acceso descarta el borrador de esa persona aun si el guardado responde tarde', async (t) => {
+  const session = summarySession(79)
+  const otherSession = summarySession(80)
+  t.after(() => {
+    forgetSummarySession(session)
+    forgetSummarySession(otherSession)
+    window.localStorage.clear()
+  })
+  let finishSave!: (value: HandoffDetail) => void
+  const review = acquireSummaryAttempt(session, '2/5', () => model(
+    () => new Promise<HandoffDetail>((resolve) => { finishSave = resolve }),
+  ))
+  const otherSubject = acquireSummaryAttempt(session, '3/6', () => model(async () => saved))
+  const otherAccount = acquireSummaryAttempt(otherSession, '2/5', () => model(async () => saved))
+  await Promise.all([review.load(), otherSubject.load(), otherAccount.load()])
+  review.edit({ reason: 'Motivo del borrador privado' })
+  review.review()
+  const saving = review.save()
+  forgetSubjectSummaryAttempts(session, 2)
+
+  assert.equal(review.getSnapshot().reason, '')
+  assert.equal(review.getSnapshot().preparation, null)
+  assert.equal(otherSubject.getSnapshot().phase, 'editing')
+  assert.equal(otherAccount.getSnapshot().phase, 'editing')
+  finishSave(saved)
+  await saving
+  assert.equal(review.getSnapshot().saved, null)
+  assert.notEqual(acquireSummaryAttempt(session, '2/5', () => model(async () => saved)), review)
+  assert.equal(window.localStorage.getItem('yuyay.summary-history-check-required'), '1')
+})
+
 async function mount(t: TestContext) {
   const container = document.createElement('div')
   document.body.append(container)

@@ -18,18 +18,21 @@ function Sparkle({ className }: { className?: string }) {
 export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle: string; children: ReactNode; footer?: ReactNode }) {
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-4 sm:py-6">
-      <section className="relative overflow-hidden rounded-[2rem] bg-linear-to-br from-hero-from via-hero-via to-hero-to px-6 pt-5 pb-12 text-on-hero sm:px-8">
-        <Sparkle className="absolute top-20 right-10 h-5 w-5 text-white/70" />
-        <Sparkle className="absolute right-36 bottom-20 h-3 w-3 text-cream" />
-        <div aria-hidden="true" className="absolute -top-16 -left-10 h-48 w-48 rounded-full bg-white/25 blur-2xl" />
-        <div className="relative flex items-center justify-between">
-          <Logo onHero />
-          <ThemeToggle />
-        </div>
-        <h1 className="relative mt-4 text-3xl font-semibold sm:text-4xl">{title}</h1>
-        <p className="relative mt-2 text-on-hero-soft">{subtitle}</p>
-      </section>
-      <div className="relative -mt-8 px-2 sm:px-4">{children}</div>
+      <div className="overflow-hidden rounded-[2rem] bg-card shadow-[var(--shadow-soft)]">
+        <section className="relative overflow-hidden bg-linear-to-br from-hero-from via-hero-via to-hero-to px-6 pt-5 pb-6 text-on-hero sm:px-8">
+          <Sparkle className="absolute top-20 right-10 h-5 w-5 text-white/70" />
+          <Sparkle className="absolute right-36 bottom-20 h-3 w-3 text-cream" />
+          <div aria-hidden="true" className="absolute -top-16 -left-10 h-48 w-48 rounded-full bg-white/25 blur-2xl" />
+          <div className="relative flex items-center justify-between">
+            <Logo onHero />
+            <ThemeToggle />
+          </div>
+          <h1 className="relative mt-4 text-3xl font-semibold sm:text-4xl">{title}</h1>
+          <p className="relative mt-2 text-on-hero-soft">{subtitle}</p>
+        </section>
+        {/* El formulario va dentro de la misma tarjeta: sin borde, sombra ni redondeo propios */}
+        <div className="*:rounded-none *:border-0 *:shadow-none">{children}</div>
+      </div>
       {footer ? <div className="mt-4 text-center text-sm">{footer}</div> : null}
     </main>
   )

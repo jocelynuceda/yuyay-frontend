@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
-import { ApiError, createApiClient, MAX_RETRIES } from '../src/services/client.ts';
+import { ApiError, createApiClient, isAccessLost, MAX_RETRIES } from '../src/services/client.ts';
 
 function unauthorized(config: InternalAxiosRequestConfig) {
   return new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, undefined,
@@ -135,4 +135,10 @@ test('the client header is sent on every request only when the app provides it',
   }
   assert.deepEqual(seen.slice(0, 2), ['android/1.0.0+0f3a9c12', 'android/1.0.0+0f3a9c12']);
   assert.deepEqual(seen.slice(2).map((value) => value ?? null), [null, null]);
+});
+
+test('only a denied or missing resource counts as lost access, not a network or server failure', () => {
+  for (const status of [403, 404, 410]) assert.equal(isAccessLost(new ApiError(status, 'x')), true);
+  for (const status of [0, 401, 500, 503]) assert.equal(isAccessLost(new ApiError(status, 'x')), false);
+  assert.equal(isAccessLost(new Error('x')), false);
 });

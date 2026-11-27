@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useController, useForm } from 'react-hook-form'
 import type { z } from 'zod'
 import {
   careSubjectFields,
@@ -12,6 +12,7 @@ import {
 import { createCareSubject, updateCareSubject } from '../../services/api/careSubjects'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { DatePicker } from '../../components/ui/DatePicker'
 import { useCareAuthorization } from '../../hooks/useCareAuthorization'
 import type { CareSubject, CareSubjectRequest } from '../../types'
 import type { CareSubjectCreation } from '../../types/careAuthorization'
@@ -45,6 +46,7 @@ export function CareSubjectForm({
   const [mustCheck, setMustCheck] = useState(false)
   const [leavingUncertain, setLeavingUncertain] = useState(false)
   const {
+    control,
     register,
     handleSubmit,
     setError,
@@ -55,6 +57,8 @@ export function CareSubjectForm({
     defaultValues: subject ? careSubjectToForm(subject) : emptyCareSubject,
     mode: 'onChange',
   })
+
+  const { field: birthDate } = useController({ control, name: 'birthDate' })
 
   useEffect(() => {
     if (!inModal) return
@@ -122,7 +126,7 @@ export function CareSubjectForm({
         </Field>
 
         <Field id="subject-birthDate" label="Fecha de nacimiento (opcional)" error={errors.birthDate}>
-          <input type="date" min={`${MIN_YEAR}-01-01`} max={yesterdayIso()} {...a11yProps('subject-birthDate', errors.birthDate)} {...register('birthDate')} />
+          <DatePicker value={birthDate.value ?? ''} onChange={birthDate.onChange} onBlur={birthDate.onBlur} min={`${MIN_YEAR}-01-01`} max={yesterdayIso()} {...a11yProps('subject-birthDate', errors.birthDate)} />
         </Field>
 
         <GenderField field={register('gender')} />
