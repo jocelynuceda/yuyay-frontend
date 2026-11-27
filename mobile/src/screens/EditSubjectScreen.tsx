@@ -6,6 +6,7 @@ import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
 import { useToast } from '../hooks/useToast';
+import { useCurrentCareSubject } from '../navigation/SubjectScreen';
 import { deleteCareSubject, updateCareSubject } from '../services/api';
 import { ApiError } from '../services/http';
 import type { Gender, HomeStackParamList } from '../types';
@@ -16,8 +17,8 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'EditSubject'>;
 // La fecha de nacimiento debe ser anterior a hoy (el backend valida @Past)
 const DATE_RULES = { strictPast: true };
 
-export function EditSubjectScreen({ route, navigation }: Props) {
-  const { subject } = route.params;
+export function EditSubjectScreen({ navigation }: Props) {
+  const subject = useCurrentCareSubject();
   const initialDate = subject.birthDate ? datePartsOf(subject.birthDate) : undefined;
   const [name, setName] = useState(subject.name);
   const [dateParts, setDateParts] = useState(initialDate ?? { day: '', month: '', year: '' });

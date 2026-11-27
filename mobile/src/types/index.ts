@@ -325,17 +325,15 @@ export type TabNavigatorParamList = {
 
 export type HomeStackParamList = {
   Home: undefined;
-  SubjectDetail: { subjectId: number; name: string };
+  SubjectDetail: { subjectId: number };
   NewSubject: undefined;
-  EditSubject: { subject: CareSubject };
+  EditSubject: { subjectId: number };
   Exams: { subjectId: number };
   NewEntry: {
     subjectId: number;
     categoryCode?: string;
-    details?: string;
     sourceAttachmentId?: number;
-    /** Borrador de la revisión de texto, editable y por confirmar al abrir el formulario. */
-    ocrDraft?: { title?: string; occurredOn?: string; confidenceLevel: 'UNCERTAIN' };
+    ocrDraftId?: number;
     /** Vuelve a la pantalla anterior en lugar de saltarse la revisión del documento */
     returnToSource?: boolean;
   };
@@ -345,14 +343,14 @@ export type HomeStackParamList = {
   InviteCaregiver: { subjectId: number };
   Handoffs: { subjectId: number; isPrincipal: boolean };
   NewHandoff: { subjectId: number; isPrincipal: boolean; consultationId?: number };
-  HandoffView: { handoffId: number; isPrincipal: boolean };
+  HandoffView: { subjectId: number; handoffId: number; isPrincipal: boolean };
   Delegations: { subjectId: number; isPrincipal: boolean };
   NewDelegation: { subjectId: number };
-  Consultations: { subjectId: number; subjectName: string; isPrincipal: boolean };
-  NewConsultation: { subjectId: number; consultation?: Consultation };
-  ConsultationChanges: { subjectId: number; consultationId: number; since: string };
+  Consultations: { subjectId: number };
+  NewConsultation: { subjectId: number; consultationId?: number };
+  ConsultationChanges: { subjectId: number; consultationId: number };
   AccessLog: { subjectId: number };
-  AccessLogDetail: { subjectId: number; log: AccessLog; actor: string };
+  AccessLogDetail: { subjectId: number; logId: number };
   Documents: { subjectId: number };
   ReviewOcr: { subjectId: number; attachmentId: number };
   VoiceNotes: { subjectId: number };

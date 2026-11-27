@@ -68,7 +68,7 @@ function ManualHandoffScreen({ route, navigation }: Props) {
     try {
       const input = manualHandoffInput(all, selected, reason, questions);
       const handoff = await createHandoff(subjectId, { ...input, requestId: attemptKey(input) });
-      navigation.replace('HandoffView', { handoffId: handoff.id, isPrincipal });
+      navigation.replace('HandoffView', { subjectId, handoffId: handoff.id, isPrincipal });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         setPicked(new Set(selected));

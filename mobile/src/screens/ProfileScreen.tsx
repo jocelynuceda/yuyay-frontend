@@ -13,10 +13,10 @@ import { GenderChips, SubmitButton } from '../components/FormKit';
 import { ProfileCard } from '../components/ProfileCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAvatar } from '../hooks/useAvatar';
-import { useFetch } from '../hooks/useFetch';
+import { useCareSubjects, useSubjectNotifications } from '../hooks/useSubjectAccess';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { useToast } from '../hooks/useToast';
-import { getCareSubjects, getNotifications, updateMe } from '../services/api';
+import { updateMe } from '../services/api';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { Gender, RootStackParamList, TabNavigatorParamList } from '../types';
@@ -37,8 +37,8 @@ export function ProfileScreen({ navigation }: Props) {
   const [nameError, setNameError] = useState<string | undefined>();
   const [savingName, setSavingName] = useState(false);
   const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const subjects = useFetch(getCareSubjects);
-  const notifications = useFetch(getNotifications);
+  const subjects = useCareSubjects();
+  const notifications = useSubjectNotifications();
   useRefreshOnFocus(() => {
     subjects.reload();
     notifications.reload();

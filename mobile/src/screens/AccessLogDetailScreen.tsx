@@ -6,6 +6,8 @@ import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { VersionCard } from '../components/VersionCard';
 import { useFetch } from '../hooks/useFetch';
+import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
+import { actorOf, loadLogs } from './AccessLogScreen';
 import { getDelegations, getEntryVersions, getHandoff } from '../services/api';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { AccessLog, ChangeType, Delegation, HandoffDetail, HealthEntryVersion, HomeStackParamList } from '../types';
@@ -78,7 +80,7 @@ async function loadTarget(subjectId: number, log: AccessLog): Promise<Target> {
     return { kind: 'entry', version, previous };
   }
   if (log.targetType === 'HANDOFF') {
-    return getHandoff(id).then((handoff) => ({ kind: 'handoff', handoff }) as const, () => null);
+    return getHandoff(subjectId, id).then((handoff) => ({ kind: 'handoff', handoff }) as const, () => null);
   }
   if (log.targetType === 'DELEGATION') {
     const delegation = (await getDelegations(subjectId)).find((d) => d.id === id);
@@ -120,8 +122,17 @@ function EntryChanges({ version, previous }: { version: HealthEntryVersion; prev
 
 export function AccessLogDetailScreen({ route }: Props) {
   const styles = useStyles();
-  const { subjectId, log, actor } = route.params;
-  const target = useFetch(() => loadTarget(subjectId, log), [subjectId, log.id]);
+  const { subjectId, logId } = route.params;
+  const detail = useFetch(async () => {
+    const { logs, users, delegates } = await loadLogs(subjectId);
+    const log = logs.find((item) => item.id === logId);
+    if (!log) return null;
+    return { log, actor: actorOf(log, users, delegates) };
+  }, [subjectId, logId]);
+  useRefreshOnFocus(detail.reload);
+  if (detail.loading && !detail.data) return <LoadingView />;
+  if (!detail.data) return <StatusMessage message={detail.error ?? 'No encontramos este movimiento.'} />;
+  const { log, actor } = detail.data;
   const meta = accessActionMeta[log.action];
 
   return (
@@ -131,37 +142,50 @@ export function AccessLogDetailScreen({ route }: Props) {
         <Row label="Fecha y hora" value={fullDateTime.format(new Date(log.occurredAt))} />
       </FormCard>
 
-      <StatusMessage message={target.error} />
-      {target.loading && !target.data ? <LoadingView /> : null}
+      <StatusMessage message={detail.error} />
+      <AccessLogTarget key={logId} subjectId={subjectId} log={log} />
+    </ScrollView>
+  );
+}
 
-      {target.data?.kind === 'entry' ? (
+function AccessLogTarget({ subjectId, log }: { subjectId: number; log: AccessLog }) {
+  const styles = useStyles();
+  const result = useFetch(() => loadTarget(subjectId, log), [subjectId, log]);
+  useRefreshOnFocus(result.reload);
+  const target = result.data;
+
+  return (
+    <>
+      <StatusMessage message={result.error} />
+      {result.loading && !target ? <LoadingView /> : null}
+      {target?.kind === 'entry' ? (
         <>
-          {log.action === 'UPDATE' && target.data.previous ? (
-            <EntryChanges version={target.data.version} previous={target.data.previous} />
+          {log.action === 'UPDATE' && target.previous ? (
+            <EntryChanges version={target.version} previous={target.previous} />
           ) : null}
           <Text style={styles.section}>{log.action === 'UPDATE' ? 'Cómo quedó' : 'Registro'}</Text>
-          <VersionCard subjectId={subjectId} version={target.data.version} />
+          <VersionCard subjectId={subjectId} version={target.version} />
         </>
       ) : null}
 
-      {target.data?.kind === 'handoff' ? (
+      {target?.kind === 'handoff' ? (
         <FormCard title="Resumen">
-          <Row label="Motivo" value={target.data.handoff.reason} />
-          <Row label="Registros incluidos" value={String(target.data.handoff.items.length)} />
+          <Row label="Motivo" value={target.handoff.reason} />
+          <Row label="Registros incluidos" value={String(target.handoff.items.length)} />
         </FormCard>
       ) : null}
 
-      {target.data?.kind === 'delegation' ? (
+      {target?.kind === 'delegation' ? (
         <FormCard title="Acceso delegado">
-          <Row label="Para" value={target.data.delegation.granteeName} />
+          <Row label="Para" value={target.delegation.granteeName} />
           <Row
             label="Podía ver"
-            value={target.data.delegation.categoryCodes.map((c) => categoryMeta[c]?.plural ?? c).join(', ')}
+            value={target.delegation.categoryCodes.map((c) => categoryMeta[c]?.plural ?? c).join(', ')}
           />
-          <Row label="Válido hasta" value={formatDate(target.data.delegation.validUntil)} />
+          <Row label="Válido hasta" value={formatDate(target.delegation.validUntil)} />
         </FormCard>
       ) : null}
-    </ScrollView>
+    </>
   );
 }
 

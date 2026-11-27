@@ -15,7 +15,7 @@ import { formatDateTime, timeAgo } from '../utils/format';
 type Props = NativeStackScreenProps<HomeStackParamList, 'AccessLog'>;
 
 /** Trae la bitácora junto con los nombres de cuidadores y delegados, que el backend entrega solo como id. */
-async function loadLogs(subjectId: number) {
+export async function loadLogs(subjectId: number) {
   const [logs, relationships, delegations] = await Promise.all([
     getAccessLogs(subjectId),
     getCareRelationships(subjectId),
@@ -26,7 +26,7 @@ async function loadLogs(subjectId: number) {
   return { logs, users, delegates };
 }
 
-function actorOf(log: AccessLog, users: Map<number, string>, delegates: Map<number, string>) {
+export function actorOf(log: AccessLog, users: Map<number, string>, delegates: Map<number, string>) {
   if (log.visitorName) return log.visitorRole ? `${log.visitorName} (${log.visitorRole})` : log.visitorName;
   if (log.userId !== null) return users.get(log.userId) ?? 'Un cuidador';
   if (log.delegationId !== null) return delegates.get(log.delegationId) ?? 'Un delegado';
@@ -65,7 +65,7 @@ export function AccessLogScreen({ route, navigation }: Props) {
             iconFg={colors.accentText}
             title={`${actor} ${meta.verb} ${accessTargetLabel(log)}`}
             subtitle={`${formatDateTime(log.occurredAt)} · ${timeAgo(log.occurredAt)}`}
-            onPress={() => navigation.navigate('AccessLogDetail', { subjectId, log, actor })}
+            onPress={() => navigation.navigate('AccessLogDetail', { subjectId, logId: log.id })}
           />
         );
       })}

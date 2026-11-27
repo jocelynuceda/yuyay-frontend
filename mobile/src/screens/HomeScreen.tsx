@@ -18,15 +18,16 @@ import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { useFetch } from '../hooks/useFetch';
+import { useCareSubjects, useSubjectAccess, useSubjectNotifications } from '../hooks/useSubjectAccess';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import {
   acceptInvitation,
-  getCareSubjects,
   getConsultations,
-  getNotifications,
   getPendingInvitations,
+  subjectAccess,
 } from '../services/api';
 import { ApiError } from '../services/http';
+import { subjectDataIsCurrent } from '../services/subjectAccess';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
 import { appointmentOrder, careRoleLabel, formatTime, todayIso } from '../utils/format';
@@ -64,14 +65,18 @@ export function HomeScreen({ navigation }: Props) {
   const { gradients, heroIsDark, colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const subjects = useFetch(getCareSubjects);
+  const subjects = useCareSubjects();
+  const access = useSubjectAccess();
   const invitations = useFetch(getPendingInvitations);
-  const notifications = useFetch(getNotifications);
+  const notifications = useSubjectNotifications();
   const subjectIds = subjects.data?.map((s) => s.id) ?? [];
   // Consultas de todas las personas, para la tarjeta de próxima cita
   const consultations = useFetch(
-    () => loadBySubject(subjectIds, getConsultations)
-      .then(({ loaded, failed }) => ({ list: [...loaded.values()].flat(), failed })),
+    async () => {
+      const loadedAccess = subjectAccess.getSnapshot();
+      const { loaded, failed } = await loadBySubject(subjectIds, getConsultations);
+      return { list: [...loaded.values()].flat(), failed, access: loadedAccess };
+    },
     [subjectIds],
   );
   useRefreshOnFocus(() => {
@@ -86,7 +91,9 @@ export function HomeScreen({ navigation }: Props) {
   const firstName = user?.name.split(' ')[0] ?? '';
   const unread = notifications.data?.filter((n) => !n.read).length ?? 0;
   const people = subjects.data ?? [];
-  const appointment = pickAppointment(consultations.data?.list ?? [], people);
+  const data = consultations.data;
+  const visibleConsultations = data?.list.filter((c) => subjectDataIsCurrent(access, data.access, c.careSubjectId));
+  const appointment = pickAppointment(visibleConsultations ?? [], people);
   const missingAppointments = !!(subjects.error || consultations.error || consultations.data?.failed);
 
   const header = (
@@ -140,7 +147,7 @@ export function HomeScreen({ navigation }: Props) {
         <FadeIn delay={80} style={styles.flex}>
           <PressableScale
             onPress={() =>
-              people[0] && navigation.navigate('SubjectDetail', { subjectId: people[0].id, name: people[0].name })
+              people[0] && navigation.navigate('SubjectDetail', { subjectId: people[0].id })
             }
             style={[styles.tile, styles.tileTall, { backgroundColor: colors.accent }]}
             accessibilityRole="button"
@@ -277,7 +284,6 @@ export function HomeScreen({ navigation }: Props) {
             onPress={() =>
               navigation.navigate('SubjectDetail', {
                 subjectId: item.id,
-                name: item.name,
               })
             }
           />

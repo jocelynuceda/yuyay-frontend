@@ -44,7 +44,7 @@ export function DelegationsScreen({ route, navigation }: Props) {
   const handleRevoke = (d: Delegation) =>
     runAction({
       confirm: ['Revocar acceso', `${d.granteeName} ya no podrá ver la información.`, 'Revocar'],
-      action: () => revokeDelegation(d.id),
+      action: () => revokeDelegation(subjectId, d.id),
       success: 'Acceso revocado.',
       fallback: 'No pudimos revocar el acceso.',
       onDone: delegations.reload,

@@ -56,7 +56,7 @@ export function HandoffsScreen({ route, navigation }: Props) {
             iconFg={colors.accentText}
             title={h.reason}
             subtitle={formatDate(h.createdAt)}
-            onPress={() => navigation.navigate('HandoffView', { handoffId: h.id, isPrincipal })}
+            onPress={() => navigation.navigate('HandoffView', { subjectId, handoffId: h.id, isPrincipal })}
           />
         ))
       )}

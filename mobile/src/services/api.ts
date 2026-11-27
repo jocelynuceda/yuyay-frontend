@@ -1,9 +1,10 @@
 import type { ConsultationPreparation, ConfirmPreparation } from '../types/consultationPreparation';
 import { Platform } from 'react-native';
-import { API_URL, CLIENT_HEADERS, http, session } from './http';
+import { API_URL, ApiError, CLIENT_HEADERS, http, session } from './http';
 import { attachmentUploadOptions } from './attachmentUpload';
-import { createHandoffAccessApi } from './security/handoffAccessCodeApi';
+import { createHandoffAccessApi, type HandoffSessionRequest } from './security/handoffAccessCodeApi';
 import { collectPages, type Page } from './pagination';
+import { createSubjectAccess } from './subjectAccess';
 import type { TermsAcceptance } from '../types/terms';
 import type {
   RegisterInput,
@@ -68,15 +69,23 @@ export const logout = (refreshToken: string) => http.post('/auth/logout', { refr
 /** Solo cambia el nombre de la cuenta. */
 export const updateMe = (name: string, gender: Gender | null) => http.patch<User>('/users/me', { name, gender }).then((r) => r.data);
 
-export const getCareSubjects = () => http.get<CareSubject[]>('/care-subjects').then((r) => r.data);
+export const subjectAccess = createSubjectAccess(() => session.generation);
+export const getCareSubjectList = () => subjectAccess.people(() => http.get<CareSubject[]>('/care-subjects').then((r) => r.data));
+export const getCareSubjects = () => getCareSubjectList().then(({ data }) => data);
 
-export const getCareSubject = (id: number) => http.get<CareSubject>(`/care-subjects/${id}`).then((r) => r.data);
+const readSubject = <T>(id: number, load: () => Promise<T>) => subjectAccess.request(id, 'read', load);
+const restrictedSubject = <T>(id: number, load: () => Promise<T>) =>
+  subjectAccess.request(id, 'restricted', load, () => getCareSubject(id));
+
+export const getCareSubjectWithAccess = (id: number) =>
+  subjectAccess.identity(id, () => http.get<CareSubject>(`/care-subjects/${id}`).then((r) => r.data));
+export const getCareSubject = (id: number) => getCareSubjectWithAccess(id).then(({ data }) => data);
 
 export const getCareAuthorizationPolicy = () =>
   http.get<CareAuthorizationPolicy>('/care-subjects/authorization-policy').then((r) => r.data);
 
 export const getCareAuthorizationHistory = (id: number) =>
-  http.get<CareAuthorizationDeclaration[]>(`/care-subjects/${id}/authorization-declarations`).then((r) => r.data);
+  restrictedSubject(id, () => http.get<CareAuthorizationDeclaration[]>(`/care-subjects/${id}/authorization-declarations`).then((r) => r.data));
 
 export interface CareSubjectCreationFields {
   name: string;
@@ -90,31 +99,40 @@ export const createCareSubject = ({ data, requestId, declaration }: CareSubjectC
 
 /** PATCH reemplaza los tres datos: lo que llega en null queda vacío. */
 export const updateCareSubject = (id: number, data: { name: string; birthDate: string | null; gender: Gender | null; notes: string | null }) =>
-  http.patch<CareSubject>(`/care-subjects/${id}`, data).then((r) => r.data);
+  restrictedSubject(id, () => http.patch<CareSubject>(`/care-subjects/${id}`, data).then((r) => r.data));
 
 /** El backend solo lo permite al principal y si la persona no tiene registros de salud (409). */
-export const deleteCareSubject = (id: number) => http.delete(`/care-subjects/${id}`);
+export const deleteCareSubject = (id: number) =>
+  restrictedSubject(id, () => http.delete(`/care-subjects/${id}`));
 
 export const getCareRelationships = (subjectId: number) =>
-  http.get<CareRelationship[]>(`/care-subjects/${subjectId}/relationships`).then((r) => r.data);
+  readSubject(subjectId, () => http.get<CareRelationship[]>(`/care-subjects/${subjectId}/relationships`).then((r) => r.data));
 
 export const getConsultations = (subjectId: number) =>
-  http.get<Consultation[]>(`/care-subjects/${subjectId}/consultations`).then((r) => r.data);
+  readSubject(subjectId, () => http.get<Consultation[]>(`/care-subjects/${subjectId}/consultations`).then((r) => r.data));
+
+export const getConsultation = (subjectId: number, consultationId: number) =>
+  restrictedSubject(subjectId, async () => {
+    const { data } = await http.get<Consultation>(`/consultations/${consultationId}`);
+    if (data.careSubjectId !== subjectId) throw new ApiError(404, 'La cita no pertenece a esta persona.');
+    return data;
+  });
 
 export const createConsultation = (subjectId: number, data: ConsultationInput) =>
-  http.post<Consultation>(`/care-subjects/${subjectId}/consultations`, clean(data)).then((r) => r.data);
+  restrictedSubject(subjectId, () => http.post<Consultation>(`/care-subjects/${subjectId}/consultations`, clean(data)).then((r) => r.data));
 
-export const updateConsultation = (consultationId: number, data: ConsultationUpdate) =>
-  http.patch<Consultation>(`/consultations/${consultationId}`, data).then((r) => r.data);
+export const updateConsultation = (subjectId: number, consultationId: number, data: ConsultationUpdate) =>
+  restrictedSubject(subjectId, () => http.patch<Consultation>(`/consultations/${consultationId}`, data).then((r) => r.data));
 
 export const getConsultationChanges = (subjectId: number, sinceConsultationId: number) =>
-  http
+  restrictedSubject(subjectId, () => http
     .get<HealthEntryVersion[]>(`/care-subjects/${subjectId}/consultations/changes`, {
       params: { sinceConsultationId },
     })
-    .then((r) => r.data);
+    .then((r) => r.data));
 
-export const deleteConsultation = (consultationId: number) => http.delete(`/consultations/${consultationId}`);
+export const deleteConsultation = (subjectId: number, consultationId: number) =>
+  restrictedSubject(subjectId, () => http.delete(`/consultations/${consultationId}`));
 
 export const getPendingInvitations = () =>
   http.get<CareRelationship[]>('/me/relationships/pending').then((r) => r.data);
@@ -125,15 +143,15 @@ export const acceptInvitation = (relationshipId: number) =>
 export const getHealthCategories = () => http.get<HealthCategory[]>('/health-categories').then((r) => r.data);
 
 export const getHealthEntriesPage = (subjectId: number, page = 0, category?: string, size = 100) =>
-  http.get<Page<HealthEntry> | HealthEntry[]>(`/care-subjects/${subjectId}/health-entries`, {
+  readSubject(subjectId, () => http.get<Page<HealthEntry> | HealthEntry[]>(`/care-subjects/${subjectId}/health-entries`, {
     params: { page, size, category, sort: 'createdAt,desc' },
-  }).then((r) => r.data);
+  }).then((r) => r.data));
 
 export const getHealthEntries = (subjectId: number, category?: string) =>
-  collectPages((page) => getHealthEntriesPage(subjectId, page, category));
+  readSubject(subjectId, () => collectPages((page) => getHealthEntriesPage(subjectId, page, category)));
 
 export const createHealthEntry = (subjectId: number, data: HealthEntryInput) =>
-  http.post<HealthEntry>(`/care-subjects/${subjectId}/health-entries`, clean(data)).then((r) => r.data);
+  restrictedSubject(subjectId, () => http.post<HealthEntry>(`/care-subjects/${subjectId}/health-entries`, clean(data)).then((r) => r.data));
 
 export const getNotificationsPage = (page = 0, unread?: boolean) =>
   http.get<Page<Notification> | Notification[]>('/notifications', { params: { page, size: 100, unread } }).then((r) => r.data);
@@ -146,94 +164,104 @@ export const markNotificationRead = (id: number) =>
 /* ---------- Cuidadores ---------- */
 
 export const inviteCaregiver = (subjectId: number, data: InviteCaregiverInput) =>
-  http.post<CareRelationship>(`/care-subjects/${subjectId}/relationships`, clean(data)).then((r) => r.data);
+  restrictedSubject(subjectId, () => http.post<CareRelationship>(`/care-subjects/${subjectId}/relationships`, clean(data)).then((r) => r.data));
 
 export const removeCaregiver = (subjectId: number, relationshipId: number) =>
-  http.delete(`/care-subjects/${subjectId}/relationships/${relationshipId}`);
+  restrictedSubject(subjectId, () => http.delete(`/care-subjects/${subjectId}/relationships/${relationshipId}`));
 
 /* ---------- Resumen de traspaso ---------- */
 
 export const getHandoffs = (subjectId: number) =>
-  http.get<Handoff[]>(`/care-subjects/${subjectId}/handoffs`).then((r) => r.data);
+  readSubject(subjectId, () => http.get<Handoff[]>(`/care-subjects/${subjectId}/handoffs`).then((r) => r.data));
 
 export const createHandoff = (subjectId: number, data: HandoffInput) =>
-  http.post<HandoffDetail>(`/care-subjects/${subjectId}/handoffs`, clean(data)).then((r) => r.data);
+  restrictedSubject(subjectId, () => http.post<HandoffDetail>(`/care-subjects/${subjectId}/handoffs`, clean(data)).then((r) => r.data));
 
-export const getHandoff = (handoffId: number) => http.get<HandoffDetail>(`/handoffs/${handoffId}`).then((r) => r.data);
+export const getHandoff = (subjectId: number, handoffId: number) =>
+  restrictedSubject(subjectId, async () => {
+    const { data } = await http.get<HandoffDetail>(`/handoffs/${handoffId}`);
+    if (data.careSubjectId !== subjectId) throw new ApiError(404, 'El resumen no pertenece a esta persona.');
+    return data;
+  });
 
-export const deleteHandoff = (handoffId: number) => http.delete(`/handoffs/${handoffId}`);
+export const deleteHandoff = (subjectId: number, handoffId: number) =>
+  restrictedSubject(subjectId, () => http.delete(`/handoffs/${handoffId}`));
 
-export const getHandoffSessions = (handoffId: number) =>
-  http.get<HandoffSession[]>(`/handoffs/${handoffId}/sessions`).then((r) => r.data);
+export const getHandoffSessions = (subjectId: number, handoffId: number) =>
+  restrictedSubject(subjectId, () => http.get<HandoffSession[]>(`/handoffs/${handoffId}/sessions`).then((r) => r.data));
 
 const handoffAccessApi = createHandoffAccessApi(http);
-export const createHandoffSession = handoffAccessApi.createSession;
-export const getHandoffAccessCode = handoffAccessApi.getCode;
+export const createHandoffSession = (subjectId: number, handoffId: number, request: HandoffSessionRequest) =>
+  restrictedSubject(subjectId, () => handoffAccessApi.createSession(handoffId, request));
+export const getHandoffAccessCode = (subjectId: number, sessionId: number, signal: AbortSignal) =>
+  restrictedSubject(subjectId, () => handoffAccessApi.getCode(sessionId, signal));
 
-export const revokeHandoffSession = (sessionId: number) => http.delete(`/handoff-sessions/${sessionId}`);
+export const revokeHandoffSession = (subjectId: number, sessionId: number) =>
+  restrictedSubject(subjectId, () => http.delete(`/handoff-sessions/${sessionId}`));
 
 /* ---------- Delegar acceso ---------- */
 
 export const getDelegations = (subjectId: number) =>
-  http.get<Delegation[]>(`/care-subjects/${subjectId}/delegations`).then((r) => r.data);
+  readSubject(subjectId, () => http.get<Delegation[]>(`/care-subjects/${subjectId}/delegations`).then((r) => r.data));
 
 export const createDelegation = (subjectId: number, data: DelegationInput) =>
-  http.post<DelegationCreated>(`/care-subjects/${subjectId}/delegations`, data).then((r) => r.data);
+  restrictedSubject(subjectId, () => http.post<DelegationCreated>(`/care-subjects/${subjectId}/delegations`, data).then((r) => r.data));
 
-export const revokeDelegation = (delegationId: number) => http.delete(`/delegations/${delegationId}`);
+export const revokeDelegation = (subjectId: number, delegationId: number) =>
+  restrictedSubject(subjectId, () => http.delete(`/delegations/${delegationId}`));
 
 /* ---------- Editar registro e historial ---------- */
 
 export const getHealthEntry = (subjectId: number, entryId: number) =>
-  http.get<HealthEntry>(`/care-subjects/${subjectId}/health-entries/${entryId}`).then((r) => r.data);
+  readSubject(subjectId, () => http.get<HealthEntry>(`/care-subjects/${subjectId}/health-entries/${entryId}`).then((r) => r.data));
 
 export const updateHealthEntry = (subjectId: number, entryId: number, data: HealthEntryUpdate) =>
-  http.patch<HealthEntry>(`/care-subjects/${subjectId}/health-entries/${entryId}`, clean(data)).then((r) => r.data);
+  restrictedSubject(subjectId, () => http.patch<HealthEntry>(`/care-subjects/${subjectId}/health-entries/${entryId}`, clean(data)).then((r) => r.data));
 
 export const deleteHealthEntry = (subjectId: number, entryId: number) =>
-  http.delete(`/care-subjects/${subjectId}/health-entries/${entryId}`);
+  restrictedSubject(subjectId, () => http.delete(`/care-subjects/${subjectId}/health-entries/${entryId}`));
 
 export const getEntryVersions = (subjectId: number, entryId: number) =>
-  http
+  readSubject(subjectId, () => http
     .get<HealthEntryVersion[]>(`/care-subjects/${subjectId}/health-entries/${entryId}/versions`)
-    .then((r) => r.data);
+    .then((r) => r.data));
 
 /* ---------- Bitácora ---------- */
 
 /** Los últimos movimientos: una sola página, la más reciente. */
 export const getAccessLogs = (subjectId: number) =>
-  http
+  restrictedSubject(subjectId, () => http
     .get<AccessLog[] | { content: AccessLog[] }>(`/care-subjects/${subjectId}/access-logs`, {
       params: { size: MAX_PAGE_SIZE },
     })
-    .then((r) => (Array.isArray(r.data) ? r.data : r.data.content));
+    .then((r) => (Array.isArray(r.data) ? r.data : r.data.content)));
 
 /* ---------- Documentos y OCR ---------- */
 
 export const getAttachments = (subjectId: number) =>
-  http.get<Attachment[]>(`/care-subjects/${subjectId}/attachments`).then((r) => r.data);
+  readSubject(subjectId, () => http.get<Attachment[]>(`/care-subjects/${subjectId}/attachments`).then((r) => r.data));
 
 export const getAttachment = (subjectId: number, attachmentId: number) =>
-  http.get<Attachment>(`/care-subjects/${subjectId}/attachments/${attachmentId}`).then((r) => r.data);
+  readSubject(subjectId, () => http.get<Attachment>(`/care-subjects/${subjectId}/attachments/${attachmentId}`).then((r) => r.data));
 
 export const uploadAttachment = (subjectId: number, form: FormData) =>
-  http
+  restrictedSubject(subjectId, () => http
     // Una foto tarda más que una petición normal; FormData se envía tal cual
     .post<Attachment>(`/care-subjects/${subjectId}/attachments`, form, { ...attachmentUploadOptions, transformRequest: (data) => data })
-    .then((r) => r.data);
+    .then((r) => r.data));
 
 /** Enlace temporal (S3) para abrir el archivo original. */
 export const getAttachmentAccess = (subjectId: number, attachmentId: number) =>
-  http.get<AttachmentAccess>(`/care-subjects/${subjectId}/attachments/${attachmentId}/access`).then((r) => r.data);
+  readSubject(subjectId, () => http.get<AttachmentAccess>(`/care-subjects/${subjectId}/attachments/${attachmentId}/access`).then((r) => r.data));
 
 export const deleteAttachment = (subjectId: number, attachmentId: number) =>
-  http.delete(`/care-subjects/${subjectId}/attachments/${attachmentId}`);
+  restrictedSubject(subjectId, () => http.delete(`/care-subjects/${subjectId}/attachments/${attachmentId}`));
 
 /** Fuente de un archivo privado: en iOS y Android va con el token y en la web como blob local. */
 export async function getAttachmentSource(subjectId: number, attachmentId: number) {
   const path = `/care-subjects/${subjectId}/attachments/${attachmentId}`;
   if (Platform.OS === 'web') {
-    const { data } = await http.get<Blob>(`${path}/content`, { responseType: 'blob', timeout: 60000 });
+    const { data } = await readSubject(subjectId, () => http.get<Blob>(`${path}/content`, { responseType: 'blob', timeout: 60000 }));
     return { uri: URL.createObjectURL(data) };
   }
   // La imagen y el audio se piden fuera de axios: esta llamada renueva el token si ya venció
@@ -245,13 +273,13 @@ export async function getAttachmentSource(subjectId: number, attachmentId: numbe
 }
 
 export const retryOcr = (subjectId: number, attachmentId: number) =>
-  http.post<Attachment>(`/care-subjects/${subjectId}/attachments/${attachmentId}/ocr-retry`).then((r) => r.data);
+  restrictedSubject(subjectId, () => http.post<Attachment>(`/care-subjects/${subjectId}/attachments/${attachmentId}/ocr-retry`).then((r) => r.data));
 
-export const prepareConsultation = (consultationId: number) =>
-  http.get<ConsultationPreparation>(
+export const prepareConsultation = (subjectId: number, consultationId: number) =>
+  restrictedSubject(subjectId, () => http.get<ConsultationPreparation>(
     `/consultations/${consultationId}/preparation`,
-  ).then((response) => response.data);
+  ).then((response) => response.data));
 
-export const confirmConsultation = (consultationId: number, body: ConfirmPreparation) =>
-  http.post<HandoffDetail>(`/consultations/${consultationId}/preparation/confirm`, body)
-    .then((response) => response.data);
+export const confirmConsultation = (subjectId: number, consultationId: number, body: ConfirmPreparation) =>
+  restrictedSubject(subjectId, () => http.post<HandoffDetail>(`/consultations/${consultationId}/preparation/confirm`, body)
+    .then((response) => response.data));

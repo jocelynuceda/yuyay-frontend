@@ -6,8 +6,9 @@ import { EmptyState } from '../components/EmptyState';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useFetch } from '../hooks/useFetch';
+import { useCareSubjects, useSubjectNotifications } from '../hooks/useSubjectAccess';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
-import { getCareSubjects, getNotifications, getPendingInvitations, markNotificationRead } from '../services/api';
+import { getPendingInvitations, markNotificationRead } from '../services/api';
 import { fonts, makeStyles, radius, useTheme, type Colors } from '../theme';
 import type { Notification, NotificationType, TabNavigatorParamList } from '../types';
 import { notificationTarget } from '../utils/notificationTarget';
@@ -27,9 +28,9 @@ export function NotificationsScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp<TabNavigatorParamList>>();
-  const notifications = useFetch(getNotifications);
+  const notifications = useSubjectNotifications();
   const pending = useFetch(getPendingInvitations);
-  const subjects = useFetch(getCareSubjects);
+  const subjects = useCareSubjects();
   const [filter, setFilter] = useState<Filter>('all');
   useRefreshOnFocus(() => {
     notifications.reload();

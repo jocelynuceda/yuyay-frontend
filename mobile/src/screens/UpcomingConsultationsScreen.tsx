@@ -10,8 +10,10 @@ import { ReminderToggle } from '../components/ReminderToggle';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { useFetch } from '../hooks/useFetch';
+import { useSubjectAccess } from '../hooks/useSubjectAccess';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
-import { getCareSubjects, getConsultations } from '../services/api';
+import { getCareSubjectList, getConsultations } from '../services/api';
+import { subjectDataIsCurrent } from '../services/subjectAccess';
 import { reconcileReminders } from '../services/reminders';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
@@ -36,7 +38,7 @@ function daysUntil(date: string, today: string) {
  * `loaded` guarda solo las listas que se pudieron leer, para reconciliar los avisos sin tocar las demás.
  */
 async function loadUpcoming() {
-  const subjects = await getCareSubjects();
+  const { data: subjects, access } = await getCareSubjectList();
   const { loaded, failed } = await loadBySubject(subjects.map((s) => s.id), getConsultations);
   const today = todayIso();
   const items = [...loaded.values()]
@@ -44,26 +46,30 @@ async function loadUpcoming() {
     .filter((c) => c.date >= today)
     .sort((a, b) => appointmentOrder(a).localeCompare(appointmentOrder(b)))
     .map((c) => ({ ...c, subject: subjects.find((s) => s.id === c.careSubjectId)! }));
-  return { items, loaded, failed, subjectIds: new Set(subjects.map((s) => s.id)) };
+  return { items, loaded, failed, access, subjectIds: new Set(subjects.map((s) => s.id)) };
 }
 
 export function UpcomingConsultationsScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const upcoming = useFetch(loadUpcoming);
+  const access = useSubjectAccess();
   useRefreshOnFocus(upcoming.reload);
   const userId = useAuth().user?.id;
 
   useEffect(() => {
-    if (userId !== undefined && upcoming.data) {
-      void reconcileReminders(userId, upcoming.data.loaded, upcoming.data.subjectIds);
+    const data = upcoming.data;
+    if (userId !== undefined && data) {
+      const loaded = new Map([...data.loaded].filter(([id]) => subjectDataIsCurrent(access, data.access, id)));
+      void reconcileReminders(userId, loaded, data.subjectIds);
     }
-  }, [userId, upcoming.data]);
+  }, [userId, upcoming.data, access]);
 
   if (upcoming.loading && !upcoming.data) return <LoadingView />;
 
   const today = todayIso();
-  const list = upcoming.data?.items ?? [];
+  const data = upcoming.data;
+  const list = data?.items.filter((c) => subjectDataIsCurrent(access, data.access, c.careSubjectId)) ?? [];
   const failed = upcoming.data?.failed ?? 0;
   // Solo una carga completa permite afirmar que no hay citas
   const complete = upcoming.data !== null && !upcoming.error && !failed;
@@ -111,8 +117,6 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
                   onPress={() =>
                     navigation.navigate('Consultations', {
                       subjectId: c.subject.id,
-                      subjectName: c.subject.name,
-                      isPrincipal: c.subject.myRole === 'PRINCIPAL',
                     })
                   }
                 />

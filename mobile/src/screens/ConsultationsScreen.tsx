@@ -12,6 +12,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
+import { useCurrentCareSubject } from '../navigation/SubjectScreen';
 import { deleteConsultation, getConsultations } from '../services/api';
 import { disableReminder, reconcileReminders } from '../services/reminders';
 import { fonts, makeStyles, useTheme } from '../theme';
@@ -23,7 +24,9 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'Consultations'>;
 export function ConsultationsScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { subjectId, subjectName, isPrincipal } = route.params;
+  const { subjectId } = route.params;
+  const subject = useCurrentCareSubject();
+  const isPrincipal = subject.myRole === 'PRINCIPAL';
   const [error, setError] = useState<string | null>(null);
   const runAction = useConfirmedAction(setError);
   const consultations = useFetch(() => getConsultations(subjectId), [subjectId]);
@@ -54,7 +57,7 @@ export function ConsultationsScreen({ route, navigation }: Props) {
     runAction({
       confirm: ['Borrar cita', `"${c.reason}" del ${formatDate(c.date)}.`, 'Borrar'],
       action: async () => {
-        await deleteConsultation(c.id);
+        await deleteConsultation(subjectId, c.id);
         if (userId !== undefined) await disableReminder(userId, c.id).catch(() => undefined);
       },
       success: 'Cita borrada.',
@@ -70,18 +73,18 @@ export function ConsultationsScreen({ route, navigation }: Props) {
       iconFg={upcomingItem ? colors.accentText : colors.muted}
       title={c.reason}
       subtitle={[formatDate(c.date), c.time && formatTime(c.time), c.notes].filter(Boolean).join(' · ')}
-      onPress={isPrincipal ? () => navigation.navigate('NewConsultation', { subjectId, consultation: c }) : undefined}
+      onPress={isPrincipal ? () => navigation.navigate('NewConsultation', { subjectId, consultationId: c.id }) : undefined}
       footer={
         <View>
         {upcomingItem ? (
           <>
-            <AddToCalendar consultation={c} subjectName={subjectName} />
+            <AddToCalendar consultation={c} subjectName={subject.name} />
             <ReminderToggle consultation={c} />
           </>
         ) : (
           <Pressable
             onPress={() =>
-              navigation.navigate('ConsultationChanges', { subjectId, consultationId: c.id, since: c.date })
+              navigation.navigate('ConsultationChanges', { subjectId, consultationId: c.id })
             }
             hitSlop={6}
             accessibilityRole="button"
