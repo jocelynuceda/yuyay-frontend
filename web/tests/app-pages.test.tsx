@@ -707,6 +707,52 @@ test('Dashboard: saludo, próxima cita más cercana entre todas las personas e i
   assert.ok(document.querySelector('a[href="/invitations/7"]'), 'enlace a la invitación pendiente')
 })
 
+test('Inicio sin sesión: muestra la landing con accesos a crear cuenta e iniciar sesión', async (t) => {
+  const { unmount } = await mountApp('/', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!document.querySelector('h1'), 'título de la landing')
+  assert.equal(pathname(), '/', 'se queda en el inicio, sin redirigir al login')
+  assert.match(document.querySelector('h1')?.textContent ?? '', /memoria de salud/)
+  assert.ok(document.querySelector('header a[href="/register"]'), 'botón Crear cuenta en la barra')
+  assert.ok(document.querySelector('header a[href="/login"]'), 'Iniciar sesión en la barra')
+  for (const id of ['que-es', 'que-hace', 'por-que', 'equipo']) {
+    assert.ok(document.getElementById(id), `sección #${id}`)
+    assert.ok(document.querySelector(`a[href="#${id}"]`), `enlace a #${id}`)
+  }
+})
+
+test('Landing: Escape cierra el menú de secciones y devuelve el foco al botón', async (t) => {
+  const { unmount } = await mountApp('/', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!document.querySelector('button[aria-controls="landing-menu"]'), 'botón del menú')
+  const button = document.querySelector<HTMLButtonElement>('button[aria-controls="landing-menu"]')!
+  button.focus()
+  await click(button, 'Abrir menú')
+  const first = document.querySelector<HTMLAnchorElement>('#landing-menu a[href="#que-es"]')
+  assert.ok(first, 'el menú muestra «Qué es»')
+  first!.focus()
+  await act(async () => { window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
+  assert.equal(document.getElementById('landing-menu'), null, 'el menú se cierra')
+  assert.equal(document.activeElement, button, 'el foco vuelve a «Abrir menú»')
+  assert.equal(button.getAttribute('aria-expanded'), 'false')
+})
+
+test('Landing: la cifra de hipertensión enlaza el informe de MINSA', async (t) => {
+  const { unmount } = await mountApp('/', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!document.getElementById('por-que'), 'sección de cifras')
+  const link = document.querySelector<HTMLAnchorElement>('#por-que a[href*="minsa.gob.pe"]')
+  assert.match(link?.textContent ?? '', /MINSA · PP 0018, 2024/)
+  assert.equal(link?.getAttribute('rel'), 'noopener noreferrer')
+  assert.doesNotMatch(document.getElementById('por-que')!.textContent ?? '', /ENDES 2023/)
+})
+
+test('Sin sesión, las demás rutas privadas siguen llevando al login', async (t) => {
+  const { unmount } = await mountApp('/people', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => pathname() === '/login', 'redirección a /login')
+})
+
 test('Layout: navegación con la ruta activa y contador de avisos sin leer', async (t) => {
   const { unmount } = await mountApp('/people', { loggedIn: true })
   t.after(unmount)
