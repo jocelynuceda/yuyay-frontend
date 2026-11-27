@@ -115,22 +115,27 @@ export function HealthEntryForm({
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [showFile, setShowFile] = useState(false)
-  const [uploaded, setUploaded] = useState<{ file: File; id: number } | null>(null)
+  const upload = useRef<{ file: File; result: Promise<number> } | null>(null)
   const canAttach = !entry && sourceAttachmentId === undefined
 
   async function uploadFile() {
     if (!file) return undefined
-    // Si el registro falla después de subir el archivo, reintentar no debe subirlo de nuevo
-    if (uploaded?.file === file) return uploaded.id
-    const { id } = await uploadAttachment(subjectId, file)
-    setUploaded({ file, id })
-    return id
+    if (upload.current?.file === file) return upload.current.result
+    // Asociar la petición al archivo al iniciarla. Una respuesta anterior puede llegar después.
+    const result = uploadAttachment(subjectId, file).then(({ id }) => id)
+    upload.current = { file, result }
+    try {
+      return await result
+    } catch (error) {
+      if (upload.current?.result === result) upload.current = null
+      throw error
+    }
   }
 
   const ocr = useReadAttachment(subjectId, uploadFile)
   // Lo que rellenó la lectura del archivo actual, para retirarlo si se cambia de archivo
   const fromOcr = useRef<Partial<Record<'title' | 'occurredOn' | 'details', string>>>({})
-  const [staleNotice, setStaleNotice] = useState<string | null>(null)
+  const [needsFileReview, setNeedsFileReview] = useState(false)
   const canRead = !!file && !file.type.startsWith('audio/')
   // Foto o PDF a la vista: archivo a la izquierda y formulario a la derecha, como al revisar un documento
   const split = canAttach && canRead && showFile
@@ -157,11 +162,14 @@ export function HealthEntryForm({
     let kept = false
     for (const [field, value] of Object.entries(fromOcr.current) as ['title' | 'occurredOn' | 'details', string][]) {
       const current = getValues(field)
-      if (current === value) setValue(field, '', { shouldValidate: false })
-      else if (current) kept = true
+      if (current && current !== value) {
+        kept = true
+      } else {
+        if (current) setValue(field, '', { shouldValidate: false })
+        delete fromOcr.current[field]
+      }
     }
-    fromOcr.current = {}
-    setStaleNotice(kept ? 'Cambiaste de archivo y conservamos lo que editaste del anterior. Revisa que corresponda al nuevo.' : null)
+    setNeedsFileReview(kept)
   }
 
   useEffect(() => {
@@ -175,7 +183,8 @@ export function HealthEntryForm({
     })
   }, [onRegisterApplyOcrText, getValues, setValue])
 
-  const onSubmit = handleSubmit(async (values) => {
+  async function save(values: HealthEntryFormOutput) {
+    if (ocr.reading || needsFileReview) return
     setServerError(null)
     if (requireDocumentText && !values.details?.trim()) {
       setError('details', { type: 'required', message: 'Revisa y conserva el texto del documento, o escribe el contenido que deseas guardar.' }, { shouldFocus: true })
@@ -192,7 +201,7 @@ export function HealthEntryForm({
     } catch (error) {
       setServerError(applyServerErrors(error, setError, healthEntryFields))
     }
-  })
+  }
 
   const categoryField = register('categoryCode', {
     // Al dejar medicación se limpian dosis y frecuencia: el backend las rechaza en otras categorías
@@ -219,7 +228,7 @@ export function HealthEntryForm({
             ? 'Se guardará como una versión nueva y se avisará a los demás cuidadores.'
             : 'Los demás cuidadores recibirán un aviso.'
         }
-        onSubmit={onSubmit}
+        onSubmit={(event) => handleSubmit(save)(event)}
       >
         <ServerError message={serverError} />
 
@@ -317,6 +326,7 @@ export function HealthEntryForm({
             <input
               id="entry-file"
               type="file"
+              disabled={isSubmitting}
               accept={ENTRY_ATTACHMENT_ACCEPT}
               aria-invalid={!!fileError}
               aria-describedby={fileError ? 'entry-file-error' : 'entry-file-hint'}
@@ -344,11 +354,16 @@ export function HealthEntryForm({
                 </button>
               ) : null}
             </div>
-            {staleNotice ? <p role="alert" className="text-sm text-danger">{staleNotice}</p> : null}
+            {needsFileReview ? (
+              <div className="grid justify-items-start gap-2">
+                <p role="alert" className="text-sm text-danger">Conservamos los campos que editaste del documento anterior. Revisa que correspondan al registro que vas a guardar.</p>
+                <Button variant="secondary" size="sm" onClick={() => setNeedsFileReview(false)}>Ya revisé los campos</Button>
+              </div>
+            ) : null}
             {file && showFile && !split ? <FilePreview file={file} name={file.name} /> : null}
             {canRead ? (
               <div className="flex flex-wrap items-center gap-3">
-                <Button variant="secondary" size="sm" className="border border-primary-fg text-primary-fg!" loading={ocr.reading} onClick={() => void ocr.read(fillFromText)}>
+                <Button variant="secondary" size="sm" className="border border-primary-fg text-primary-fg!" disabled={isSubmitting} loading={ocr.reading} onClick={() => void ocr.read(fillFromText)}>
                   {ocr.reading ? 'Leyendo…' : 'Leer texto del archivo'}
                 </Button>
                 {ocr.message ? <p role="status" className="text-sm text-muted">{ocr.message}</p> : null}
@@ -384,7 +399,7 @@ export function HealthEntryForm({
 
         <FormActions
           submitting={isSubmitting}
-          submitDisabled={ocr.reading}
+          submitDisabled={ocr.reading || needsFileReview}
           submitLabel={entry ? 'Guardar cambios' : 'Registrar'}
           onCancel={onCancel}
         />

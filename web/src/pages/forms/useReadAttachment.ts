@@ -31,7 +31,10 @@ export function useReadAttachment(subjectId: number, upload: () => Promise<numbe
       const id = await upload()
       if (id === undefined) return
       for (let attempt = 0; attempt < MAX_READS && turn === current.current; attempt++) {
-        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, OCR_POLL_MS))
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, OCR_POLL_MS))
+          if (turn !== current.current) return
+        }
         const attachment = await getAttachment(subjectId, id)
         if (turn !== current.current) return
         if (attachment.ocrStatus === 'PENDING') continue

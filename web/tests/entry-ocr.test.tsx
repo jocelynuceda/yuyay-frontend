@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { type TestContext } from 'node:test'
 import { JSDOM } from 'jsdom'
 import { act } from 'react'
 
@@ -11,6 +11,26 @@ URL.revokeObjectURL = () => {}
 const { createRoot } = await import('react-dom/client')
 const { HealthEntryForm } = await import('../src/pages/forms/HealthEntryForm')
 const { api } = await import('../src/services/http')
+
+async function openExam(t: TestContext) {
+  const container = document.createElement('div')
+  document.body.append(container)
+  const root = createRoot(container)
+  t.after(async () => { await act(async () => root.unmount()); container.remove() })
+  await act(async () => root.render(<HealthEntryForm subjectId={4} initialCategory="EXAM_RESULT" onSaved={() => {}} />))
+  const input = container.querySelector<HTMLInputElement>('#entry-file')!
+  const button = (name: string) => [...container.querySelectorAll('button')].find(b => b.textContent?.trim() === name)!
+  const pick = async (name: string) => {
+    Object.defineProperty(input, 'files', { configurable: true, value: [new dom.window.File(['%PDF-1.4'], name, { type: 'application/pdf' })] })
+    await act(async () => { input.dispatchEvent(new dom.window.Event('change', { bubbles: true })) })
+  }
+  const edit = async (selector: string, text: string) => {
+    const field = container.querySelector(selector)!
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(field), 'value')!.set!.call(field, text)
+    await act(async () => { field.dispatchEvent(new dom.window.Event('input', { bubbles: true })) })
+  }
+  return { input, button, pick, edit }
+}
 
 test('lee un examen adjunto, rellena el formulario y guarda sin volver a subirlo', async (t) => {
   let uploads = 0
@@ -96,4 +116,70 @@ test('al cambiar de archivo no se mezcla el texto ni la fecha del anterior con e
   assert.match(saved[0].details!, /Glucosa 90/)
   assert.doesNotMatch(saved[0].details!, /Hemoglobina/)
   assert.equal(saved[0].occurredOn, '2026-04-09')
+})
+
+test('una subida antigua que llega después de la lectura nueva no cambia ni duplica el adjunto', async (t) => {
+  let finishFirst!: () => void
+  let finishSave!: () => void
+  const firstUpload = new Promise<void>(resolve => { finishFirst = resolve })
+  const saving = new Promise<void>(resolve => { finishSave = resolve })
+  const uploads: string[] = []
+  const saved: { sourceAttachmentId: number; details: string; occurredOn: string }[] = []
+  api.defaults.adapter = async (config) => {
+    const ok = (data: unknown) => ({ config, data, headers: {}, status: 200, statusText: 'OK' })
+    if (config.method === 'post' && config.url?.endsWith('/attachments')) {
+      const name = (config.data.get('file') as File).name
+      uploads.push(name)
+      if (name === 'A.pdf') await firstUpload
+      return ok({ id: name === 'A.pdf' ? 21 : 22 })
+    }
+    if (config.url?.endsWith('/attachments/22')) {
+      return ok({ id: 22, ocrStatus: 'DONE', ocrText: 'Resultado B\nFecha de atención: 09/04/2026' })
+    }
+    assert.equal(config.url, '/care-subjects/4/health-entries')
+    saved.push(JSON.parse(config.data))
+    await saving
+    return ok({ id: 101 })
+  }
+  const form = await openExam(t)
+  const read = () => act(async () => { form.button('Leer texto del archivo').click() })
+  await form.pick('A.pdf')
+  await read()
+  await form.pick('B.pdf')
+  await read()
+  await act(async () => { finishFirst() })
+  await form.edit('#entry-title', 'Control')
+  await act(async () => { form.button('Registrar').click() })
+  assert.ok(form.input.disabled)
+  assert.ok(form.button('Leer texto del archivo').disabled)
+  await act(async () => { finishSave() })
+  assert.deepEqual(uploads, ['A.pdf', 'B.pdf'])
+  assert.equal(saved.length, 1)
+  assert.equal(saved[0].sourceAttachmentId, 22)
+  assert.match(saved[0].details, /Resultado B/)
+  assert.equal(saved[0].occurredOn, '2026-04-09')
+})
+
+test('al cambiar el adjunto, la persona puede revisar y conservar su corrección antes de guardar', async (t) => {
+  let id = 0
+  const saved: { details: string; sourceAttachmentId: number }[] = []
+  api.defaults.adapter = async (config) => {
+    const ok = (data: unknown) => ({ config, data, headers: {}, status: 200, statusText: 'OK' })
+    if (config.method === 'post' && config.url?.endsWith('/attachments')) return ok({ id: ++id })
+    if (config.method === 'get') return ok({ id, ocrStatus: 'DONE', ocrText: 'Texto extraído\nFecha de atención: 09/04/2026' })
+    saved.push(JSON.parse(config.data))
+    return ok({ id: 100 })
+  }
+  const form = await openExam(t)
+  await form.pick('A.pdf')
+  await act(async () => { form.button('Leer texto del archivo').click() })
+  await form.edit('#entry-details', 'Resultado corregido')
+  await form.pick('B.pdf')
+  await act(async () => { form.button('Leer texto del archivo').click() })
+  await form.edit('#entry-title', 'Control')
+  assert.ok(form.button('Registrar').disabled)
+  await act(async () => { form.button('Ya revisé los campos').click() })
+  await act(async () => { form.button('Registrar').click() })
+  assert.equal(saved[0].details, 'Resultado corregido')
+  assert.equal(saved[0].sourceAttachmentId, 2)
 })
