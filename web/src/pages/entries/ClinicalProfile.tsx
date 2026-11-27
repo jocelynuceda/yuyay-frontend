@@ -23,7 +23,7 @@ type ClinicalProfileProps = {
 /** Ícono y color de cada categoría, como en la app móvil. */
 const categoryTiles: Record<CategoryCode, { icon: IconName; color: string; image?: string }> = {
   ALLERGY: { icon: 'flower', color: 'bg-accent text-on-accent', image: '/categories/allergy.png' },
-  CONDITION: { icon: 'pulse', color: 'bg-soft text-soft-text' },
+  CONDITION: { icon: 'pulse', color: 'bg-soft text-soft-text', image: '/categories/condition.png' },
   MEDICATION: { icon: 'medkit', color: 'bg-primary-tint text-primary-fg', image: '/categories/medication.png' },
   IMMUNIZATION: { icon: 'shield', color: 'bg-primary text-white', image: '/categories/immunization.png' },
   EPISODE: { icon: 'bolt', color: 'bg-danger-bg text-danger', image: '/categories/episode.png' },

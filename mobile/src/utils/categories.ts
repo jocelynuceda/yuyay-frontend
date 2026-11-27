@@ -24,7 +24,13 @@ export const categoryMeta: Record<
     plural: 'Alergias',
     image: require('../../assets/categories/allergy.png'),
   },
-  CONDITION: { icon: 'pulse-outline', bg: 'soft', fg: 'softText', plural: 'Condiciones' },
+  CONDITION: {
+    icon: 'pulse-outline',
+    bg: 'soft',
+    fg: 'softText',
+    plural: 'Condiciones',
+    image: require('../../assets/categories/condition.png'),
+  },
   MEDICATION: {
     icon: 'medkit-outline',
     bg: 'primaryTint',
