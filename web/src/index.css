@@ -163,24 +163,75 @@
 }
 
 /*
- * Landing (pages/landing): bandas claras y oscuras como la presentación del proyecto. Una banda
- * oscura redefine los colores del tema, así los componentes de siempre se leen bien encima.
+ * Landing (pages/landing). Bandas de color alternadas para que cada sección se distinga: lavanda,
+ * blanco, celeste (el del logo), noche y lila. Una banda oscura redefine los colores del tema, así
+ * los componentes de siempre se leen bien encima. Espacios y tamaños viven aquí como tokens.
  */
 :root {
   --landing-light: #EEECFA;
+  --landing-plain: #FFFFFF;
+  --landing-sky: #E3F3F8;
   --landing-dark: #1E1D45;
   --landing-lilac: #ABA6F2;
+  --landing-section-y: clamp(2.5rem, 1.6rem + 4.5vw, 6rem);
+  --landing-max: 77.5rem;
+  --landing-gap: 1.5rem;
+  --landing-title: clamp(1.875rem, 1.35rem + 1.9vw, 2.75rem);
+  --landing-lead: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
 }
 
 .dark {
   --landing-light: #16152E;
-  --landing-dark: #0E0D24;
+  --landing-plain: #100F22;
+  --landing-sky: #0F1D30;
+  --landing-dark: #0B0A1D;
   --landing-lilac: #34317A;
 }
 
 @layer components {
+  .landing-section {
+    position: relative;
+    padding-block: var(--landing-section-y);
+    padding-inline: 1rem;
+    scroll-margin-top: 4.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .landing-section {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  .landing-container {
+    margin-inline: auto;
+    max-width: var(--landing-max);
+  }
+
+  .landing-title {
+    font-family: var(--font-display);
+    font-size: var(--landing-title);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  .landing-lead {
+    font-size: var(--landing-lead);
+    line-height: 1.6;
+    color: var(--color-muted);
+  }
+
   .band-light {
     background-color: var(--landing-light);
+  }
+
+  .band-plain {
+    background-color: var(--landing-plain);
+  }
+
+  .band-sky {
+    background-color: var(--landing-sky);
   }
 
   .band-dark {
@@ -188,6 +239,7 @@
     --color-muted: #C3C0E6;
     --color-card: #2A2858;
     --color-primary: #ABA6F2;
+    --color-primary-fg: #C9C5FA;
     --color-accent-text: #A9D3F0;
     --color-soft-text: #D8D4FF;
     --color-line: rgba(238, 235, 250, 0.16);
@@ -202,6 +254,7 @@
     --color-ink: #1E2158;
     --color-muted: #2E2C7E;
     --color-primary: #1E2158;
+    --color-primary-fg: #1E2158;
     --color-white: #EEEBFA;
     background-color: var(--landing-lilac);
     color: var(--color-ink);
@@ -211,6 +264,7 @@
     --color-ink: #EEEBFA;
     --color-muted: #D8D4FF;
     --color-primary: #EEEBFA;
+    --color-primary-fg: #EEEBFA;
     --color-white: #16152E;
   }
 
@@ -220,10 +274,40 @@
     background-size: 16px 16px;
     mask-image: radial-gradient(closest-side, black 20%, transparent 100%);
   }
+
+  /* Tarjeta de la landing: borde fino y una elevación leve al pasar el mouse */
+  .landing-card {
+    border: 1px solid var(--color-line);
+    background-color: var(--color-card);
+    border-radius: 1.5rem;
+    transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  }
+
+  .landing-card:hover {
+    border-color: color-mix(in srgb, var(--color-primary-fg) 45%, transparent);
+    box-shadow: var(--shadow-soft);
+  }
 }
 
-/* Aparición suave al bajar. Sin JavaScript o con «reducir movimiento», todo se ve desde el inicio. */
+/* Movimiento: solo si la persona no pidió reducirlo. Sin JavaScript, todo se ve desde el inicio. */
 @media (prefers-reduced-motion: no-preference) {
+  html:has(.landing-root) {
+    scroll-behavior: smooth;
+  }
+
+  .landing-root,
+  .landing-root .band-light,
+  .landing-root .band-plain,
+  .landing-root .band-sky,
+  .landing-root .band-dark,
+  .landing-root .band-lilac {
+    transition: background-color 250ms ease, color 250ms ease;
+  }
+
+  .landing-card:hover {
+    transform: translateY(-2px);
+  }
+
   .reveal-ready .reveal {
     opacity: 0;
     transform: translateY(1.25rem);
@@ -243,5 +327,16 @@
 
   .landing-float {
     animation: landing-float 5s ease-in-out infinite;
+  }
+
+  @keyframes landing-fade {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  .landing-fade {
+    animation: landing-fade 300ms ease-out;
   }
 }

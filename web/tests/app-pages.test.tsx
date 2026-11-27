@@ -781,13 +781,34 @@ test('Inicio sin sesión: muestra la landing con accesos a crear cuenta e inicia
   t.after(unmount)
   await waitFor(() => !!document.querySelector('h1'), 'título de la landing')
   assert.equal(pathname(), '/', 'se queda en el inicio, sin redirigir al login')
-  assert.match(document.querySelector('h1')?.textContent ?? '', /memoria de salud/)
+  assert.match(document.querySelector('h1')?.textContent ?? '', /La salud de tu familia, en un solo lugar/)
   assert.ok(document.querySelector('header a[href="/register"]'), 'botón Crear cuenta en la barra')
   assert.ok(document.querySelector('header a[href="/login"]'), 'Iniciar sesión en la barra')
-  for (const id of ['que-es', 'que-hace', 'por-que', 'equipo']) {
+  for (const id of ['que-es', 'como-funciona', 'producto', 'funcionalidades', 'por-que', 'privacidad', 'preguntas', 'nosotros']) {
     assert.ok(document.getElementById(id), `sección #${id}`)
-    assert.ok(document.querySelector(`a[href="#${id}"]`), `enlace a #${id}`)
   }
+  for (const id of ['que-es', 'como-funciona', 'funcionalidades', 'privacidad', 'nosotros']) {
+    assert.ok(document.querySelector(`header a[href="#${id}"]`), `enlace a #${id} en el menú`)
+  }
+  assert.ok(byText('button', /términos de uso y el aviso de privacidad/i), 'acceso a los términos')
+  assert.equal(document.querySelectorAll('details').length, 8, 'preguntas frecuentes')
+})
+
+test('Landing: permite recorrer la demo con el teclado', async (t) => {
+  const { unmount } = await mountApp('/', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!document.querySelector('[role="tablist"]'), 'pestañas de la demo')
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tablist"] [role="tab"]')]
+  assert.equal(tabs.length, 6)
+  tabs[0].focus()
+  await act(async () => {
+    tabs[0].dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+  })
+  assert.equal(document.activeElement, tabs[1])
+  assert.equal(tabs[1].getAttribute('aria-selected'), 'true')
+  const panel = document.querySelector('[role="tabpanel"]')
+  assert.equal(panel?.getAttribute('aria-labelledby'), tabs[1].id)
+  assert.match(panel?.textContent ?? '', /Medicación/)
 })
 
 test('Landing: Escape cierra el menú de secciones y devuelve el foco al botón', async (t) => {
