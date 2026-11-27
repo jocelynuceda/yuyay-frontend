@@ -11,7 +11,7 @@ import { deleteCareSubject } from '../../services/api/careSubjects'
 import { listCaregivers } from '../../services/api/caregivers'
 import type { CareSubject, CategoryCode, HealthEntry } from '../../types'
 import { ageFrom } from '../../utils/format'
-import { focusRing, linkActiveClass, linkButtonClass, linkSecondaryClass } from '../../utils/styles'
+import { focusRing, linkButtonClass, linkSecondaryClass } from '../../utils/styles'
 import { entriesSearch, parseEntriesParams, parseRouteId } from '../../utils/urlParams'
 import { AccessLogPanel } from '../care/AccessLogPanel'
 import { CaregiversPanel } from '../care/CaregiversPanel'
@@ -66,16 +66,6 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
   const caregivers = useFetch((signal) => listCaregivers(subjectId, signal), [subjectId])
   const activeCaregivers = caregivers.data?.filter((r) => r.status === 'ACTIVE') ?? []
 
-  /** Acceso rápido que lleva a una pestaña: se pinta como activo (con transición) mientras esa pestaña está abierta. */
-  function quickLinkProps(tab: typeof activeTab) {
-    const active = activeTab === tab
-    return {
-      to: tabLocation(tab),
-      'aria-current': active ? ('page' as const) : undefined,
-      className: `${active ? linkActiveClass : linkSecondaryClass} transition-colors duration-300 ease-out`,
-    }
-  }
-
   function tabLocation(tab: typeof activeTab) {
     const next = new URLSearchParams(searchParams)
     next.set('tab', tab)
@@ -103,7 +93,7 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
     <>
       <header className="grid gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-2 min-[360px]:flex-nowrap sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-4">
               <AvatarButton onClick={() => setPickingAvatar(true)}>
                 <SubjectAvatar subject={subject} size="xl" animated />
@@ -113,9 +103,16 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
                 {age !== null && <p className="mt-2 text-sm text-muted">{age} años</p>}
               </div>
             </div>
-            <button type="button" onClick={() => setEditing(true)} className={`ml-auto min-h-11 shrink-0 max-sm:px-3 max-sm:py-2 max-sm:text-sm ${linkSecondaryClass}`}>
-              Editar perfil
-            </button>
+            <div className="ml-auto flex shrink-0 flex-col items-stretch gap-2">
+              <button type="button" onClick={() => setEditing(true)} className={`min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm ${linkSecondaryClass}`}>
+                Editar perfil
+              </button>
+              {isPrincipal ? (
+                <button type="button" onClick={() => setDeleting(true)} className={`min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm ${linkSecondaryClass.replace('text-ink', 'text-danger')}`}>
+                  Eliminar persona
+                </button>
+              ) : null}
+            </div>
           </div>
           <AvatarPicker
             open={pickingAvatar}
@@ -138,16 +135,6 @@ function PersonDetail({ subject, onSubjectChanged }: { subject: CareSubject; onS
           <Link to={`/people/${subjectId}/handoff/new`} className={linkButtonClass}>
             Preparar resumen para el médico
           </Link>
-          {isPrincipal ? (
-            <Link {...quickLinkProps('access')}>
-              Delegar acceso
-            </Link>
-          ) : null}
-          {isPrincipal ? (
-            <button type="button" onClick={() => setDeleting(true)} className={linkSecondaryClass.replace('text-ink', 'text-danger')}>
-              Eliminar persona
-            </button>
-          ) : null}
         </nav>
       </header>
       {isPrincipal && <CareAuthorizationStatus subjectId={subjectId} />}
