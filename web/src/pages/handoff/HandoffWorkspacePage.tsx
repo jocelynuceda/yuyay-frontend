@@ -62,15 +62,24 @@ function HandoffDetails({ subjectId, handoff, canManage }: { subjectId: number; 
   const [deleting, setDeleting] = useState(false)
   return (
     <div className="grid min-w-0 gap-6">
-      <header className="grid gap-3">
-        <h1 className="text-3xl font-semibold">Resumen para el médico</h1>
-        <p className="text-xl font-semibold [overflow-wrap:anywhere]">{handoff.reason}</p>
-        <p className="text-sm text-muted">Preparado el {formatDateTime(handoff.createdAt)}</p>
-        {canManage ? <Link to={`${detailPath(subjectId, handoff.id)}/share`} className={`justify-self-start ${linkButtonClass}`}>Generar enlace y código</Link> : null}
+      <header className="@container">
+        <div className="grid items-center gap-x-5 gap-y-3 @min-[36rem]:grid-cols-[minmax(0,1fr)_auto]">
+          <h1 className="text-3xl font-semibold">Resumen para el médico</h1>
+          <p className="col-span-full text-xl font-semibold [overflow-wrap:anywhere]">{handoff.reason}</p>
+          <p className="col-span-full text-sm text-muted">Preparado el {formatDateTime(handoff.createdAt)}</p>
+          {canManage ? (
+            <Link to={`${detailPath(subjectId, handoff.id)}/share`}
+              className={`justify-self-start @min-[36rem]:col-start-2 @min-[36rem]:row-start-1 @min-[36rem]:justify-self-end ${linkButtonClass}`}>
+              Generar enlace y código
+            </Link>
+          ) : null}
+        </div>
       </header>
-      {handoff.questions ? (
-        <section className="rounded-2xl bg-card p-5"><h2 className="text-xl font-semibold">Preguntas para el médico</h2>
-          <p className="mt-3 whitespace-pre-wrap [overflow-wrap:anywhere]">{handoff.questions}</p></section>
+      {handoff.questions?.trim() ? (
+        <section className="grid min-w-0 gap-3" aria-label="Preguntas para el médico">
+          <h2 className="text-xl font-semibold">Preguntas para el médico</h2>
+          <p className="min-w-0 whitespace-pre-wrap rounded-2xl bg-card p-5 [overflow-wrap:anywhere]">{handoff.questions}</p>
+        </section>
       ) : null}
       <section className="grid min-w-0 gap-3" aria-label="Registros incluidos">
         <h2 className="text-xl font-semibold">Registros incluidos</h2>
@@ -93,7 +102,7 @@ function HandoffDetails({ subjectId, handoff, canManage }: { subjectId: number; 
           <p className="text-sm text-muted">Solo quien creó este resumen o el cuidador principal puede compartirlo.</p>
         )}
       </section>
-      <div><Button variant="secondary" className="text-danger" onClick={() => setDeleting(true)}>Borrar resumen</Button></div>
+      <div><Button variant="danger" className="handoff-delete" onClick={() => setDeleting(true)}>Borrar resumen</Button></div>
       <ConfirmDialog open={deleting} title="¿Borrar este resumen?" message={`"${handoff.reason}". Los enlaces que compartiste dejarán de funcionar.`}
         confirmLabel="Borrar resumen" cancelLabel="Volver" onCancel={() => setDeleting(false)}
         onConfirm={async () => { await deleteHandoff(handoff.id, subjectId); void navigate(`/people/${subjectId}?tab=handoffs`, { replace: true }) }} />
