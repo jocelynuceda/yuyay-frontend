@@ -7,6 +7,8 @@ export interface User extends CareUserSummary {
   role: string
   gender?: Gender | null
   createdAt: string
+  /** Opcional; con ella se calcula la edad y el avatar automático. */
+  birthDate?: string | null
 }
 
 export interface LoginRequest {

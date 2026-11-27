@@ -1,14 +1,22 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { avatarId, avatarOptions, defaultAvatar, lionForAge, lionVariantFor, parseAvatarId } from '../src/utils/avatars'
+import { avatarId, avatarOptions, avatarSrc, defaultAvatar, lionForAge, lionVariantFor, parseAvatarId } from '../src/utils/avatars'
 
-test('lionForAge: leoncito antes de los 18, abuelo desde los 60 y adulto si no hay edad', () => {
+test('lionForAge: leoncito antes de los 18, abuelo desde los 60 y el de melena si no hay edad', () => {
   assert.equal(lionForAge(0), 'cub')
   assert.equal(lionForAge(17), 'cub')
   assert.equal(lionForAge(18), 'adult')
   assert.equal(lionForAge(59), 'adult')
   assert.equal(lionForAge(60), 'elder')
-  assert.equal(lionForAge(null), 'adult')
+  assert.equal(lionForAge(null), 'default')
+})
+
+test('avatarSrc: cada etapa tiene su dibujo; sin edad, león de melena o leona adulta', () => {
+  assert.equal(avatarSrc({ kind: 'adult', variant: 'lioness' }), '/lions/adult-lioness-face.png')
+  assert.equal(avatarSrc({ kind: 'cub', variant: 'lioness' }), '/lions/cub-lioness-face.png')
+  assert.equal(avatarSrc({ kind: 'default', variant: 'lion' }), '/lions/default-lion-face.png')
+  assert.equal(avatarSrc({ kind: 'default', variant: 'lioness' }), '/lions/adult-lioness-face.png')
+  assert.ok(avatarOptions.every((o) => o.kind !== 'default'), 'el de melena no es una opción del selector')
 })
 
 test('defaultAvatar elige por edad y alterna león y leona por id', () => {

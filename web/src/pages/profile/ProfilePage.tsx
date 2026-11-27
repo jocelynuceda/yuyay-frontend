@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useController, useForm, useWatch } from 'react-hook-form'
 import { LoadError } from '../../components/layout/LoadError'
 import { AccountTerms } from '../../components/AccountTerms'
 import { AvatarPicker, MyAvatar } from '../../components/ui/AvatarPicker'
@@ -18,11 +18,14 @@ import { useLogout } from '../../hooks/useLogout'
 import { useTheme } from '../../hooks/useTheme'
 import { useToast } from '../../hooks/useToast'
 import { profileSchema } from '../../schemas/profile'
-import { GenderField } from '../forms/fields'
+import { Field, GenderField } from '../forms/fields'
+import { a11yProps } from '../forms/fieldProps'
+import { DatePicker } from '../../components/ui/DatePicker'
 import { getDocumentScopeSummary, getMe, updateMe } from '../../services/api/users'
 import type { UserProfile } from '../../types'
 import { applyServerErrors } from '../../utils/apiErrors'
-import { formatDate, userRoleLabels } from '../../utils/format'
+import { ageFrom, formatDate, userRoleLabels } from '../../utils/format'
+import { MIN_YEAR, yesterdayIso } from '../../schemas/common'
 import type { ThemePreference } from '../../contexts/theme-context'
 
 const themeOptions: { value: ThemePreference; label: string }[] = [
@@ -92,20 +95,32 @@ function ProfileForm({ profile, onSaved }: { profile: UserProfile; onSaved: (pro
     formState: { errors, isValid, isSubmitting },
   } = useForm({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: profile.name, gender: profile.gender ?? ('' as const) },
+    defaultValues: { name: profile.name, gender: profile.gender ?? ('' as const), birthDate: profile.birthDate ?? '' },
     mode: 'onChange',
   })
-  const [name, gender] = useWatch({ control, name: ['name', 'gender'] })
-  const unchanged = name.trim() === profile.name && (gender || null) === (profile.gender ?? null)
+  const { field: birthDateField } = useController({ control, name: 'birthDate' })
+  const [name, gender, birthDate] = useWatch({ control, name: ['name', 'gender', 'birthDate'] })
+  const unchanged =
+    name.trim() === profile.name &&
+    (gender || null) === (profile.gender ?? null) &&
+    (birthDate || null) === (profile.birthDate ?? null)
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      const updated = await updateMe({ name: values.name, gender: values.gender })
+      const nextBirthDate = values.birthDate ?? null
+      const birthDateChanged = nextBirthDate !== (profile.birthDate ?? null)
+      const updated = await updateMe({
+        name: values.name, gender: values.gender, ...(birthDateChanged ? { birthDate: nextBirthDate } : {}),
+      })
+      if (birthDateChanged && (updated.birthDate ?? null) !== nextBirthDate) {
+        setError('birthDate', { message: 'No pudimos guardar el cambio de la fecha de nacimiento.' })
+        return
+      }
       onSaved(updated)
-      reset({ name: updated.name, gender: updated.gender ?? '' })
+      reset({ name: updated.name, gender: updated.gender ?? '', birthDate: updated.birthDate ?? '' })
       toast.success('Perfil actualizado.')
     } catch (error) {
-      const message = applyServerErrors(error, setError, ['name', 'gender'])
+      const message = applyServerErrors(error, setError, ['name', 'gender', 'birthDate'])
       if (message) toast.error(message)
     }
   })
@@ -118,6 +133,21 @@ function ProfileForm({ profile, onSaved }: { profile: UserProfile; onSaved: (pro
         error={errors.name?.message}
         {...register('name')}
       />
+      <Field
+        id="profile-birthDate"
+        label="Fecha de nacimiento (opcional)"
+        error={errors.birthDate}
+        hint="Con ella mostramos tu edad y tu león automático crece contigo."
+      >
+        <DatePicker
+          value={birthDateField.value ?? ''}
+          onChange={birthDateField.onChange}
+          onBlur={birthDateField.onBlur}
+          min={`${MIN_YEAR}-01-01`}
+          max={yesterdayIso()}
+          {...a11yProps('profile-birthDate', errors.birthDate, 'hint')}
+        />
+      </Field>
       <GenderField field={register('gender')} />
       <div>
         <Button type="submit" loading={isSubmitting} disabled={!isValid || unchanged}>
@@ -139,7 +169,7 @@ export default function ProfilePage() {
 
   function handleSaved(updated: UserProfile) {
     setSaved(updated)
-    updateUser({ name: updated.name, gender: updated.gender ?? null })
+    updateUser({ name: updated.name, gender: updated.gender ?? null, birthDate: updated.birthDate ?? null })
   }
 
   return (
@@ -179,6 +209,12 @@ export default function ProfilePage() {
                 <dd className="font-semibold">{userRoleLabels[profile.role] ?? profile.role}</dd>
               </div>
               <div>
+                <dt className="text-muted">Edad</dt>
+                <dd className="font-semibold">
+                  {ageFrom(profile.birthDate) !== null ? `${ageFrom(profile.birthDate)} años` : 'Agrega tu fecha de nacimiento'}
+                </dd>
+              </div>
+              <div>
                 <dt className="text-muted">Miembro desde</dt>
                 <dd className="font-semibold">{formatDate(profile.createdAt)}</dd>
               </div>
@@ -186,7 +222,7 @@ export default function ProfilePage() {
           </Card>
           <Card as="section" aria-labelledby="edit-profile" className="grid gap-4">
             <h2 id="edit-profile" className="text-xl font-bold">
-              Editar nombre de usuario
+              Editar mis datos
             </h2>
             <ProfileForm profile={profile} onSaved={handleSaved} />
           </Card>
