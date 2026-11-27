@@ -33,6 +33,11 @@ export async function uploadAttachment(careSubjectId: number, file: File) {
   return data
 }
 
+export async function renameAttachment(careSubjectId: number, attachmentId: number, filename: string) {
+  const { data } = await api.patch<Attachment>(`${base(careSubjectId)}/${attachmentId}`, { filename })
+  return data
+}
+
 export async function deleteAttachment(careSubjectId: number, attachmentId: number) {
   await api.delete(`${base(careSubjectId)}/${attachmentId}`)
 }
