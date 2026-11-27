@@ -10,7 +10,7 @@ import {
   setTokens,
 } from '../services/http'
 import type { AuthResponse, User } from '../types'
-import type { RegisterRequest, TermsAcceptance } from '../types/auth'
+import type { RegisterRequest, RegistrationIdentity, TermsAcceptance } from '../types/auth'
 import { AuthContext } from './auth-context'
 import type { AuthContextValue } from './auth-context'
 
@@ -99,10 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback((request: RegisterRequest) =>
     authenticate(() => authService.register(request)), [authenticate])
 
-  const loginWithGoogle = useCallback((idToken: string, acceptance?: TermsAcceptance) =>
+  const loginWithGoogle = useCallback((idToken: string, acceptance?: TermsAcceptance, identity?: RegistrationIdentity) =>
     authenticate(() => authService.loginWithGoogle({
       idToken,
       acceptedTermsVersion: acceptance?.termsVersion,
+      ...identity,
     })), [authenticate])
 
   const logout = useCallback(async () => {

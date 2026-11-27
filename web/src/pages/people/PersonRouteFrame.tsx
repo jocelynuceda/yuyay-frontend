@@ -1,25 +1,25 @@
-import type { ReactNode } from 'react'
+import { useContext, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { LoadError } from '../../components/layout/LoadError'
-import { useFetch } from '../../hooks/useFetch'
-import { getCareSubject } from '../../services/api/careSubjects'
+import { AuthContext } from '../../contexts/auth-context'
+import { useCareSubjectAccess } from '../../hooks/useCareSubjectAccess'
 import type { CareSubject } from '../../types'
 import { focusRing } from '../../utils/styles'
 
-export function PersonRouteFrame({
-  subjectId,
-  section,
-  children,
-}: {
+interface PersonRouteFrameProps {
   subjectId: number
   section?: string
   children: (subject: CareSubject, reload: () => void) => ReactNode
-}) {
-  const { data: subject, error, errorStatus, loading, reload } = useFetch(
-    (signal) => getCareSubject(subjectId, signal),
-    [subjectId],
-  )
-  const linkClass = `rounded-sm text-primary underline ${focusRing}`
+}
+
+export function PersonRouteFrame(props: PersonRouteFrameProps) {
+  const userId = useContext(AuthContext)?.user?.id
+  return <PersonRouteContent key={`${userId}:${props.subjectId}`} {...props} />
+}
+
+function PersonRouteContent({ subjectId, section, children }: PersonRouteFrameProps) {
+  const { subject, error, errorStatus, loading, reload } = useCareSubjectAccess(subjectId)
+  const linkClass = `rounded-sm text-primary-fg underline ${focusRing}`
 
   return (
     <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6">

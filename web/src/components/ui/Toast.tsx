@@ -13,7 +13,7 @@ export interface ToastItem {
 const tones: Record<ToastTone, { box: string; icon: IconName; iconClass: string }> = {
   success: { box: 'border-accent bg-card', icon: 'check', iconClass: 'text-accent-text' },
   error: { box: 'border-danger/30 bg-danger-bg text-danger', icon: 'alert', iconClass: 'text-danger' },
-  info: { box: 'border-line bg-card', icon: 'bell', iconClass: 'text-primary' },
+  info: { box: 'border-line bg-card', icon: 'bell', iconClass: 'text-primary-fg' },
 }
 
 export interface ToastRegionProps {

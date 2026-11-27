@@ -35,7 +35,7 @@ function Sparkle({ className }: { className?: string }) {
 }
 
 function Eyebrow({ children }: { children: ReactNode }) {
-  return <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-primary sm:text-sm">{children}</p>
+  return <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-primary-fg sm:text-sm">{children}</p>
 }
 
 function Note({ children }: { children: ReactNode }) {
@@ -100,7 +100,7 @@ function Hero() {
           {/* Círculos concéntricos de la portada de la presentación */}
           <div className="absolute inset-0 -z-0 flex items-center justify-center">
             {[100, 78, 56].map((size) => (
-              <span key={size} className="absolute aspect-square rounded-full border border-primary/30" style={{ width: `${size}%` }} />
+              <span key={size} className="absolute aspect-square rounded-full border border-primary-fg/30" style={{ width: `${size}%` }} />
             ))}
           </div>
           <Illustration image={art.abueloHija} eager className="relative mx-auto max-w-sm" />
@@ -115,8 +115,8 @@ function Hero() {
             </p>
             <p className="font-semibold">Endocrinología · 28 mar</p>
           </div>
-          <Sparkle className="absolute right-10 top-0 h-8 w-8 text-primary" />
-          <Sparkle className="absolute bottom-0 left-12 h-5 w-5 text-primary/70" />
+          <Sparkle className="absolute right-10 top-0 h-8 w-8 text-primary-fg" />
+          <Sparkle className="absolute bottom-0 left-12 h-5 w-5 text-primary-fg/70" />
         </div>
       </div>
     </Section>
@@ -126,7 +126,7 @@ function Hero() {
 function Scene() {
   return (
     <Section band="dark" label="escena-titulo">
-      <div aria-hidden="true" className="landing-dots absolute -right-24 bottom-0 h-[28rem] w-[28rem] text-primary/60" />
+      <div aria-hidden="true" className="landing-dots absolute -right-24 bottom-0 h-[28rem] w-[28rem] text-primary-fg/60" />
       <div className="grid items-end gap-10 lg:grid-cols-2">
         <div className="reveal">
           <Eyebrow>Consultorio · 10:40 a. m.</Eyebrow>
@@ -154,12 +154,12 @@ function Facts() {
       <p className="reveal mt-4 max-w-2xl text-lg text-muted">Esto dicen las cifras oficiales del Perú.</p>
       <ul className="mt-12 grid gap-6 md:grid-cols-3">
         {FACTS.map((fact) => (
-          <li key={fact.value} className="reveal overflow-hidden rounded-3xl border border-primary/30 bg-card">
+          <li key={fact.value} className="reveal overflow-hidden rounded-3xl border border-primary-fg/30 bg-card">
             <Illustration image={fact.image} className="bg-[#EFEBFA]" />
             <div className="p-6">
               <p className="font-display text-5xl font-bold tracking-tight">{fact.value}</p>
               <p className="mt-2 text-muted">{fact.text}</p>
-              <p className="mt-4 border-l-4 border-primary pl-3 font-semibold">{fact.why}</p>
+              <p className="mt-4 border-l-4 border-primary-fg pl-3 font-semibold">{fact.why}</p>
               <p className="mt-4 inline-block rounded-full bg-primary-tint px-3 py-1 text-xs font-semibold text-soft-text">
                 Fuente:{' '}
                 {fact.url ? (
@@ -184,7 +184,7 @@ function Steps() {
       <h2 id="pasos-titulo" className={cx(title, 'reveal')}>Yuyay funciona en tres pasos.</h2>
       <ol className="mt-12 grid gap-6 md:grid-cols-3">
         {STEPS.map((step) => (
-          <li key={step.title} className="reveal overflow-hidden rounded-3xl border border-primary/25 bg-card shadow-[var(--shadow-soft)]">
+          <li key={step.title} className="reveal overflow-hidden rounded-3xl border border-primary-fg/25 bg-card shadow-[var(--shadow-soft)]">
             <Illustration image={step.image} className="bg-[#EFEBFA]" />
             <div className="p-6">
               <h3 className="text-2xl font-bold">{step.title}</h3>
@@ -196,8 +196,8 @@ function Steps() {
       <h3 className="reveal mt-16 font-display text-2xl font-bold sm:text-3xl">Todo lo que puedes hacer</h3>
       <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((feature) => (
-          <li key={feature.title} className="reveal flex gap-4 rounded-3xl border border-primary/20 bg-card p-6">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-tint text-primary">
+          <li key={feature.title} className="reveal flex gap-4 rounded-3xl border border-primary-fg/20 bg-card p-6">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-tint text-primary-fg">
               <Icon name={feature.icon} className="h-6 w-6" />
             </span>
             <div>
@@ -228,7 +228,7 @@ function Team() {
       <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {TEAM.map((name) => (
           <li key={name} className="reveal flex items-center gap-3 rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] lg:flex-col lg:text-center">
-            <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary-tint font-display text-lg font-bold text-primary">
+            <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary-tint font-display text-lg font-bold text-primary-fg">
               {initials(name)}
             </span>
             <p className="font-semibold leading-snug">{name}</p>

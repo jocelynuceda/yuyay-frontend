@@ -28,6 +28,7 @@ import { fonts, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { ExamsScreen } from '../screens/ExamsScreen';
 import { EXAM_CATEGORY } from '../utils/categories';
+import { SubjectScreen } from './SubjectScreen';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -35,6 +36,11 @@ export function HomeStackNavigator() {
   const { colors } = useTheme();
   return (
     <Stack.Navigator
+      screenLayout={({ route, children }) => {
+        const subjectId = route.params && 'subjectId' in route.params ? route.params.subjectId : undefined;
+        if (route.name === 'SubjectDetail' || subjectId === undefined) return <>{children}</>;
+        return <SubjectScreen key={subjectId} subjectId={subjectId}>{children}</SubjectScreen>;
+      }}
       screenOptions={{
         headerShadowVisible: false,
         headerStyle: { backgroundColor: colors.surface },
@@ -52,7 +58,7 @@ export function HomeStackNavigator() {
       <Stack.Screen
         name="SubjectDetail"
         component={SubjectDetailScreen}
-        options={({ route }) => ({ title: route.params.name })}
+        options={{ title: 'Persona' }}
       />
       <Stack.Screen
         name="NewSubject"
@@ -78,7 +84,7 @@ export function HomeStackNavigator() {
         name="NewConsultation"
         component={NewConsultationScreen}
         options={({ route }) => ({
-          title: route.params.consultation ? 'Editar cita' : 'Nueva cita',
+          title: route.params.consultationId ? 'Editar cita' : 'Nueva cita',
           presentation: 'modal',
         })}
       />

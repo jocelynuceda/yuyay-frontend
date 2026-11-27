@@ -31,7 +31,7 @@ export function MedicationScheduleSection({ subjectId, entryId }: { subjectId: n
     <section aria-labelledby="schedule-title" className="grid gap-4 rounded-3xl bg-card p-6 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-tint text-primary">
+          <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-tint text-primary-fg">
             <Icon name="calendar" />
           </span>
           <h2 id="schedule-title" className="text-xl font-semibold">Horario de tomas</h2>
@@ -100,7 +100,7 @@ function ScheduleSummary({ schedule }: { schedule: MedicationSchedule }) {
     <div className="grid gap-4">
       <ul className="flex flex-wrap gap-2" aria-label="Horas">
         {schedule.times.map((time) => (
-          <li key={time} className="rounded-full bg-primary-tint px-4 py-2 font-display font-bold text-primary tabular-nums">
+          <li key={time} className="rounded-full bg-primary-tint px-4 py-2 font-display font-bold text-primary-fg tabular-nums">
             {formatTime(time)}
           </li>
         ))}

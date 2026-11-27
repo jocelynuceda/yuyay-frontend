@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { HealthEntry } from '../types';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import { categoryMeta, fallbackCategory } from '../utils/categories';
 import { formatDate, formatDateTime } from '../utils/format';
 import { Badge } from './Badge';
+import { CategoryIcon } from './CategoryIcon';
 import { VersionAttachment } from './VersionAttachment';
 
 export function HealthEntryCard({
@@ -24,10 +24,8 @@ export function HealthEntryCard({
   attachmentOpen?: boolean;
 }) {
   const styles = useStyles();
-  const { colors } = useTheme();
   const [showAttachment, setShowAttachment] = useState(attachmentOpen);
   const v = entry.latestVersion;
-  const tone = categoryMeta[entry.categoryCode] ?? fallbackCategory;
   // Un acceso delegado no tiene acciones ni permiso para abrir adjuntos
   const canSeeAttachment = !!v.sourceAttachmentId && !!onHistory;
   const facts = [v.occurredOn && formatDate(v.occurredOn), v.dose && `Dosis: ${v.dose}`, v.frequency && v.frequency]
@@ -37,9 +35,7 @@ export function HealthEntryCard({
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={[styles.icon, { backgroundColor: colors[tone.bg] }]}>
-          <Ionicons name={tone.icon} size={20} color={colors[tone.fg]} />
-        </View>
+        <CategoryIcon code={entry.categoryCode} size={20} style={styles.icon} />
         <View style={styles.flex}>
           <Text style={styles.category}>{entry.categoryName.toUpperCase()}</Text>
           <Text style={styles.title}>{v.title}</Text>

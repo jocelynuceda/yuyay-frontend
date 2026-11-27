@@ -226,7 +226,7 @@ function HandoffSummary({ view, token, deadline }: { view: HandoffPublicView; to
   return (
     <article className="rounded-3xl bg-card p-5 text-base leading-relaxed shadow-sm [overflow-wrap:anywhere] sm:p-8">
       <div className="flex flex-wrap items-center gap-2 text-[13px]">
-        <span className="rounded-full bg-primary-tint px-2.5 py-1 font-semibold text-primary">Solo lectura</span>
+        <span className="rounded-full bg-primary-tint px-2.5 py-1 font-semibold text-primary-fg">Solo lectura</span>
         {view.accessExpiresAt ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" title="Hora de Lima">
           Lectura hasta el {readingExpiry.format(new Date(view.accessExpiresAt))}
         </span> : null}
@@ -287,7 +287,7 @@ function HandoffItemCard({ item, token, accessGrant }: { item: HandoffItem; toke
   }
   const facts = [item.dose && `Dosis: ${item.dose}`, item.frequency].filter(Boolean).join(' · ')
   return (
-    <li className="min-w-0 border-l-[3px] border-primary/40 pl-3.5">
+    <li className="min-w-0 border-l-[3px] border-primary-fg/40 pl-3.5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="min-w-0 max-w-full font-semibold">{item.title}</h3>
         <span

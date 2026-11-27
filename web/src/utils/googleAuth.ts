@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { needsTermsReview } from '../hooks/useAccountTerms'
 import { getHttpErrorMessage } from '../services/http'
-import type { TermsAcceptance } from '../types/auth'
+import type { RegistrationIdentity, TermsAcceptance } from '../types/auth'
 
 /**
  * ID de cliente web de Google (no es un secreto). Si falta, el botón de Google no se muestra y el
@@ -51,24 +51,42 @@ export type GoogleSignInResult =
   | { status: 'error'; message: string }
 
 /**
- * Para una cuenta nueva pide revisar el documento. Una segunda revisión cubre el caso
- * en que la versión cambie durante el primer intento de aceptación.
+ * Una cuenta nueva puede requerir términos y datos del DNI. Cada reintento espera
+ * una acción de la persona. La segunda revisión cubre un cambio de versión de términos.
  */
 export async function completeGoogleSignIn(
   credential: string | undefined,
-  signIn: (idToken: string, acceptance?: TermsAcceptance) => Promise<boolean>,
+  signIn: (idToken: string, acceptance?: TermsAcceptance, identity?: RegistrationIdentity) => Promise<boolean>,
   requestTerms?: RequestTermsAcceptance,
+  requestIdentity?: (error?: unknown) => Promise<RegistrationIdentity | null>,
 ): Promise<GoogleSignInResult> {
   if (!credential) return { status: 'error', message: GOOGLE_INVALID_TOKEN }
   let acceptance: TermsAcceptance | undefined
-  for (let reviews = 0; ; reviews += 1) {
+  let identity: RegistrationIdentity | undefined
+  let reviews = 0
+  for (;;) {
     try {
-      return { status: await signIn(credential, acceptance) ? 'signed-in' : 'cancelled' }
+      return { status: await signIn(credential, acceptance, identity) ? 'signed-in' : 'cancelled' }
     } catch (error) {
-      if (!requestTerms || reviews >= 2 || !needsTermsReview(error, 428)) return { status: 'error', message: googleErrorMessage(error) }
-      const accepted = await requestTerms()
-      if (!accepted) return { status: 'cancelled' }
-      acceptance = accepted
+      if (requestTerms && reviews < 2 && needsTermsReview(error, 428)) {
+        reviews++
+        const accepted = await requestTerms()
+        if (!accepted) return { status: 'cancelled' }
+        acceptance = accepted
+        continue
+      }
+      const response = axios.isAxiosError(error) ? error.response : undefined
+      const needsIdentity = response?.status === 428 && response.data?.code === 'REGISTRATION_DETAILS_REQUIRED'
+      const canCorrect = identity && axios.isAxiosError(error) && (
+        !response || [400, 429, 503].includes(response.status)
+      )
+      if (requestIdentity && (needsIdentity || canCorrect)) {
+        const supplied = await requestIdentity(needsIdentity ? undefined : error)
+        if (!supplied) return { status: 'cancelled' }
+        identity = supplied
+        continue
+      }
+      return { status: 'error', message: googleErrorMessage(error) }
     }
   }
 }

@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useCallback, useEffect, useState } from 'react'
-import { getErrorMessage, getErrorStatus } from '../utils/apiErrors'
+import { getErrorMessage, getErrorStatus, isAccessLost } from '../utils/apiErrors'
 
 interface FetchState<T> {
   data: T | null
@@ -18,7 +18,8 @@ function isCanceled(error: unknown): boolean {
 
 /**
  * Carga datos cancelables: pasa un AbortSignal al `fetcher`, cancela al desmontar y al cambiar `deps`
- * o llamar a `reload`. Conserva los datos anteriores mientras recarga.
+ * o llamar a `reload`. Conserva los datos anteriores mientras recarga y ante fallos de red o del
+ * servidor; si responde 403, 404 o 410 los descarta.
  */
 export function useFetch<T>(fetcher: (signal: AbortSignal) => Promise<T>, deps: readonly unknown[]) {
   const [state, setState] = useState<FetchState<T>>({ data: null, error: null, loading: true })
@@ -33,7 +34,13 @@ export function useFetch<T>(fetcher: (signal: AbortSignal) => Promise<T>, deps: 
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || isCanceled(error)) return
-        setState((prev) => ({ ...prev, error: getErrorMessage(error), errorStatus: getErrorStatus(error), loading: false }))
+        const errorStatus = getErrorStatus(error)
+        setState((prev) => ({
+          data: isAccessLost(errorStatus) ? null : prev.data,
+          error: getErrorMessage(error),
+          errorStatus,
+          loading: false,
+        }))
       })
     return () => controller.abort()
     // `deps` resume los parámetros del fetcher; `version` fuerza la recarga

@@ -66,7 +66,7 @@ export function NewSubjectScreen({ navigation }: Props) {
   });
 
   useEffect(() => {
-    if (created && !saving) navigation.replace('SubjectDetail', { subjectId: created.id, name: created.name });
+    if (created && !saving) navigation.replace('SubjectDetail', { subjectId: created.id });
   }, [created, navigation, saving]);
 
   function handleSave() {

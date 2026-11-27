@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card'
 import { Icon } from '../../components/ui/Icon'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useFetch } from '../../hooks/useFetch'
+import { useRefreshOnReturn } from '../../hooks/useRefreshOnReturn'
 import { useToast } from '../../hooks/useToast'
 import { todayIso } from '../../schemas/common'
 import { getMedicationAgenda, markDose, unmarkDose } from '../../services/api/medication'
@@ -36,22 +37,31 @@ function nowTime() {
  * Agenda de tomas en el inicio: la semana arriba con un punto por día que tiene tomas, y debajo la
  * lista del día elegido por mañana, tarde y noche. Cualquier cuidador marca la toma y los demás ven
  * quién lo hizo.
+ *
+ * `accessible`: personas a las que todavía tengo acceso (el directorio del inicio). Si me retiran el
+ * acceso a alguien, sus tomas desaparecen sin esperar a recargar la agenda; null mientras carga.
  */
-export function TodayAgenda() {
+export function TodayAgenda({ accessible }: { accessible: ReadonlySet<number> | null }) {
   const today = todayIso()
   const [selected, setSelected] = useState(today)
   const weekStart = startOfWeek(selected)
   const weekEnd = addDays(weekStart, 6)
   const agenda = useFetch((signal) => getMedicationAgenda(weekStart, weekEnd, signal), [weekStart])
+  // Al volver a la pestaña se relee: otro cuidador pudo marcar tomas o cambiar horarios
+  useRefreshOnReturn(agenda.reload, !agenda.loading)
   // Cambios ya confirmados por el servidor, para no recargar toda la semana al marcar
-  const [changes, setChanges] = useState<Record<string, AgendaDose>>({})
+  // Van atados a la lectura en la que se hicieron: una lectura nueva del servidor manda sobre ellos
+  const [saved, setSaved] = useState<{ source: unknown; byKey: Record<string, AgendaDose> }>({ source: null, byKey: {} })
+  const changes = saved.source === agenda.data ? saved.byKey : {}
   const [busy, setBusy] = useState<string | null>(null)
   const toast = useToast()
 
   // Filtro por persona: «Yo» son mis propias tomas; el resto, las de quienes cuido
   const [chosen, setWho] = useState<Who>('all')
 
-  const allDoses = (agenda.data ?? []).map((dose) => changes[doseKey(dose)] ?? dose)
+  const allDoses = accessible
+    ? (agenda.data ?? []).filter((dose) => accessible.has(dose.careSubjectId)).map((dose) => changes[doseKey(dose)] ?? dose)
+    : []
   const people = peopleIn(allDoses)
   // Si en esta semana la persona elegida no tiene tomas, se muestran todas
   const who = people.some((person) => person.id === chosen) ? chosen : 'all'
@@ -68,7 +78,10 @@ export function TodayAgenda() {
         ? await markDose(dose.scheduleId, { date: dose.date, time: shortTime(dose.time), status })
         : (await unmarkDose(dose.scheduleId, dose.date, shortTime(dose.time)),
           { ...dose, status: null, markedByName: null, markedAt: null })
-      setChanges((current) => ({ ...current, [key]: { ...updated, time: dose.time } }))
+      setSaved((current) => ({
+        source: agenda.data,
+        byKey: { ...(current.source === agenda.data ? current.byKey : {}), [key]: { ...updated, time: dose.time } },
+      }))
     } catch (error) {
       toast.error(getErrorMessage(error))
     } finally {
@@ -125,7 +138,7 @@ export function TodayAgenda() {
 
       {agenda.error && !agenda.data ? (
         <LoadError message={agenda.error} onRetry={agenda.reload} />
-      ) : !agenda.data ? (
+      ) : !agenda.data || !accessible ? (
         <Skeleton lines={3} />
       ) : ofDay.length === 0 ? (
         <div className="grid justify-items-start gap-2 rounded-2xl bg-surface p-5">
@@ -218,7 +231,7 @@ function WeekStrip({
                 }`}
               >
                 <span className={isSelected ? 'text-white/80' : 'text-muted'}>{day.short}</span>
-                <span className={`font-display text-lg font-bold ${date === today && !isSelected ? 'text-primary' : ''}`}>
+                <span className={`font-display text-lg font-bold ${date === today && !isSelected ? 'text-primary-fg' : ''}`}>
                   {Number(date.slice(8))}
                 </span>
                 <span
@@ -259,7 +272,7 @@ function DoseRow({
       <span className="shrink-0 font-display font-bold tabular-nums sm:w-20">{time}</span>
       <span
         aria-hidden="true"
-        className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-tint font-semibold text-primary sm:flex"
+        className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-tint font-semibold text-primary-fg sm:flex"
       >
         {dose.mine ? 'Yo' : dose.careSubjectName.trim().charAt(0).toUpperCase()}
       </span>
@@ -272,7 +285,7 @@ function DoseRow({
           <Link to={`/people/${dose.careSubjectId}/entries/${dose.healthEntryId}`} className="underline-offset-2 hover:underline">
             {dose.mine ? 'Para mí' : `Para ${dose.careSubjectName}`}
           </Link>
-          {state === 'due' ? <span className="font-semibold text-primary"> · Es hora</span> : null}
+          {state === 'due' ? <span className="font-semibold text-primary-fg"> · Es hora</span> : null}
         </p>
       </div>
       <div className="ml-auto flex flex-wrap items-center gap-2">

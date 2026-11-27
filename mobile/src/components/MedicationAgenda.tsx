@@ -43,7 +43,16 @@ const doseKey = (dose: Pick<AgendaDose, 'scheduleId' | 'date' | 'time'>) => `${d
  * con un punto por día con tomas y la lista del día por mañana, tarde y noche. Una toma se marca desde
  * 2 h antes hasta 30 min después; luego cuenta como no tomada y solo se marca «se tomó tarde».
  */
-export function MedicationAgenda({ refreshKey, onOpen }: { refreshKey: number; onOpen: (dose: AgendaDose) => void }) {
+export function MedicationAgenda({
+  refreshKey,
+  accessible,
+  onOpen,
+}: {
+  refreshKey: number;
+  /** Personas a las que todavía tengo acceso: si me lo retiran, sus tomas desaparecen. null mientras carga. */
+  accessible: ReadonlySet<number> | null;
+  onOpen: (dose: AgendaDose) => void;
+}) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { user } = useAuth();
@@ -52,13 +61,17 @@ export function MedicationAgenda({ refreshKey, onOpen }: { refreshKey: number; o
   const [selected, setSelected] = useState(today);
   const weekStart = startOfWeek(selected);
   const agenda = useFetch(() => getMedicationAgenda(weekStart, addDays(weekStart, 6)), [weekStart, refreshKey]);
-  const [changes, setChanges] = useState<Record<string, AgendaDose>>({});
+  // Van atados a la lectura en la que se hicieron: una lectura nueva del servidor manda sobre ellos
+  const [saved, setSaved] = useState<{ source: unknown; byKey: Record<string, AgendaDose> }>({ source: null, byKey: {} });
+  const changes = saved.source === agenda.data ? saved.byKey : {};
   const [busy, setBusy] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Who>('all');
   const remindersOn = useDoseRemindersEnabled();
   const [togglingReminders, setTogglingReminders] = useState(false);
 
-  const allDoses = (agenda.data ?? []).map((dose) => changes[doseKey(dose)] ?? dose);
+  const allDoses = accessible
+    ? (agenda.data ?? []).filter((dose) => accessible.has(dose.careSubjectId)).map((dose) => changes[doseKey(dose)] ?? dose)
+    : [];
   const people = peopleIn(allDoses);
   const who = people.some((person) => person.id === chosen) ? chosen : 'all';
   const doses = allDoses.filter((dose) => matchesWho(dose, who));
@@ -74,7 +87,10 @@ export function MedicationAgenda({ refreshKey, onOpen }: { refreshKey: number; o
         ? await markDose(dose.scheduleId, { date: dose.date, time: shortTime(dose.time), status })
         : (await unmarkDose(dose.scheduleId, dose.date, shortTime(dose.time)),
           { ...dose, status: null, markedByName: null, markedAt: null });
-      setChanges((current) => ({ ...current, [key]: { ...updated, time: dose.time } }));
+      setSaved((current) => ({
+        source: agenda.data,
+        byKey: { ...(current.source === agenda.data ? current.byKey : {}), [key]: { ...updated, time: dose.time } },
+      }));
       // La toma marcada ya no necesita sonar en este celular
       if (user) void syncDoseReminders(user.id);
     } catch (e) {
@@ -179,8 +195,8 @@ export function MedicationAgenda({ refreshKey, onOpen }: { refreshKey: number; o
       <Text style={styles.hint}>Marca cada toma desde 2 horas antes hasta 30 minutos después. Si nadie la marca, queda como no tomada.</Text>
 
       <StatusMessage message={agenda.data ? null : agenda.error} />
-      {!agenda.data && agenda.loading ? <ActivityIndicator color={colors.primary} /> : null}
-      {agenda.data && ofDay.length === 0 ? (
+      {(!agenda.data && agenda.loading) || !accessible ? <ActivityIndicator color={colors.primary} /> : null}
+      {agenda.data && accessible && ofDay.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No hay tomas para este día.</Text>
           <Text style={styles.emptyText}>

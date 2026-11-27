@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { LoadError } from '../../components/layout/LoadError'
 import { MEDICATION, type HealthEntryVersion } from '../../types'
 import { useFetch } from '../../hooks/useFetch'
-import { openAttachment } from '../../services/api/attachments'
+import { getAttachmentContent, openAttachment } from '../../services/api/attachments'
 import { deleteHealthEntry, getHealthEntry, listHealthEntryVersions } from '../../services/api/healthEntries'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { loadEntryHistory } from '../../utils/entryHistory'
@@ -10,6 +10,7 @@ import { confidenceLabels, formatDate, formatDateTime } from '../../utils/format
 import { changedFields, changeTypeLabels, displayField, versionFieldLabels } from '../../utils/versions'
 import { focusRing } from '../../utils/styles'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { FilePreview } from '../forms/FilePreview'
 import { HealthEntryForm } from '../forms/HealthEntryForm'
 import { MedicationScheduleSection } from './MedicationScheduleSection'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
@@ -123,7 +124,7 @@ export function EntryDetailPage({
             <Detail label="Notas" value={current.notes ?? '—'} wide />
           </dl>
           {current.sourceAttachmentId ? (
-            <AttachmentLink subjectId={subjectId} attachmentId={current.sourceAttachmentId} />
+            <AttachmentLink key={current.sourceAttachmentId} subjectId={subjectId} attachmentId={current.sourceAttachmentId} />
           ) : null}
           <p className="mt-4 text-sm text-muted">
             Última actualización: {current.declaredBy.name}, {formatDateTime(current.declaredAt)}
@@ -179,7 +180,7 @@ function VersionItem({
         <p className="font-semibold">
           Versión {version.versionNumber} · {changeTypeLabels[version.changeType]}
         </p>
-        {isCurrent ? <span className="text-sm font-semibold text-primary">Actual</span> : null}
+        {isCurrent ? <span className="text-sm font-semibold text-primary-fg">Actual</span> : null}
       </div>
       <p className="text-sm text-muted">
         {version.declaredBy.name} · <time dateTime={version.declaredAt}>{formatDateTime(version.declaredAt)}</time>
@@ -209,6 +210,22 @@ function AttachmentLink({ subjectId, attachmentId }: { subjectId: number; attach
   const [opening, setOpening] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [preview, setPreview] = useState<Blob | null>(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+
+  async function togglePreview() {
+    setError(null)
+    if (preview) return setPreview(null)
+    setLoadingPreview(true)
+    try {
+      setPreview(await getAttachmentContent(subjectId, attachmentId))
+    } catch (e) {
+      setError(getErrorMessage(e))
+    } finally {
+      setLoadingPreview(false)
+    }
+  }
+
   async function open() {
     setOpening(true)
     setError(null)
@@ -224,14 +241,26 @@ function AttachmentLink({ subjectId, attachmentId }: { subjectId: number; attach
 
   return (
     <div className="mt-4 grid gap-2">
-      <button
-        type="button"
-        onClick={() => void open()}
-        disabled={opening}
-        className={`justify-self-start rounded-xl border border-line px-4 py-2 text-sm font-semibold disabled:opacity-60 ${focusRing}`}
-      >
-        {opening ? 'Abriendo…' : 'Ver archivo adjunto'}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          aria-expanded={!!preview}
+          onClick={() => void togglePreview()}
+          disabled={loadingPreview}
+          className={`rounded-xl border border-primary-fg px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-60 ${focusRing}`}
+        >
+          {loadingPreview ? 'Cargando…' : preview ? 'Ocultar vista previa' : 'Vista previa'}
+        </button>
+        <button
+          type="button"
+          onClick={() => void open()}
+          disabled={opening}
+          className={`justify-self-start rounded-xl border border-line px-4 py-2 text-sm font-semibold disabled:opacity-60 ${focusRing}`}
+        >
+          {opening ? 'Abriendo…' : 'Ver archivo adjunto'}
+        </button>
+      </div>
+      {preview ? <FilePreview file={preview} name="Archivo adjunto" /> : null}
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}

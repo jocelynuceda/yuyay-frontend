@@ -19,18 +19,20 @@ import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { useFetch } from '../hooks/useFetch';
+import { useCareSubjects, useSubjectAccess, useSubjectNotifications } from '../hooks/useSubjectAccess';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import {
   acceptInvitation,
-  getCareSubjects,
   getConsultations,
-  getNotifications,
   getPendingInvitations,
+  subjectAccess,
 } from '../services/api';
 import { ApiError } from '../services/http';
+import { subjectDataIsCurrent } from '../services/subjectAccess';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
 import { appointmentOrder, careRoleLabel, formatTime, todayIso } from '../utils/format';
+import { loadBySubject } from '../utils/loadBySubject';
 
 const monthShort = new Intl.DateTimeFormat('es-PE', { month: 'short' });
 const weekdayLong = new Intl.DateTimeFormat('es-PE', { weekday: 'long' });
@@ -64,13 +66,18 @@ export function HomeScreen({ navigation }: Props) {
   const { gradients, heroIsDark, colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const subjects = useFetch(getCareSubjects);
+  const subjects = useCareSubjects();
+  const access = useSubjectAccess();
   const invitations = useFetch(getPendingInvitations);
-  const notifications = useFetch(getNotifications);
+  const notifications = useSubjectNotifications();
   const subjectIds = subjects.data?.map((s) => s.id) ?? [];
   // Consultas de todas las personas, para la tarjeta de próxima cita
   const consultations = useFetch(
-    () => Promise.all(subjectIds.map((id) => getConsultations(id).catch(() => []))).then((lists) => lists.flat()),
+    async () => {
+      const loadedAccess = subjectAccess.getSnapshot();
+      const { loaded, failed } = await loadBySubject(subjectIds, getConsultations);
+      return { list: [...loaded.values()].flat(), failed, access: loadedAccess };
+    },
     [subjectIds],
   );
   // Cambia al volver a la pantalla o al deslizar para recargar: la agenda vuelve a leer las tomas
@@ -88,7 +95,10 @@ export function HomeScreen({ navigation }: Props) {
   const firstName = user?.name.split(' ')[0] ?? '';
   const unread = notifications.data?.filter((n) => !n.read).length ?? 0;
   const people = subjects.data ?? [];
-  const appointment = pickAppointment(consultations.data ?? [], people);
+  const data = consultations.data;
+  const visibleConsultations = data?.list.filter((c) => subjectDataIsCurrent(access, data.access, c.careSubjectId));
+  const appointment = pickAppointment(visibleConsultations ?? [], people);
+  const missingAppointments = !!(subjects.error || consultations.error || consultations.data?.failed);
 
   const header = (
     <View>
@@ -141,7 +151,7 @@ export function HomeScreen({ navigation }: Props) {
         <FadeIn delay={80} style={styles.flex}>
           <PressableScale
             onPress={() =>
-              people[0] && navigation.navigate('SubjectDetail', { subjectId: people[0].id, name: people[0].name })
+              people[0] && navigation.navigate('SubjectDetail', { subjectId: people[0].id })
             }
             style={[styles.tile, styles.tileTall, { backgroundColor: colors.accent }]}
             accessibilityRole="button"
@@ -226,16 +236,17 @@ export function HomeScreen({ navigation }: Props) {
                     : 'Próxima cita'
                   : 'Última consulta'
                 : 'Próxima cita'}
+              {appointment && missingAppointments ? ' · lista incompleta' : ''}
             </Text>
             <Text style={styles.appointmentTitle} numberOfLines={1}>
-              {appointment ? appointment.consultation.reason : 'Sin citas registradas'}
+              {appointment ? appointment.consultation.reason : missingAppointments ? 'No pudimos cargar las citas' : 'Sin citas registradas'}
             </Text>
             <Text style={styles.appointmentMeta} numberOfLines={1}>
               {appointment
                 ? `${appointment.subjectName} · ${weekdayLong.format(new Date(`${appointment.consultation.date}T12:00:00`))}${
                     appointment.consultation.time ? `, ${formatTime(appointment.consultation.time)}` : ''
                   }`
-                : 'Anótalas en el perfil de cada uno'}
+                : missingAppointments ? 'Toca para reintentar' : 'Anótalas en el perfil de cada uno'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.ink} />
@@ -245,6 +256,7 @@ export function HomeScreen({ navigation }: Props) {
       <FadeIn delay={360}>
         <MedicationAgenda
           refreshKey={agendaKey}
+          accessible={subjects.data ? new Set(subjectIds) : null}
           onOpen={(dose) =>
             navigation.navigate('MedicationSchedule', {
               subjectId: dose.careSubjectId,
@@ -290,7 +302,6 @@ export function HomeScreen({ navigation }: Props) {
             onPress={() =>
               navigation.navigate('SubjectDetail', {
                 subjectId: item.id,
-                name: item.name,
               })
             }
           />

@@ -70,7 +70,7 @@ export default function LoginPage() {
             autoComplete="current-password"
           />
         </Field>
-        <Link to="/forgot-password" className="-mt-2 justify-self-end text-sm font-semibold text-primary underline">
+        <Link to="/forgot-password" className="-mt-2 justify-self-end text-sm font-semibold text-primary-fg underline">
           ¿Olvidaste tu contraseña?
         </Link>
         <FormActions submitting={isSubmitting} submitLabel="Entrar" submittingLabel="Ingresando…" />
