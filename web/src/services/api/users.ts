@@ -6,7 +6,8 @@ export async function getMe(signal?: AbortSignal) {
   return data
 }
 
-export async function updateMe(request: { name: string; gender: Gender | null }) {
+/** `birthDate` null conserva la que había. */
+export async function updateMe(request: { name: string; gender: Gender | null; birthDate?: string | null }) {
   const { data } = await api.patch<UserProfile>('/users/me', request)
   return data
 }

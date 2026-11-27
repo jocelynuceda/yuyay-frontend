@@ -63,7 +63,9 @@ export const resetPassword = (email: string, code: string, newPassword: string) 
 export const logout = (refreshToken: string) => http.post('/auth/logout', { refreshToken });
 
 /** Solo cambia el nombre de la cuenta. */
-export const updateMe = (name: string, gender: Gender | null) => http.patch<User>('/users/me', { name, gender }).then((r) => r.data);
+/** `birthDate` null conserva la que había. */
+export const updateMe = (name: string, gender: Gender | null, birthDate: string | null = null) =>
+  http.patch<User>('/users/me', { name, gender, birthDate }).then((r) => r.data);
 
 export const getCareSubjects = () => http.get<CareSubject[]>('/care-subjects').then((r) => r.data);
 

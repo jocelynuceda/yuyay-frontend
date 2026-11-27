@@ -8,6 +8,7 @@ import { useAccountTerms } from '../hooks/useAccountTerms';
 import { AppearancePicker } from '../components/AppearancePicker';
 import { AvatarPicker } from '../components/AvatarPicker';
 import { BiometricToggle } from '../components/BiometricToggle';
+import { DateField } from '../components/DateField';
 import { FormField } from '../components/FormField';
 import { GenderChips, SubmitButton } from '../components/FormKit';
 import { ProfileCard } from '../components/ProfileCard';
@@ -20,9 +21,13 @@ import { getCareSubjects, getNotifications, updateMe } from '../services/api';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { Gender, RootStackParamList, TabNavigatorParamList } from '../types';
-import { formatDate } from '../utils/format';
+import { ageFrom, formatDate } from '../utils/format';
+import { datePartsOf, parseDateParts, type DateParts } from '../utils/dates';
 
 type Props = BottomTabScreenProps<TabNavigatorParamList, 'Profile'>;
+
+/** Fecha de nacimiento: anterior a hoy, como en las personas. */
+const BIRTH_RULES = { strictPast: true };
 
 export function ProfileScreen({ navigation }: Props) {
   const styles = useStyles();
@@ -34,6 +39,7 @@ export function ProfileScreen({ navigation }: Props) {
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender | null>(null);
+  const [birthParts, setBirthParts] = useState<DateParts>({ day: '', month: '', year: '' });
   const [nameError, setNameError] = useState<string | undefined>();
   const [savingName, setSavingName] = useState(false);
   const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -54,10 +60,12 @@ export function ProfileScreen({ navigation }: Props) {
       setNameError('Ingresa tu nombre.');
       return;
     }
+    const birth = parseDateParts(birthParts, BIRTH_RULES);
+    if (birth.error) return;
     setSavingName(true);
     setNameError(undefined);
     try {
-      updateUser(await updateMe(name.trim(), gender));
+      updateUser(await updateMe(name.trim(), gender, birth.iso || null));
       setEditingName(false);
       toast('Perfil actualizado.');
     } catch (e) {
@@ -67,6 +75,7 @@ export function ProfileScreen({ navigation }: Props) {
     }
   }
   const memberYear = new Date(user.createdAt).getFullYear();
+  const age = ageFrom(user.birthDate);
 
   const actions: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; featured?: boolean; purple?: boolean }[] = [
     { icon: 'people', label: 'Personas', onPress: () => navigation.navigate('HomeTab', { screen: 'Home' }), purple: true },
@@ -86,6 +95,12 @@ export function ProfileScreen({ navigation }: Props) {
       label: 'Rol',
       value: user.role === 'ADMIN' ? 'Administrador' : 'Cuidador',
       tint: colors.accent,
+    },
+    {
+      icon: 'gift-outline',
+      label: 'Edad',
+      value: age !== null ? `${age} años` : 'Agrega tu fecha de nacimiento',
+      tint: colors.primary,
     },
     { icon: 'calendar-outline', label: 'Miembro desde', value: formatDate(user.createdAt), tint: colors.softText },
   ];
@@ -157,6 +172,14 @@ export function ProfileScreen({ navigation }: Props) {
           <FormField label="Nombre" value={name} onChangeText={setName} maxLength={120} autoComplete="name" error={nameError} />
           <Text style={styles.genderLabel}>Género (opcional)</Text>
           <GenderChips value={gender} onChange={setGender} />
+          <DateField
+            label="Fecha de nacimiento (opcional)"
+            initial={user.birthDate ? datePartsOf(user.birthDate) : undefined}
+            onChange={setBirthParts}
+            rules={BIRTH_RULES}
+            error={parseDateParts(birthParts, BIRTH_RULES).error}
+          />
+          <Text style={styles.birthHint}>Con ella mostramos tu edad y tu león automático crece contigo.</Text>
           <SubmitButton label="Guardar cambios" onPress={saveName} loading={savingName} />
           <Pressable onPress={() => setEditingName(false)} hitSlop={8} accessibilityRole="button" style={styles.logout}>
             <Text style={[styles.logoutText, { color: colors.muted }]}>Cancelar</Text>
@@ -167,6 +190,7 @@ export function ProfileScreen({ navigation }: Props) {
           onPress={() => {
             setName(user.name);
             setGender(user.gender ?? null);
+            setBirthParts(user.birthDate ? datePartsOf(user.birthDate) : { day: '', month: '', year: '' });
             setNameError(undefined);
             setEditingName(true);
           }}
@@ -258,6 +282,7 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   logout: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   editName: { marginTop: 16 },
   nameForm: { marginTop: 16, gap: 8 },
+  birthHint: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: -4 },
   genderLabel: { fontFamily: fonts.medium, fontSize: 14, color: colors.muted, marginTop: 4 },
   logoutText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.danger },
 }));

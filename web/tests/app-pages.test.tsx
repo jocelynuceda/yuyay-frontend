@@ -143,7 +143,7 @@ function backend() {
     }
     if (url === '/users/me' && method === 'GET') return ok(config, db.me)
     if (url === '/users/me' && method === 'PATCH') {
-      db.me = { ...db.me, name: body.name }
+      db.me = { ...db.me, name: body.name, ...(body.gender ? { gender: body.gender } : {}), ...(body.birthDate ? { birthDate: body.birthDate } : {}) } as typeof db.me
       return ok(config, db.me)
     }
     if (url === '/care-subjects') return ok(config, db.subjects)
@@ -835,6 +835,23 @@ test('Avisos: enlaza la invitación pendiente y el nuevo cuidador, y omite enlac
 
   await click(invitation, 'Ver invitación')
   await waitFor(() => pathname() === '/invitations/7' && /Lucía/.test(text()), 'abrir la invitación')
+})
+
+test('Perfil: la fecha de nacimiento muestra la edad y el avatar automático sigue la edad y el género', async (t) => {
+  const { b, unmount } = await mountApp('/profile', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'sin edad todavía')
+  const born = new Date()
+  born.setFullYear(born.getFullYear() - 70)
+  born.setDate(born.getDate() - 3)
+  const iso = `${born.getFullYear()}-${String(born.getMonth() + 1).padStart(2, '0')}-${String(born.getDate()).padStart(2, '0')}`
+  await type(document.querySelector<HTMLInputElement>('form input[type="date"]')!, iso)
+  await click(document.querySelector('form input[value="FEMALE"]'), 'Mujer')
+  await click(document.querySelector('form button[type="submit"]'), 'Guardar')
+  await waitFor(() => (b.db.me as { birthDate?: string }).birthDate === iso, 'PATCH con la fecha')
+  await waitFor(() => /70 años/.test(text()), 'edad en el perfil')
+  await click(document.querySelector('button[aria-label="Cambiar avatar"]'), 'Cambiar avatar')
+  await waitFor(() => !!document.querySelector('dialog[open] img[src="/lions/elder-lioness-face.png"]'), 'automático: leona abuela')
 })
 
 test('Perfil: Notas de voz muestra audios sin mezclar documentos y conserva los filtros al navegar', async (t) => {
