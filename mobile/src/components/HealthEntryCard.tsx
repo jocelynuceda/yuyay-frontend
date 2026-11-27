@@ -21,7 +21,6 @@ export function HealthEntryCard({
   attachmentOpen?: boolean;
 }) {
   const styles = useStyles();
-  const { colors } = useTheme();
   const [showAttachment, setShowAttachment] = useState(attachmentOpen);
   const v = entry.latestVersion;
   // Un acceso delegado no tiene acciones ni permiso para abrir adjuntos
