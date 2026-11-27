@@ -252,8 +252,8 @@ test('original expirado: cierra la pestaña, avisa el 410 y no crea una URL Blob
   assert.equal(closes, 1)
   assert.equal(blobUrls, 0)
   assert.equal(tab.location.href, '')
-  assert.match(container.querySelector('[role="alert"]')!.textContent!, /enlace ya no está disponible/)
-  assert.equal([...container.querySelectorAll('button')].find((button) => button.textContent === 'Ver documento original')!.disabled, false)
+  assert.match(container.textContent!, /Ya no tienes acceso a este resumen/)
+  assert.doesNotMatch(container.textContent!, /Paciente de prueba|Ver documento original/)
 })
 
 test('popup bloqueado: informa el bloqueo sin solicitar el documento original', async (t) => {

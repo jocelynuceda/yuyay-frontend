@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import axios from 'axios'
 import { getHandoffSummaryPdf } from '../../services/api/handoffs'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { focusRing } from '../../utils/styles'
 
-export function SummaryPdfDownload({ token, accessGrant, deadline }: { token: string; accessGrant?: string | null; deadline: number }) {
+export function SummaryPdfDownload({ token, accessGrant, deadline, onUnavailable }: { token: string; accessGrant?: string | null; deadline: number; onUnavailable: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const controller = useRef<AbortController | null>(null)
@@ -27,7 +28,9 @@ export function SummaryPdfDownload({ token, accessGrant, deadline }: { token: st
       link.remove()
       setTimeout(() => URL.revokeObjectURL(url), 60000)
     } catch (cause) {
-      if (!request.signal.aborted) setError(getErrorMessage(cause))
+      if (request.signal.aborted) return
+      if (axios.isAxiosError(cause) && cause.response?.status === 410) onUnavailable()
+      else setError(getErrorMessage(cause))
     } finally {
       if (!request.signal.aborted) setBusy(false)
     }
