@@ -65,7 +65,14 @@ export function ProfileScreen({ navigation }: Props) {
     setSavingName(true);
     setNameError(undefined);
     try {
-      updateUser(await updateMe(name.trim(), gender, birth.iso || null));
+      const nextBirthDate = birth.iso || null;
+      const birthDateChanged = nextBirthDate !== (user?.birthDate ?? null);
+      const updated = await updateMe(name.trim(), gender, birthDateChanged ? nextBirthDate : undefined);
+      if (birthDateChanged && (updated.birthDate ?? null) !== nextBirthDate) {
+        setNameError('No pudimos guardar el cambio de la fecha de nacimiento.');
+        return;
+      }
+      updateUser(updated);
       setEditingName(false);
       toast('Perfil actualizado.');
     } catch (e) {

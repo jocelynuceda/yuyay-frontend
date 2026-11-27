@@ -105,7 +105,7 @@ function backend() {
   const auth = () => {
     tokens += 1
     return { accessToken: `A${tokens}`, refreshToken: `R${tokens}`, tokenType: 'Bearer', expiresInSeconds: 3600,
-      user: { id: db.me.id, name: db.me.name, email: db.me.email } }
+      user: db.me }
   }
   const adapter = async (config: any) => {
     const url: string = config.url.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api\/v1/, '')
@@ -149,7 +149,7 @@ function backend() {
     }
     if (url === '/users/me' && method === 'GET') return ok(config, db.me)
     if (url === '/users/me' && method === 'PATCH') {
-      db.me = { ...db.me, name: body.name, ...(body.gender ? { gender: body.gender } : {}), ...(body.birthDate ? { birthDate: body.birthDate } : {}) } as typeof db.me
+      db.me = { ...db.me, name: body.name, ...(body.gender ? { gender: body.gender } : {}), ...(Object.hasOwn(body, 'birthDate') ? { birthDate: body.birthDate } : {}) } as typeof db.me
       return ok(config, db.me)
     }
     if (url === '/care-subjects') return ok(config, db.subjects)
@@ -243,9 +243,9 @@ function backend() {
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 async function waitFor(condition: () => boolean, message: string, timeoutMs = 3000) {
-  const start = Date.now()
+  const start = performance.now()
   while (!condition()) {
-    if (Date.now() - start > timeoutMs) throw new Error(`No se cumplió a tiempo: ${message} (ruta: ${pathname()}${search()})`)
+    if (performance.now() - start > timeoutMs) throw new Error(`No se cumplió a tiempo: ${message} (ruta: ${pathname()}${search()})`)
     await act(async () => { await wait(10) })
   }
 }
@@ -911,8 +911,18 @@ test('Avisos: enlaza la invitación pendiente y el nuevo cuidador, y omite enlac
 })
 
 test('Perfil: la fecha de nacimiento muestra la edad y el avatar automático sigue la edad y el género', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 1, 10, 12) })
   const { b, unmount } = await mountApp('/profile', { loggedIn: true })
-  t.after(unmount)
+  let unmountCurrent = unmount
+  t.after(() => unmountCurrent())
+  const reopenProfile = async (profile = b.db.me) => {
+    await unmountCurrent()
+    unmountCurrent = async () => {}
+    const reloaded = await mountApp('/profile', { loggedIn: true, seed: (db) => { db.me = profile } })
+    unmountCurrent = reloaded.unmount
+    await waitFor(() => reloaded.b.calls.includes('GET /users/me'), 'GET del perfil recargado')
+    return reloaded.b
+  }
   await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'sin edad todavía')
   // Nació el 5 de enero de hace 70 años: el calendario propio se abre y se elige año, mes y día
   const year = new Date().getFullYear() - 70
@@ -926,9 +936,23 @@ test('Perfil: la fecha de nacimiento muestra la edad y el avatar automático sig
   await click(document.querySelector('form input[value="FEMALE"]'), 'Mujer')
   await click(document.querySelector('form button[type="submit"]'), 'Guardar')
   await waitFor(() => (b.db.me as { birthDate?: string }).birthDate === iso, 'PATCH con la fecha')
-  await waitFor(() => /70 años/.test(text()), 'edad en el perfil')
+  const reopenedBackend = await reopenProfile()
+  await waitFor(() => /70 años/.test(text()), 'edad en el perfil recargado')
   await click(document.querySelector('button[aria-label="Cambiar avatar"]'), 'Cambiar avatar')
-  await waitFor(() => !!document.querySelector('dialog[open] img[src="/lions/elder-lioness-face.png"]'), 'automático: leona abuela')
+  const automaticImage = () => byText('button[role="radio"]', /^Automático/)?.querySelector('img')?.getAttribute('src')
+  await waitFor(() => automaticImage() === '/lions/elder-lioness-face.png', 'automático: leona abuela')
+  await click(document.querySelector('dialog[open] button[aria-label="Cerrar"]'), 'Cerrar selector')
+
+  await click(document.getElementById('profile-birthDate'), 'calendario de la fecha de nacimiento')
+  await click(byText('button', 'Borrar fecha'), 'Borrar fecha')
+  await click(document.querySelector('form button[type="submit"]'), 'Guardar sin fecha')
+  await waitFor(() => (reopenedBackend.db.me as { birthDate?: string | null }).birthDate === null, 'PATCH con fecha nula')
+  await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'perfil sin edad')
+
+  await reopenProfile(reopenedBackend.db.me)
+  await waitFor(() => /Agrega tu fecha de nacimiento/.test(text()), 'perfil recargado sin edad')
+  await click(document.querySelector('button[aria-label="Cambiar avatar"]'), 'Cambiar avatar')
+  await waitFor(() => automaticImage() === '/lions/adult-lioness-face.png', 'automático: leona sin edad')
 })
 
 test('Perfil: Notas de voz muestra audios sin mezclar documentos y conserva los filtros al navegar', async (t) => {

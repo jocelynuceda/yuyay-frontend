@@ -107,7 +107,15 @@ function ProfileForm({ profile, onSaved }: { profile: UserProfile; onSaved: (pro
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      const updated = await updateMe({ name: values.name, gender: values.gender, birthDate: values.birthDate })
+      const nextBirthDate = values.birthDate ?? null
+      const birthDateChanged = nextBirthDate !== (profile.birthDate ?? null)
+      const updated = await updateMe({
+        name: values.name, gender: values.gender, ...(birthDateChanged ? { birthDate: nextBirthDate } : {}),
+      })
+      if (birthDateChanged && (updated.birthDate ?? null) !== nextBirthDate) {
+        setError('birthDate', { message: 'No pudimos guardar el cambio de la fecha de nacimiento.' })
+        return
+      }
       onSaved(updated)
       reset({ name: updated.name, gender: updated.gender ?? '', birthDate: updated.birthDate ?? '' })
       toast.success('Perfil actualizado.')
