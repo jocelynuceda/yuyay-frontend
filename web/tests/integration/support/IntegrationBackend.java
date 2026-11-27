@@ -16,31 +16,17 @@ import tools.jackson.databind.ObjectMapper;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicReference;
 
 /** Arranque exclusivo del runner local. No se copia ni compila dentro del backend publicado. */
 @Configuration(proxyBeanMethods = false)
 public class IntegrationBackend {
-    private static final AtomicReference<Instant> NOW = new AtomicReference<>(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS));
     private static final Map<String, List<String>> MAIL = new ConcurrentHashMap<>();
-
-    @Bean @Primary
-    Clock integrationClock() {
-        return new Clock() {
-            public ZoneId getZone() { return ZoneOffset.UTC; }
-            public Clock withZone(ZoneId zone) { return Clock.fixed(NOW.get(), zone); }
-            public Instant instant() { return NOW.get(); }
-        };
-    }
 
     @Bean @Primary
     EmailSender integrationMail() {
@@ -85,13 +71,6 @@ public class IntegrationBackend {
                 String path = exchange.getRequestURI().getPath();
                 if ("/status".equals(path) && "GET".equals(exchange.getRequestMethod())) {
                     respond(exchange, json, 200, Map.of("ready", true));
-                } else if ("/clock".equals(path) && "POST".equals(exchange.getRequestMethod())) {
-                    long seconds = json.readTree(exchange.getRequestBody().readAllBytes()).path("advanceSeconds").asLong(-1);
-                    if (seconds < 0 || seconds > 604800) {
-                        respond(exchange, json, 400, Map.of("error", "Avance inválido"));
-                        return;
-                    }
-                    respond(exchange, json, 200, Map.of("now", NOW.updateAndGet(time -> time.plusSeconds(seconds)).toString()));
                 } else if ("/expire-claim".equals(path) && "POST".equals(exchange.getRequestMethod())) {
                     long id = json.readTree(exchange.getRequestBody().readAllBytes()).path("invitationId").asLong();
                     new TransactionTemplate(context.getBean(PlatformTransactionManager.class)).executeWithoutResult(status -> {

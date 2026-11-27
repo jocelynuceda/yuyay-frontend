@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Pruebas HTTP locales con base en memoria, reloj controlado y buzón ficticio.
+Pruebas HTTP de entrega del perfil y regresión de resúmenes, con base en memoria y buzón ficticio.
 .EXAMPLE
 $env:YUYAY_BACKEND_PATH = 'C:\ruta\dbp-yuyay'
 npm run test:integration
@@ -63,7 +63,7 @@ try {
       if ($LASTEXITCODE -ne 0) { throw "Falló la integración: $script" }
     }
   } finally { Pop-Location }
-  Write-Output 'PASS integración de resúmenes protegidos y entrega del perfil.'
+  Write-Output 'PASS integración de entrega del perfil y regresión del resumen existente.'
   Write-Output "Registros locales de pruebas: $dir"
 } finally {
   if ($qaBackendProcess -and !$qaBackendProcess.HasExited) { Stop-Process -Id $qaBackendProcess.Id }

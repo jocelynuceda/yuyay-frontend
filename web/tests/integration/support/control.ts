@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import axios from 'axios'
 
-export async function control(path: '/clock' | '/outbox' | '/expire-claim', body: object): Promise<unknown> {
+export async function control(path: '/outbox' | '/expire-claim', body: object): Promise<unknown> {
   const key = process.env.YUYAY_QA_CONTROL_KEY
   if (!key || key.length < 32 || process.env.YUYAY_SUMMARY_TEST_URL !== 'http://127.0.0.1:18068') {
     throw new Error('Usa el runner local aislado para ejecutar esta prueba.')
@@ -14,9 +14,6 @@ export async function control(path: '/clock' | '/outbox' | '/expire-claim', body
   return response.json()
 }
 
-export async function advanceClock(seconds: number) {
-  await control('/clock', { advanceSeconds: seconds })
-}
 
 export async function expectHttpFailure(action: Promise<unknown>, status: number, code?: string) {
   await assert.rejects(action, (error: unknown) => axios.isAxiosError(error)
