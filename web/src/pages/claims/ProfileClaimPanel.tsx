@@ -133,7 +133,7 @@ function ClaimManager({ subject, onChanged }: { subject: CareSubject; onChanged:
 
           {!unavailable ? (
             <details className="rounded-2xl border border-line p-4">
-              <summary className={'cursor-pointer font-semibold text-primary ' + focusRing}>Contrastar el nombre con un DNI (opcional)</summary>
+              <summary className={'cursor-pointer font-semibold text-primary-fg ' + focusRing}>Contrastar el nombre con un DNI (opcional)</summary>
               <div className="mt-4 grid gap-3">
                 <p className="text-sm">La consulta contrasta el nombre de {subject.name}. No acredita identidad ni verifica edad. Este paso es independiente de la invitación.</p>
                 <label htmlFor="claim-dni" className="text-sm font-semibold">DNI del titular</label>

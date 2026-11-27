@@ -6,22 +6,15 @@ import type { AuthResponse, CareSubject } from '../../src/types'
 import { getCareAuthorizationHistory, getCareSubject } from '../../src/services/api/careSubjects'
 import { checkSubjectName, emitClaimInvitation, exchangeProfileClaim, listClaimInvitations, revokeClaimInvitation } from '../../src/services/api/profileClaims'
 import { control, expectHttpFailure, integrationFailure } from './support/control'
+import { registerTestAccount } from './support/auth'
 
 async function main() {
   const origin = process.env.YUYAY_SUMMARY_TEST_URL
   if (origin !== 'http://127.0.0.1:18068') throw new Error('Usa la instancia local aislada.')
   api.defaults.baseURL = publicApi.defaults.baseURL = origin + '/api/v1'
-  async function account(): Promise<AuthResponse> {
-    const response = await fetch(origin + '/api/v1/auth/register', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'claim.' + crypto.randomUUID() + '@example.invalid', name: 'Cuenta ficticia QA',
-        password: 'Ficticia123', termsAccepted: true, termsVersion: '1.0' }),
-    })
-    assert.equal(response.status, 201)
-    return response.json()
-  }
+  const account = (): Promise<AuthResponse> => registerTestAccount('claim')
   async function subject(type = 'LEGAL_REPRESENTATION', birthDate: string | null = '2000-01-01'): Promise<CareSubject> {
-    return (await api.post('/care-subjects', { requestId: crypto.randomUUID(), name: 'Persona ficticia QA', birthDate,
+    return (await api.post('/care-subjects', { requestId: crypto.randomUUID(), name: 'Persona Sintetica', birthDate,
       declaration: { type, textVersion: '1', confirmed: true } })).data
   }
   async function tokenFromMail(email: string, count: number) {
@@ -41,7 +34,8 @@ async function main() {
     const person = await subject()
     const entry = (await api.post('/care-subjects/' + person.id + '/health-entries',
       { categoryCode: 'ALLERGY', title: 'Registro enteramente ficticio', confidenceLevel: 'CONFIRMED' })).data
-    assert.equal((await checkSubjectName(person.id, '00000000')).result, 'UNAVAILABLE')
+    assert.equal((await checkSubjectName(person.id, '12345678')).result, 'MATCH')
+    assert.equal((await checkSubjectName(person.id, '00000000')).result, 'NOT_FOUND')
     const invitation = await emitClaimInvitation(person.id, recipient.user.email)
     assert.equal(invitation.pending, true)
     assert.equal('token' in invitation, false)

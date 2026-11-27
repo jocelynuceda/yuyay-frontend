@@ -13,7 +13,7 @@ import { act, type ReactNode } from 'react'
 import { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type { AuthContextValue } from '../src/contexts/auth-context'
 const { createRoot } = await import('react-dom/client')
-const { MemoryRouter, BrowserRouter, Routes, Route, Link } = await import('react-router-dom')
+const { MemoryRouter, BrowserRouter, Routes, Route, Link, useNavigate, useLocation } = await import('react-router-dom')
 const { AuthContext } = await import('../src/contexts/auth-context')
 const { AuthProvider } = await import('../src/contexts/AuthContext')
 const { ThemeProvider } = await import('../src/contexts/ThemeContext')
@@ -23,6 +23,8 @@ const { default: AppRoutes } = await import('../src/routes/AppRoutes')
 const { api, publicApi, clearTokens } = await import('../src/services/http')
 const claim = await import('../src/utils/profileClaim')
 const { getPostLoginTarget } = await import('../src/utils/redirect')
+const { useAuth } = await import('../src/hooks/useAuth')
+const { completeGoogleSignIn } = await import('../src/utils/googleAuth')
 
 const user = { id: 71, name: 'Cuenta ficticia QA', email: 'qa@example.invalid', role: 'USER' as const, createdAt: '2026-01-01T00:00:00Z' }
 const authResponse = { user, accessToken: 'access-ficticio', refreshToken: 'refresh-ficticio', tokenType: 'Bearer', expiresInSeconds: 900 }
@@ -291,10 +293,14 @@ test('la ruta sin token orienta a revisar las personas y volver al correo sin co
 test('registro desde la entrega conserva el destino después de aceptar los términos de prueba', async (t) => {
   claim.rememberClaimToken(secret)
   const writes: string[] = []
+  let registration: Record<string, unknown> | undefined
   api.defaults.adapter = publicApi.defaults.adapter = async (config) => {
     if (config.method === 'post') writes.push(config.url!)
-    if (config.url === '/auth/register') return ok(config, authResponse)
-    if (config.url === '/auth/terms') return ok(config, { version: '1.0', text: 'Términos de prueba\nContenido enteramente ficticio.' })
+    if (config.url === '/auth/register') {
+      registration = JSON.parse(config.data)
+      return ok(config, authResponse)
+    }
+    if (config.url === '/auth/terms') return ok(config, { version: '1.2', text: 'Términos de prueba\nContenido enteramente ficticio.' })
     if (config.url === '/care-subjects/authorization-policy') return ok(config, policy)
     throw new Error('Solicitud inesperada')
   }
@@ -304,6 +310,8 @@ test('registro desde la entrega conserva el destino después de aceptar los tér
   await until(() => node.textContent?.includes('Crear una cuenta') ?? false)
   await link(node, 'Crear una cuenta')
   await until(() => !!node.querySelector('#auth-name'))
+  await fill(node, '#auth-dni', '12345678')
+  await fill(node, '#auth-full-name', 'Persona Sintetica')
   await fill(node, '#auth-name', user.name)
   await fill(node, '#auth-email', user.email)
   await fill(node, '#auth-password', 'Ficticia123')
@@ -316,6 +324,10 @@ test('registro desde la entrega conserva el destino después de aceptar los tér
   await click(node, 'Registrarme')
   await until(() => node.textContent?.includes('Sesión actual:') ?? false)
   assert.deepEqual(writes, ['/auth/register'])
+  assert.deepEqual(registration, { name: user.name, fullName: 'Persona Sintetica', dni: '12345678', gender: null,
+    email: user.email, password: 'Ficticia123', termsAccepted: true, termsVersion: '1.2' })
+  assert.equal(claim.getClaimToken(), secret)
+  assert.equal(window.localStorage.getItem('dni'), null)
 })
 
 test('las condiciones configurables se deciden en el servidor y se conserva el correo tras su rechazo', async (t) => {
@@ -565,4 +577,51 @@ test('sin acceso al almacenamiento se exige revisión y un resultado incierto si
     window.Storage.prototype.getItem = oldGet
     window.Storage.prototype.setItem = oldSet
   }
+})
+
+test('Google conserva la invitación en memoria durante términos y datos de alta, y vuelve a la entrega', async (t) => {
+  claim.rememberClaimToken(secret)
+  const bodies: Record<string, unknown>[] = []
+  api.defaults.adapter = publicApi.defaults.adapter = async (config) => {
+    if (config.url === '/care-subjects/authorization-policy') return ok(config, policy)
+    assert.equal(config.url, '/auth/google', 'La invitación no se canjea durante la autenticación')
+    const body = JSON.parse(config.data)
+    bodies.push(body)
+    assert.equal(JSON.stringify(body).includes(secret), false)
+    if (!body.acceptedTermsVersion || !body.dni) {
+      throw new AxiosError('Datos de alta pendientes', '', config, undefined, {
+        ...ok(config, { code: !body.acceptedTermsVersion ? 'TERMS_ACCEPTANCE_REQUIRED' : 'REGISTRATION_DETAILS_REQUIRED',
+          currentVersion: '1.2' }), status: 428,
+      })
+    }
+    return ok(config, authResponse)
+  }
+  function GoogleLoginForTest() {
+    const { loginWithGoogle } = useAuth()
+    const navigate = useNavigate()
+    const location = useLocation()
+    return <button onClick={() => void (async () => {
+      const response = await completeGoogleSignIn('credencial-google-sintetica', loginWithGoogle,
+        async () => ({ termsAccepted: true, termsVersion: '1.2' }),
+        async () => ({ dni: '12345678', fullName: 'Persona Sintetica', name: user.name }))
+      if (response.status === 'signed-in') void navigate(getPostLoginTarget(location.state), { replace: true })
+    })()}>Google simulado</button>
+  }
+  const node = await mount(t, <ThemeProvider><AuthProvider><MemoryRouter initialEntries={['/entrega']}>
+    <Routes>
+      <Route path="/entrega" element={<ProfileClaimPage />} />
+      <Route path="/login" element={<GoogleLoginForTest />} />
+    </Routes>
+  </MemoryRouter></AuthProvider></ThemeProvider>)
+  await link(node, 'Iniciar sesión')
+  await click(node, 'Google simulado')
+  await until(() => node.textContent?.includes('Sesión actual:') ?? false)
+  assert.equal(bodies.length, 3)
+  assert.deepEqual(bodies[2], { idToken: 'credencial-google-sintetica', acceptedTermsVersion: '1.2',
+    dni: '12345678', fullName: 'Persona Sintetica', name: user.name })
+  assert.equal(claim.getClaimToken(), secret)
+  assert.equal(node.textContent?.includes(secret), false)
+  const persisted = JSON.stringify([Object.entries(window.localStorage), Object.entries(window.sessionStorage)])
+  assert.equal(persisted.includes(secret), false)
+  assert.equal(persisted.includes('12345678'), false)
 })

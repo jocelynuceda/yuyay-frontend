@@ -66,6 +66,12 @@ public class IntegrationBackend {
                     "--app.reminders.enabled=false", "--app.admin.password=", "--app.demo.password=",
                     "--app.frontend-url=http://localhost:5173"
                 });
+        // El proveedor sintético viene únicamente de target/test-classes y del perfil test.
+        var identity = context.getBean(com.yuyay.identity.IdentityDirectory.class);
+        if (!identity.isConfigured() || !identity.getClass().getName().equals("com.yuyay.identity.FixtureIdentityDirectory")) {
+            context.close();
+            throw new IllegalStateException("La integración requiere el directorio sintético de pruebas");
+        }
         ObjectMapper json = new ObjectMapper();
         HttpServer control = HttpServer.create(new InetSocketAddress("127.0.0.1", 18069), 0);
         control.createContext("/", exchange -> {
