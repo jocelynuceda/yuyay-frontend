@@ -6,7 +6,7 @@ import { Icon } from '../../components/ui/Icon'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useFetch } from '../../hooks/useFetch'
 import { useToast } from '../../hooks/useToast'
-import { todayIso } from '../../schemas/common'
+import { maxYear, MIN_YEAR, todayIso } from '../../schemas/common'
 import { deleteMedicationSchedule, getMedicationSchedule, saveMedicationSchedule } from '../../services/api/medication'
 import type { DayOfWeek, MedicationSchedule } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -14,9 +14,12 @@ import { formatDate, formatTime } from '../../utils/format'
 import { describeDays, FREQUENCY_PRESETS, shortTime, WEEK_DAYS } from '../../utils/medicationSchedule'
 import { focusRing } from '../../utils/styles'
 import { inputClass } from '../forms/fieldProps'
-import { ChoiceOption } from '../forms/fields'
+import { ChoiceOption, Field } from '../forms/fields'
+import { DatePicker } from '../../components/ui/DatePicker'
 
 const MAX_TIMES = 8
+/** Un tratamiento se planifica, como mucho, hasta dentro de dos años (igual que las citas). */
+const maxDate = `${maxYear(2)}-12-31`
 
 /** Horario del medicamento en su ficha: cuándo se toma, para la agenda del inicio y los avisos del celular. */
 export function MedicationScheduleSection({ subjectId, entryId }: { subjectId: number; entryId: number }) {
@@ -275,22 +278,21 @@ function ScheduleForm({
       </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid content-start gap-1.5">
-          <span className="text-sm font-semibold">Desde</span>
-          <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={inputClass(false)} />
-        </label>
-        <label className="grid content-start gap-1.5">
-          <span className="text-sm font-semibold">Hasta (opcional)</span>
-          <input
-            type="date"
+        {/* El mismo calendario en español que el resto de las fechas de la app */}
+        <Field id="schedule-start" label="Desde">
+          <DatePicker id="schedule-start" value={startDate} onChange={setStartDate} min={`${MIN_YEAR}-01-01`} max={maxDate} className={inputClass(false)} />
+        </Field>
+        <Field id="schedule-end" label="Hasta (opcional)" hint="Déjalo vacío si es un tratamiento continuo.">
+          <DatePicker
+            id="schedule-end"
             value={endDate}
-            min={startDate}
-            onChange={(event) => setEndDate(event.target.value)}
+            onChange={setEndDate}
+            min={startDate || `${MIN_YEAR}-01-01`}
+            max={maxDate}
             aria-describedby="schedule-end-hint"
             className={inputClass(false)}
           />
-          <span id="schedule-end-hint" className="text-sm text-muted">Déjalo vacío si es un tratamiento continuo.</span>
-        </label>
+        </Field>
       </div>
 
       {problem ? <p role="alert" className="rounded-xl bg-danger-bg p-3 text-danger">{problem}</p> : null}
