@@ -22,6 +22,9 @@ Object.assign(dom.window.HTMLDialogElement.prototype, {
 
 const { createRoot } = await import('react-dom/client')
 const { VoiceNotesPanel } = await import('../src/pages/documents/VoiceNotesPanel')
+const { DocumentsPanel } = await import('../src/pages/documents/DocumentsPanel')
+const { MemoryRouter } = await import('react-router-dom')
+const { userEvent } = await import('@testing-library/user-event')
 const { AuthContext } = await import('../src/contexts/auth-context')
 const { ToastContext } = await import('../src/contexts/toast-context')
 const { api, clearTokens, setTokens } = await import('../src/services/http')
@@ -142,7 +145,7 @@ function fail(config: InternalAxiosRequestConfig, status: number, message: strin
   })
 }
 
-function mountPanel(t: TestContext, adapter: AxiosAdapter) {
+function mountPanel(t: TestContext, adapter: AxiosAdapter, Panel = VoiceNotesPanel) {
   const previousAdapter = api.defaults.adapter
   api.defaults.adapter = adapter
   setTokens({ accessToken: 'voice-access', refreshToken: 'voice-refresh' })
@@ -161,7 +164,7 @@ function mountPanel(t: TestContext, adapter: AxiosAdapter) {
       login: async () => true, register: async () => true, loginWithGoogle: async () => true, logout: noop, updateUser: () => {},
     }}>
       <ToastContext.Provider value={{ success: (message) => notices.push(message), info: () => {}, error: () => {} }}>
-        <VoiceNotesPanel subjectId={subjectId} isPrincipal={isPrincipal} />
+        <MemoryRouter><Panel subjectId={subjectId} isPrincipal={isPrincipal} /></MemoryRouter>
       </ToastContext.Provider>
     </AuthContext.Provider>,
   ))
@@ -169,6 +172,58 @@ function mountPanel(t: TestContext, adapter: AxiosAdapter) {
 }
 
 const body = () => document.body.textContent ?? ''
+
+for (const { Panel, type, suffix, upload } of [
+  { Panel: DocumentsPanel, type: 'application/pdf', suffix: '.pdf', upload: 'Subir documento' },
+  { Panel: VoiceNotesPanel, type: 'audio/mp4', suffix: '.m4a', upload: 'Elegir archivo de audio' },
+]) {
+  test(`teclado en ${upload}: guardar, borrar y continuar donde corresponde`, async (t) => {
+    let files = ['Uno', 'Dos', 'Tres'].map((name, i) => attachment({
+      id: i + 1, originalFilename: name + suffix, contentType: type,
+    }))
+    const { render } = mountPanel(t, async (config) => {
+      if (config.method === 'get') return ok(config, files.slice())
+      const id = Number(config.url?.split('/').at(-1))
+      if (config.method === 'patch') {
+        const updated = { ...files.find(f => f.id === id)!, originalFilename: JSON.parse(config.data).filename }
+        files = files.map(f => f.id === id ? updated : f)
+        return ok(config, updated)
+      }
+      assert.equal(config.method, 'delete')
+      files = files.filter(f => f.id !== id)
+      return ok(config, null)
+    }, Panel)
+    const keyboard = userEvent.setup({ document })
+    const press = (keys: string) => act(async () => { await keyboard.keyboard(keys) })
+    async function tabTo(label: string) {
+      const target = button(label)
+      assert.ok(target, label)
+      for (let i = 0; i < 32 && document.activeElement !== target; i++) {
+        await act(async () => { await keyboard.tab() })
+      }
+      assert.equal(document.activeElement, target)
+    }
+    async function remove(name: string) {
+      await tabTo('Borrar ' + name + suffix)
+      await press('{Enter}')
+      assert.equal(document.activeElement, button('Confirmar eliminación de ' + name + suffix))
+      await press('{Enter}')
+    }
+    await render()
+    await tabTo('Cambiar nombre de Uno' + suffix)
+    await press('{Enter}')
+    assert.equal(document.activeElement?.tagName, 'INPUT')
+    await press('Control{Enter}')
+    assert.equal(document.activeElement, button('Cambiar nombre de Control' + suffix))
+
+    await remove('Control')
+    assert.match(document.activeElement?.closest('li')?.textContent ?? '', /Dos/)
+    await remove('Tres')
+    assert.match(document.activeElement?.closest('li')?.textContent ?? '', /Dos/)
+    await remove('Dos')
+    assert.equal(document.activeElement, button(upload))
+  })
+}
 const button = (label: string) => [...document.querySelectorAll('button')].find((el) =>
   el.getAttribute('aria-label') === label || el.textContent?.trim() === label,
 )
@@ -226,6 +281,7 @@ test('el panel lista audio, carga contenido privado y recupera errores de carga,
   assert.match(body(), /otra\.webm/)
   assert.doesNotMatch(body(), /receta\.pdf/)
   assert.equal(button('Borrar otra.webm'), undefined)
+  assert.equal(button('Cambiar nombre de otra.webm'), undefined)
   assert.equal(contentRequests, 0)
   await click('Abrir reproductor de nota.m4a')
   assert.match(body(), /No pudimos abrir el audio/)
@@ -254,17 +310,53 @@ test('el panel lista audio, carga contenido privado y recupera errores de carga,
   assert.equal(url.mock.callCount(), 2)
 
   await click('Borrar nota.m4a')
-  assert.equal(document.querySelector('dialog')?.open, true)
-  await click('Volver')
+  assert.ok(button('Confirmar eliminación de nota.m4a'))
+  assert.equal(deleteRequests, 0)
+  await click('Cancelar')
   assert.equal(deleteRequests, 0)
   await click('Borrar nota.m4a')
-  await click('Borrar nota de voz')
+  await click('Confirmar eliminación de nota.m4a')
   assert.match(body(), /El archivo está vinculado a un registro/)
-  await click('Borrar nota de voz')
+  await click('Confirmar eliminación de nota.m4a')
   assert.equal(deleteRequests, 2)
   assert.doesNotMatch(body(), /nota\.m4a/)
   assert.deepEqual(revoked, ['blob:audio/webm', 'blob:audio/mp4'])
   assert.deepEqual(notices, ['Nota de voz guardada.', 'Nota de voz borrada.'])
+})
+
+test('renombrar audio conserva el reproductor y actualiza el nombre de descarga', async (t) => {
+  t.mock.method(URL, 'createObjectURL', () => 'blob:nota')
+  t.mock.method(URL, 'revokeObjectURL', () => {})
+  let file = attachment()
+  let contentReads = 0
+  const { render } = mountPanel(t, async (config) => {
+    if (config.url?.endsWith('/content')) {
+      contentReads++
+      return ok(config, new Blob(['nota'], { type: 'audio/mp4' }))
+    }
+    if (config.method === 'patch') {
+      assert.equal(config.url, '/care-subjects/1/attachments/1')
+      assert.deepEqual(JSON.parse(config.data), { filename: 'Control de noviembre.m4a' })
+      file = { ...file, originalFilename: 'Control de noviembre.m4a' }
+      return ok(config, file)
+    }
+    return ok(config, [file])
+  })
+  await render()
+  await click('Abrir reproductor de nota.m4a')
+  const audio = document.querySelector('audio')
+  await click('Cambiar nombre de nota.m4a')
+  const input = document.querySelector<HTMLInputElement>('form input')!
+  assert.equal(input.value, 'nota')
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(input, 'Control de noviembre')
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+  })
+  await click('Guardar nombre')
+  assert.ok(button('Cambiar nombre de Control de noviembre.m4a'))
+  assert.equal(document.querySelector('audio'), audio)
+  assert.equal(document.querySelector<HTMLAnchorElement>('a[download]')?.download, file.originalFilename)
+  assert.equal(contentReads, 1)
 })
 
 test('cambiar de persona detiene una grabación y cancela el contenido del perfil anterior', async (t) => {
