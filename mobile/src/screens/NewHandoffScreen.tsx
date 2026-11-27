@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { CategoryIcon } from '../components/CategoryIcon';
 import { EmptyState } from '../components/EmptyState';
 import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
@@ -117,9 +118,7 @@ function ManualHandoffScreen({ route, navigation }: Props) {
             return (
               <View key={c.code} style={styles.group}>
                 <Pressable onPress={() => toggle(ids)} style={styles.groupHeader} accessibilityRole="button">
-                  <View style={[styles.groupIcon, { backgroundColor: colors[meta.bg] }]}>
-                    <Ionicons name={meta.icon} size={16} color={colors[meta.fg]} />
-                  </View>
+                  <CategoryIcon code={c.code} size={16} style={styles.groupIcon} />
                   <Text style={styles.groupTitle}>{meta.plural}</Text>
                   <Text style={styles.groupToggle}>{allOn ? 'Quitar todos' : 'Marcar todos'}</Text>
                 </Pressable>

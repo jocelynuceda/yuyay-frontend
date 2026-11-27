@@ -21,8 +21,8 @@ type ClinicalProfileProps = {
 }
 
 /** Ícono y color de cada categoría, como en la app móvil. */
-const categoryTiles: Record<CategoryCode, { icon: IconName; color: string }> = {
-  ALLERGY: { icon: 'flower', color: 'bg-accent text-on-accent' },
+const categoryTiles: Record<CategoryCode, { icon: IconName; color: string; image?: string }> = {
+  ALLERGY: { icon: 'flower', color: 'bg-accent text-on-accent', image: '/categories/allergy.png' },
   CONDITION: { icon: 'pulse', color: 'bg-soft text-soft-text' },
   MEDICATION: { icon: 'medkit', color: 'bg-primary-tint text-primary-fg' },
   IMMUNIZATION: { icon: 'shield', color: 'bg-primary text-white' },
@@ -74,12 +74,13 @@ function ProfileCategory({ subjectId, code, expanded, onToggle, onOpenEntry, onA
   const overview = !loading && !error && data ? clinicalCategoryOverview(data) : null
   const { name, plural } = categoryLabels[code]
   const panelId = `clinical-profile-${subjectId}-${code}`
-  const { icon, color } = categoryTiles[code]
+  const { icon, color, image } = categoryTiles[code]
   return (
     <>
       <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={onToggle}
         className={`control-interactive flex aspect-square min-w-0 flex-col items-center justify-center gap-2 rounded-2xl bg-card p-2 text-center shadow-[var(--shadow-soft)] ${expanded ? 'ring-2 ring-primary' : ''} ${focusRing}`}>
-        <span className={`grid h-11 w-11 place-items-center rounded-full ${color}`}><Icon name={icon} /></span>
+        {image ? <img src={image} alt="" className="h-11 w-11 object-contain" />
+          : <span className={`grid h-11 w-11 place-items-center rounded-full ${color}`}><Icon name={icon} /></span>}
         <span className="max-w-full text-sm font-semibold wrap-break-word">{plural}</span>
         {overview ? <span aria-label={`${overview.total} ${overview.total === 1 ? 'registro' : 'registros'}`}
           className="rounded-full bg-primary-tint px-2.5 py-0.5 text-xs font-semibold text-primary-fg">{overview.total}</span>

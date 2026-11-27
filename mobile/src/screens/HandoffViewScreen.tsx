@@ -4,6 +4,7 @@ import { useLayoutEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from 'react-native-paper';
+import { CategoryIcon } from '../components/CategoryIcon';
 import { Badge } from '../components/Badge';
 import { DurationField } from '../components/DurationField';
 import { DownloadPermission } from '../components/DownloadPermission';
@@ -199,9 +200,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
           <FormCard key={code} title={meta.plural}>
             {items.map((i) => (
               <View key={i.healthEntryId} style={styles.item}>
-                <View style={[styles.itemIcon, { backgroundColor: colors[meta.bg] }]}>
-                  <Ionicons name={meta.icon} size={16} color={colors[meta.fg]} />
-                </View>
+                <CategoryIcon code={code} size={16} style={styles.itemIcon} />
                 <View style={styles.flex}>
                   <Text style={styles.itemTitle}>{i.title}</Text>
                   <ItemFacts item={i} />

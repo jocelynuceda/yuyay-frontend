@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { CategoryIcon } from '../components/CategoryIcon';
 import { HealthEntryCard } from '../components/HealthEntryCard';
 import { LoadingView } from '../components/LoadingView';
 import { AvatarPicker } from '../components/AvatarPicker';
@@ -270,9 +271,7 @@ function SubjectProfile({
                   accessibilityState={{ expanded }}
                   accessibilityLabel={`${meta.plural}, ${items.length} registros`}
                 >
-                  <View style={[styles.rowIcon, { backgroundColor: colors[meta.bg] }]}>
-                    <Ionicons name={meta.icon} size={20} color={colors[meta.fg]} />
-                  </View>
+                  <CategoryIcon code={c.code} size={20} style={styles.rowIcon} />
                   <Text style={styles.rowLabel}>{meta.plural}</Text>
                   {items.length > 0 ? (
                     <View style={styles.count}>
