@@ -95,9 +95,11 @@ function ProfileCategory({ subjectId, code, expanded, onToggle, onOpenEntry, onA
             <div className="grid gap-2"><p className="text-xs text-muted">Último registro agregado</p><ProfileEntry entry={overview.latest} onOpen={onOpenEntry} /></div>
           ) : <p className="text-sm text-muted">Aún no hay registros de {plural.toLowerCase()}.</p> : null}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <Link to={`/people/${subjectId}/entries?category=${code}`} className={`text-sm ${linkClass}`}>{profileHistoryLabels[code]}</Link>
+            {overview && overview.total > 1 && (
+              <Link to={`/people/${subjectId}/entries?category=${code}`} className={`text-sm ${linkClass}`}>{profileHistoryLabels[code]}</Link>
+            )}
             <button type="button" onClick={() => onAddEntry(code)}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-sm font-semibold text-primary-fg hover:underline ${focusRing}`}>
+              className={`ml-auto inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-sm font-semibold text-primary-fg hover:underline ${focusRing}`}>
               <Icon name="plus" className="h-4 w-4" />Agregar {name.toLowerCase()}
             </button>
           </div>
