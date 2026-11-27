@@ -92,8 +92,8 @@ function HandoffSessionContent({ token }: { token: string }) {
 
   return (
     <PublicShell compact>
-      {closed === 'expired' && <StatusPanel title="Terminó el tiempo de lectura" message="Si necesitas volver a consultar el resumen, pide un nuevo enlace a quien lo compartió." />}
-      {closed === 'unavailable' && <StatusPanel title="Ya no tienes acceso a este resumen" message="Este enlace ya no está disponible. Si necesitas volver a leer el resumen, pide un nuevo enlace a quien lo compartió." />}
+      {closed === 'expired' && <StatusPanel tone="error" title="Terminó el tiempo de lectura" message="Si necesitas volver a consultar el resumen, pide un nuevo enlace a quien lo compartió." />}
+      {closed === 'unavailable' && <StatusPanel tone="error" title="Ya no tienes acceso a este resumen" message="Si necesitas volver a leerlo, pide un nuevo enlace a quien lo compartió." />}
       {opened && paused && <StatusPanel title="Lectura en pausa" message="Estamos comprobando que el enlace siga activo. La lectura continuará cuando podamos confirmarlo." />}
       {opened && <div hidden={paused}>
         <HandoffSummary view={opened.view} token={token} deadline={opened.deadline} onUnavailable={endReading} />

@@ -164,7 +164,7 @@ test('reanudación válida evita pedir identidad/código y borra contenido al ve
   assert.ok(requests.every(r => r.method === 'get' && !r.headers.has('X-Handoff-Access')))
   await advance(30000)
   assert.doesNotMatch(container.textContent!, /Contenido confidencial/)
-  assert.match(container.textContent!, /Terminó el tiempo de lectura/)
+  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /Terminó el tiempo de lectura/)
 })
 
 test('resume ya vencido no muestra contenido sensible', async t => {
@@ -187,7 +187,7 @@ test('una lectura abierta se retira sin recargar cuando el cuidador revoca el en
   const { container } = await mount(t, <HandoffPublicPage token="consulta" />)
   assert.match(container.textContent!, /Contenido confidencial/)
   await advance(10000)
-  assert.match(container.textContent!, /Ya no tienes acceso a este resumen/)
+  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /Ya no tienes acceso a este resumen/)
   assert.equal(container.querySelector('article, form, aside'), null)
   assert.doesNotMatch(container.textContent!, /Persona de prueba|Contenido confidencial/)
   await advance(10000)
