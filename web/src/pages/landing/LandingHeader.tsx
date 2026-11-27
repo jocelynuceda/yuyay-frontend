@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ThemeToggle } from '../../components/layout/ThemeToggle'
 import { Logo } from '../../components/ui/Brand'
@@ -11,10 +11,16 @@ const navLink = `rounded-full px-3 py-2 text-sm font-semibold text-ink hover:bg-
 /** Barra fija de la landing: logo, secciones al centro, y a la derecha el tema, «Iniciar sesión» y «Crear cuenta». */
 export function LandingHeader() {
   const [open, setOpen] = useState(false)
+  const menuButton = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
+    // Al cerrar con Escape, el foco vuelve al botón para no perder la posición del teclado
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setOpen(false)
+      menuButton.current?.focus()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
@@ -45,6 +51,7 @@ export function LandingHeader() {
             Crear cuenta
           </Link>
           <button
+            ref={menuButton}
             type="button"
             className={`control-interactive control-ghost inline-flex h-10 w-10 items-center justify-center rounded-full lg:hidden ${focusRing}`}
             aria-expanded={open}

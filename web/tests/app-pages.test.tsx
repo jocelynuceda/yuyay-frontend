@@ -721,6 +721,32 @@ test('Inicio sin sesión: muestra la landing con accesos a crear cuenta e inicia
   }
 })
 
+test('Landing: Escape cierra el menú de secciones y devuelve el foco al botón', async (t) => {
+  const { unmount } = await mountApp('/', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!document.querySelector('button[aria-controls="landing-menu"]'), 'botón del menú')
+  const button = document.querySelector<HTMLButtonElement>('button[aria-controls="landing-menu"]')!
+  button.focus()
+  await click(button, 'Abrir menú')
+  const first = document.querySelector<HTMLAnchorElement>('#landing-menu a[href="#que-es"]')
+  assert.ok(first, 'el menú muestra «Qué es»')
+  first!.focus()
+  await act(async () => { window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
+  assert.equal(document.getElementById('landing-menu'), null, 'el menú se cierra')
+  assert.equal(document.activeElement, button, 'el foco vuelve a «Abrir menú»')
+  assert.equal(button.getAttribute('aria-expanded'), 'false')
+})
+
+test('Landing: la cifra de hipertensión enlaza el informe de MINSA', async (t) => {
+  const { unmount } = await mountApp('/', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!document.getElementById('por-que'), 'sección de cifras')
+  const link = document.querySelector<HTMLAnchorElement>('#por-que a[href*="minsa.gob.pe"]')
+  assert.match(link?.textContent ?? '', /MINSA · PP 0018, 2024/)
+  assert.equal(link?.getAttribute('rel'), 'noopener noreferrer')
+  assert.doesNotMatch(document.getElementById('por-que')!.textContent ?? '', /ENDES 2023/)
+})
+
 test('Sin sesión, las demás rutas privadas siguen llevando al login', async (t) => {
   const { unmount } = await mountApp('/people', { loggedIn: false })
   t.after(unmount)

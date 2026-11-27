@@ -24,20 +24,23 @@ export const FACTS = [
     text: 'de los hogares tiene una persona de 60 años o más',
     why: 'Muchas familias se turnan para cuidar a alguien.',
     source: 'INEI · II trim. 2026',
+    url: undefined,
   },
   {
     image: { src: '/landing/dato-hipertension.webp', width: 600, height: 272 },
     value: '5,5 millones',
     text: 'de personas de 15 años o más viven con hipertensión arterial',
     why: 'Son tratamientos largos, con dosis que cambian y hay que recordar.',
-    source: 'MINSA · PP 0018, 2024 (ENDES 2023)',
+    source: 'MINSA · PP 0018, 2024',
+    url: 'https://www.minsa.gob.pe/presupuestales/doc2024/reporte-seguimiento/Reporte_PP_0018_2024_I.pdf',
   },
   {
     image: { src: '/landing/dato-celular.webp', width: 603, height: 284 },
     value: '90,2 %',
-    text: 'de quienes usan internet se conecta desde el celular',
+    text: 'de las personas de 6 años o más que usan internet se conecta desde el celular',
     why: 'Por eso Yuyay va contigo en el bolsillo cuando llegas a la consulta.',
     source: 'INEI · ENAHO, II trim. 2026',
+    url: undefined,
   },
 ] as const
 

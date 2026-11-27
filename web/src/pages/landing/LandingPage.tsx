@@ -161,7 +161,13 @@ function Facts() {
               <p className="mt-2 text-muted">{fact.text}</p>
               <p className="mt-4 border-l-4 border-primary pl-3 font-semibold">{fact.why}</p>
               <p className="mt-4 inline-block rounded-full bg-primary-tint px-3 py-1 text-xs font-semibold text-soft-text">
-                Fuente: {fact.source}
+                Fuente:{' '}
+                {fact.url ? (
+                  <a href={fact.url} target="_blank" rel="noopener noreferrer" className={`rounded-sm underline underline-offset-2 ${focusRing}`}>
+                    {fact.source}
+                    <span className="sr-only"> (abre el informe en otra pestaña)</span>
+                  </a>
+                ) : fact.source}
               </p>
             </div>
           </li>
