@@ -70,7 +70,7 @@ export const FACTS = [
   {
     image: { src: '/landing/dato-hipertension.webp', width: 600, height: 272 },
     value: '5,5 millones',
-    text: 'de personas mayores de 15 años viven con hipertensión arterial',
+    text: 'de personas de 15 años o más viven con hipertensión arterial',
     why: 'Son tratamientos largos, con dosis que cambian y hay que recordar.',
     source: 'MINSA · PP 0018, 2024',
     url: 'https://www.minsa.gob.pe/presupuestales/doc2024/reporte-seguimiento/Reporte_PP_0018_2024_I.pdf#page=4',

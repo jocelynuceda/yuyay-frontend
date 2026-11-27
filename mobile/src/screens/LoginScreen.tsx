@@ -49,7 +49,7 @@ export function LoginScreen({ navigation }: Props) {
     <AuthLayout
       mode="login"
       onSwitchMode={() => navigation.replace('Register')}
-      title="Hola de nuevo"
+      title="Te damos la bienvenida a Yuyay"
       subtitle="Tu familia y tus cuidados, en un solo lugar."
       footer={
         <Text style={styles.footer}>
