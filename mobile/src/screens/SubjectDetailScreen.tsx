@@ -39,7 +39,7 @@ type QuickAction = {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress?: () => void;
-  /** Vista actual: se pinta resaltada y no navega */
+  /** Sección actual: se muestra como indicador, sin acción */
   selected?: boolean;
 };
 
@@ -254,20 +254,40 @@ function SubjectProfile({
       )}
 
       <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quick}>
-        {quickActions.map((a) => (
-          <Pressable
-            key={a.label}
-            onPress={a.onPress}
-            style={({ pressed }) => [styles.quickItem, a.selected && styles.quickItemSelected, pressed && { opacity: 0.8 }]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: !!a.selected }}
-          >
-            <View style={[styles.quickIcon, a.selected && styles.quickIconSelected]}>
-              <Ionicons name={a.icon} size={22} color={a.selected ? colors.white : colors.primary} />
-            </View>
-            <Text style={[styles.quickLabel, a.selected && { color: colors.white }]}>{a.label}</Text>
-          </Pressable>
-        ))}
+        {quickActions.map((a) => {
+          // Contenido común: círculo del ícono + etiqueta
+          const content = (
+            <>
+              <View style={[styles.quickIcon, a.selected && styles.quickIconSelected]}>
+                <Ionicons name={a.icon} size={22} color={a.selected ? colors.softText : colors.primary} />
+              </View>
+              <Text style={[styles.quickLabel, a.selected && { color: colors.softText }]}>{a.label}</Text>
+            </>
+          );
+          // La sección actual es un indicador, no un botón
+          if (a.selected) {
+            return (
+              <View
+                key={a.label}
+                style={[styles.quickItem, styles.quickItemSelected]}
+                accessible
+                accessibilityLabel={`${a.label}, sección actual`}
+              >
+                {content}
+              </View>
+            );
+          }
+          return (
+            <Pressable
+              key={a.label}
+              onPress={a.onPress}
+              style={({ pressed }) => [styles.quickItem, pressed && { opacity: 0.8 }]}
+              accessibilityRole="button"
+            >
+              {content}
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       <View>
@@ -366,7 +386,8 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     shadowOpacity: 0.05,
     elevation: 1,
   },
-  quickItemSelected: { backgroundColor: colors.primary },
+  // Borde de 2 px: se resta al padding vertical para que mida lo mismo que los demás
+  quickItemSelected: { backgroundColor: colors.soft, borderWidth: 2, borderColor: colors.primary, paddingVertical: 10 },
   quickIcon: {
     width: 42,
     height: 42,
@@ -375,7 +396,7 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickIconSelected: { backgroundColor: 'rgba(255,255,255,0.18)' },
+  quickIconSelected: { backgroundColor: colors.card },
   quickLabel: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink, textAlign: 'center' },
   section: { fontFamily: fonts.display, fontSize: 22, color: colors.ink, marginTop: 18, marginBottom: 10 },
   clinical: {
