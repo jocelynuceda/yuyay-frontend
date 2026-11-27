@@ -1,12 +1,14 @@
 import axios from 'axios'
 import { useEffect, useState } from 'react'
-import { getHandoffAccessRequirements } from '../../services/api/handoffs'
 import { isAccessLost } from '../../utils/accessStatus'
 
 const POLL_MS = 10000
 
 /** Solo consulta la vigencia del enlace. No vuelve a abrirlo ni renueva el permiso. */
-export function useReadingAvailability(token: string, opened: boolean, onUnavailable: () => void) {
+export function useReadingAvailability(
+  opened: boolean, checkAccess: (signal: AbortSignal) => Promise<unknown>,
+  onUnavailable: () => void, isDenied: (status?: number) => boolean = isAccessLost,
+) {
   const [paused, setPaused] = useState(false)
 
   useEffect(() => {
@@ -32,11 +34,11 @@ export function useReadingAvailability(token: string, opened: boolean, onUnavail
       // Si el servidor tarda, ocultar la lectura hasta que confirme el acceso.
       timer = setTimeout(() => setPaused(true), 3000)
       try {
-        await getHandoffAccessRequirements(token, request.signal)
+        await checkAccess(request.signal)
         if (!request.signal.aborted) setPaused(false)
       } catch (error) {
         if (request.signal.aborted) return
-        if (axios.isAxiosError(error) && isAccessLost(error.response?.status)) {
+        if (axios.isAxiosError(error) && isDenied(error.response?.status)) {
           stop()
           onUnavailable()
           return
@@ -67,7 +69,7 @@ export function useReadingAvailability(token: string, opened: boolean, onUnavail
       window.removeEventListener('offline', pause)
       document.removeEventListener('visibilitychange', check)
     }
-  }, [token, opened, onUnavailable])
+  }, [opened, checkAccess, onUnavailable, isDenied])
 
   return paused
 }
