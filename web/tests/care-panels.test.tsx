@@ -135,6 +135,25 @@ test('El historial cancela la carga anterior y distingue error recuperable de li
   assert.match(container.textContent ?? '', /Aún no hay resúmenes/)
 })
 
+test('el título de preguntas queda fuera de la tarjeta, conserva las líneas y se omite sin preguntas', async (t) => {
+  const questions = '¿Cuándo repetir el examen?\n¿Qué debemos anotar?'
+  mockApi(t, async (config) => {
+    const id = config.url === '/handoffs/1' ? 1 : 2
+    return ok(config, { ...detail, id, questions: id === 1 ? questions : '  \n ' })
+  })
+  const view = (id: number) => <HandoffWorkspacePage subjectId={4} handoffId={id} isPrincipal={false} userId={99} mode="detail" />
+  const { container, render } = await mount(t, view(1))
+  const section = container.querySelector('section[aria-label="Preguntas para el médico"]')!
+  const title = section.querySelector('h2')!
+  assert.equal(title.closest('.bg-card'), null)
+  assert.equal(title.nextElementSibling?.textContent, questions)
+  assert.ok(title.nextElementSibling?.matches('.bg-card.whitespace-pre-wrap'))
+  assert.deepEqual([...container.querySelectorAll('section[aria-label] > h2')].map(h => h.textContent),
+    ['Preguntas para el médico', 'Registros incluidos', 'Enlaces para el médico'])
+  await render(view(2))
+  assert.equal(container.querySelector('section[aria-label="Preguntas para el médico"]'), null)
+})
+
 test('Los enlaces del resumen solo se piden y se muestran a quien lo creó o al principal', async (t) => {
   const urls: string[] = []
   const opened = new Date(Date.now() - 40 * 60_000).toISOString()

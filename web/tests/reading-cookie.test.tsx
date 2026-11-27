@@ -164,7 +164,7 @@ test('reanudación válida evita pedir identidad/código y borra contenido al ve
   assert.ok(requests.every(r => r.method === 'get' && !r.headers.has('X-Handoff-Access')))
   await advance(30000)
   assert.doesNotMatch(container.textContent!, /Contenido confidencial/)
-  assert.match(container.textContent!, /Terminó el tiempo de lectura/)
+  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /Terminó el tiempo de lectura/)
 })
 
 test('resume ya vencido no muestra contenido sensible', async t => {
@@ -172,6 +172,75 @@ test('resume ya vencido no muestra contenido sensible', async t => {
   const { container } = await mount(t, <HandoffPublicPage token="enlace" />)
   assert.doesNotMatch(container.textContent!, /Contenido confidencial/)
   assert.match(container.textContent!, /Terminó el tiempo de lectura/)
+})
+
+test('una lectura abierta se retira sin recargar cuando el cuidador revoca el enlace', async t => {
+  const advance = fakeClock(t)
+  let checks = 0
+  let resumes = 0
+  mockApi(t, async config => {
+    if (config.url?.endsWith('/resume')) { resumes++; return ok(config, view) }
+    assert.ok(config.url?.endsWith('/access-requirements'))
+    if (++checks === 1) return ok(config, { accessCodeRequired: true })
+    throw new AxiosError('Revocado', undefined, config, undefined, ok(config, {}, 410))
+  })
+  const { container } = await mount(t, <HandoffPublicPage token="consulta" />)
+  assert.match(container.textContent!, /Contenido confidencial/)
+  await advance(10000)
+  assert.match(container.querySelector('[role="alert"]')?.textContent ?? '', /Ya no tienes acceso a este resumen/)
+  assert.equal(container.querySelector('article, form, aside'), null)
+  assert.doesNotMatch(container.textContent!, /Persona de prueba|Contenido confidencial/)
+  await advance(10000)
+  assert.equal(checks, 2)
+  assert.equal(resumes, 1)
+})
+
+test('un enlace antiguo sin cookie oculta la lectura hasta revalidar al volver a la pestaña', async t => {
+  let checks = 0
+  let opens = 0
+  let finish: (() => void) | undefined
+  mockApi(t, async config => {
+    if (config.url?.endsWith('/open')) { opens++; return ok(config, { ...view, accessExpiresAt: null }) }
+    assert.ok(config.url?.endsWith('/access-requirements'))
+    checks++
+    if (checks === 2) await new Promise<void>(resolve => { finish = resolve })
+    if (checks === 3) throw new AxiosError('Eliminado', undefined, config, undefined, ok(config, {}, 404))
+    return ok(config, { accessCodeRequired: false })
+  })
+  const { container } = await mount(t, <HandoffPublicPage token="anterior" />)
+  await fill(container, '#visitorName', 'Ana Vega')
+  await fill(container, '#visitorRole', 'Médico')
+  await click(container, 'Ver resumen')
+  await act(async () => { window.dispatchEvent(new window.Event('pagehide')) })
+  assert.ok(container.querySelector('article')?.closest('[hidden]'))
+  await act(async () => { window.dispatchEvent(new window.Event('pageshow')) })
+  await act(async () => { window.dispatchEvent(new window.Event('focus')) })
+  assert.equal(checks, 2)
+  assert.match(container.textContent!, /Lectura en pausa/)
+  await act(async () => finish!())
+  assert.equal(container.querySelector('article')!.closest('[hidden]'), null)
+  await act(async () => { window.dispatchEvent(new window.Event('focus')) })
+  assert.equal(container.querySelector('article'), null)
+  assert.equal(opens, 1)
+})
+
+test('un fallo de conexión pausa la lectura y al recuperarse conserva el vencimiento original', async t => {
+  const advance = fakeClock(t)
+  let checks = 0
+  mockApi(t, async config => {
+    if (config.url?.endsWith('/resume')) return ok(config, view)
+    if (++checks === 2) throw new Error('Sin conexión')
+    return ok(config, { accessCodeRequired: true })
+  })
+  const { container } = await mount(t, <HandoffPublicPage token="consulta" />)
+  await advance(10000)
+  assert.ok(container.querySelector('article')!.closest('[hidden]'))
+  assert.match(container.textContent!, /Lectura en pausa/)
+  await act(async () => { window.dispatchEvent(new window.Event('online')) })
+  assert.equal(container.querySelector('article')!.closest('[hidden]'), null)
+  await advance(20000)
+  assert.match(container.textContent!, /Terminó el tiempo de lectura/)
+  assert.equal(container.querySelector('article'), null)
 })
 
 for (const status of [403, 404, 410]) {

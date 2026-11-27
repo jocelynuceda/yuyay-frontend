@@ -1,17 +1,18 @@
-import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent, type Ref } from 'react'
 import { LoadError } from '../../components/layout/LoadError'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useAuth } from '../../hooks/useAuth'
 import { useFetch } from '../../hooks/useFetch'
-import { deleteAttachment, getAttachmentContent, listAttachments, uploadAttachment } from '../../services/api/attachments'
+import { getAttachmentContent, uploadAttachment } from '../../services/api/attachments'
 import type { Attachment } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
-import { formatDate } from '../../utils/format'
-import { focusRing, linkClass } from '../../utils/styles'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { AttachmentRow } from './AttachmentRow'
+import { useAttachmentList } from './useAttachmentList'
+import { linkClass } from '../../utils/styles'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
+import { useToast } from '../../hooks/useToast'
 import {
   MAX_RECORDING_MINUTES,
   VOICE_FILE_ACCEPT,
@@ -35,9 +36,10 @@ function SubjectVoiceNotes({ subjectId, isPrincipal }: VoiceNotesPanelProps) {
   const titleId = useId()
   const { user } = useAuth()
   const { notify, anchorProps } = useSuccessNotice()
-  const { data, error, loading, reload } = useFetch((signal) => listAttachments(subjectId, signal), [subjectId])
+  const toast = useToast()
+  const uploadButton = useRef<HTMLButtonElement>(null)
+  const { data, error, loading, reload, applyChange } = useAttachmentList(subjectId)
   const [openedId, setOpenedId] = useState<number | null>(null)
-  const [removing, setRemoving] = useState<Attachment | null>(null)
   const notes = (data ?? [])
     .filter((attachment) => attachment.contentType.startsWith('audio/'))
     .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
@@ -50,7 +52,7 @@ function SubjectVoiceNotes({ subjectId, isPrincipal }: VoiceNotesPanelProps) {
           Graba hasta {MAX_RECORDING_MINUTES} minutos o elige un archivo de audio M4A o WebM de hasta 10 MB.
         </p>
       </div>
-      <VoiceNoteComposer subjectId={subjectId} onSaved={() => {
+      <VoiceNoteComposer subjectId={subjectId} uploadButton={uploadButton} onSaved={() => {
         notify('Nota de voz guardada.')
         reload()
       }} />
@@ -66,59 +68,34 @@ function SubjectVoiceNotes({ subjectId, isPrincipal }: VoiceNotesPanelProps) {
         <ul className="grid gap-3">
           {notes.map((note) => {
             const opened = note.id === openedId
-            const canDelete = note.ocrStatus !== 'PENDING' && (isPrincipal || note.uploadedById === user?.id)
             return (
-              <li key={note.id} className="grid gap-3 rounded-2xl bg-card p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="break-all font-semibold">{note.originalFilename}</p>
-                    <p className="mt-1 text-sm text-muted">{note.uploadedByName} · {formatDate(note.uploadedAt)}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-expanded={opened}
-                      aria-label={`${opened ? 'Cerrar reproductor de' : 'Abrir reproductor de'} ${note.originalFilename}`}
-                      onClick={() => setOpenedId(opened ? null : note.id)}
-                    >
-                      {opened ? 'Cerrar reproductor' : 'Abrir reproductor'}
-                    </Button>
-                    {canDelete ? (
-                      <button
-                        type="button"
-                        onClick={() => setRemoving(note)}
-                        aria-label={`Borrar ${note.originalFilename}`}
-                        className={`rounded-xl border border-line px-3 py-1.5 text-sm font-semibold text-danger hover:bg-danger-bg ${focusRing}`}
-                      >
-                        Borrar
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
+              <AttachmentRow key={note.id} file={note} subjectId={subjectId}
+                canManage={isPrincipal || note.uploadedById === user?.id}
+                onAccessLost={reload}
+                focusUpload={() => uploadButton.current?.focus()}
+                onChanged={(updated) => {
+                  applyChange(note.id, updated)
+                  if (!updated && opened) setOpenedId(null)
+                  toast.success(updated ? 'Nombre guardado.' : 'Nota de voz borrada.')
+                }}
+                action={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-expanded={opened}
+                    aria-label={`${opened ? 'Cerrar reproductor de' : 'Abrir reproductor de'} ${note.originalFilename}`}
+                    onClick={() => setOpenedId(opened ? null : note.id)}
+                  >
+                    {opened ? 'Cerrar reproductor' : 'Abrir reproductor'}
+                  </Button>
+                }
+              >
                 {opened ? <SavedVoicePlayer subjectId={subjectId} note={note} /> : null}
-              </li>
+              </AttachmentRow>
             )
           })}
         </ul>
       )}
-
-      <ConfirmDialog
-        open={!!removing}
-        title="¿Borrar esta nota de voz?"
-        message={removing ? `${removing.originalFilename}. Esta acción no se puede deshacer.` : ''}
-        confirmLabel="Borrar nota de voz"
-        cancelLabel="Volver"
-        onCancel={() => setRemoving(null)}
-        onConfirm={async () => {
-          if (!removing) return
-          await deleteAttachment(subjectId, removing.id)
-          setOpenedId((id) => id === removing.id ? null : id)
-          setRemoving(null)
-          notify('Nota de voz borrada.')
-          reload()
-        }}
-      />
     </section>
   )
 }
@@ -128,7 +105,7 @@ interface VoiceCapture {
   stop?: () => void
 }
 
-function VoiceNoteComposer({ subjectId, onSaved }: { subjectId: number; onSaved: () => void }) {
+function VoiceNoteComposer({ subjectId, uploadButton, onSaved }: { subjectId: number; uploadButton: Ref<HTMLButtonElement>; onSaved: () => void }) {
   const input = useRef<HTMLInputElement>(null)
   const capture = useRef<VoiceCapture | null>(null)
   const [recording, setRecording] = useState<'idle' | 'requesting' | 'recording' | 'stopping'>('idle')
@@ -204,7 +181,7 @@ function VoiceNoteComposer({ subjectId, onSaved }: { subjectId: number; onSaved:
         <>
           <div className="flex flex-wrap gap-2">
             <Button onClick={startRecording} disabled={!!unavailable}>Grabar nota de voz</Button>
-            <Button variant="secondary" onClick={() => input.current?.click()}>Elegir archivo de audio</Button>
+            <Button ref={uploadButton} variant="secondary" onClick={() => input.current?.click()}>Elegir archivo de audio</Button>
           </div>
           <input
             ref={input}
@@ -232,7 +209,7 @@ function VoiceNoteComposer({ subjectId, onSaved }: { subjectId: number; onSaved:
                 capture.current?.stop?.()
               }}>Detener grabación</Button>
             ) : null}
-            <Button variant="secondary" onClick={discard}>Cancelar grabación</Button>
+            <Button ref={uploadButton} variant="secondary" onClick={discard}>Cancelar grabación</Button>
           </div>
         </>
       ) : null}
@@ -243,7 +220,7 @@ function VoiceNoteComposer({ subjectId, onSaved }: { subjectId: number; onSaved:
           <VoicePlayer blob={draft} name="Vista previa de la nota de voz" />
           <div className="flex flex-wrap gap-2">
             <Button onClick={save} loading={uploading}>{uploading ? 'Subiendo…' : 'Guardar nota de voz'}</Button>
-            <Button variant="secondary" onClick={discard} disabled={uploading}>Descartar audio</Button>
+            <Button ref={uploadButton} variant="secondary" onClick={discard} disabled={uploading}>Descartar audio</Button>
           </div>
         </>
       ) : null}

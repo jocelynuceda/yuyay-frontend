@@ -54,6 +54,7 @@ export async function getHandoffAccessRequirements(token: string, signal: AbortS
     `/public/handoff-sessions/${encodeURIComponent(token)}/access-requirements`,
     { signal },
   )
+  if (typeof data?.accessCodeRequired !== 'boolean') throw new Error('No pudimos comprobar el enlace.')
   return data.accessCodeRequired
 }
 
@@ -77,15 +78,16 @@ export async function getHandoffSummaryPdf(token: string, accessGrant?: string |
 }
 
 /** Respaldo de una versión incluida, sujeto a la vigencia del mismo enlace del resumen. */
-export async function openHandoffSource(token: string, versionId: number, accessGrant?: string | null) {
+export async function openHandoffSource(token: string, versionId: number, accessGrant?: string | null, signal?: AbortSignal) {
   const tab = window.open('', '_blank')
   if (!tab) return false
   tab.opener = null
   try {
     const { data } = await publicApi.get<Blob>(
       `/public/handoff-sessions/${encodeURIComponent(token)}/versions/${versionId}/source/content`,
-      { responseType: 'blob', timeout: 60000, ...(accessGrant ? { headers: { 'X-Handoff-Access': accessGrant } } : {}) },
+      { responseType: 'blob', timeout: 60000, signal, ...(accessGrant ? { headers: { 'X-Handoff-Access': accessGrant } } : {}) },
     )
+    signal?.throwIfAborted()
     const url = URL.createObjectURL(data)
     tab.location.href = url
     setTimeout(() => URL.revokeObjectURL(url), 60000)

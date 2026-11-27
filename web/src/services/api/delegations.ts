@@ -32,6 +32,11 @@ export async function exchangeDelegationToken(token: string) {
   return data
 }
 
+/** Valida la sesión delegada sin traer los datos clínicos ni volver a canjear el enlace. */
+export async function checkDelegateAccess(accessToken: string, signal: AbortSignal) {
+  await publicApi.get('/delegate/me', { ...bearer(accessToken), signal })
+}
+
 /** Citas compartidas, sin notas. El backend responde 403 si la delegación no las incluye. */
 export async function listDelegateConsultations(accessToken: string) {
   const { data } = await publicApi.get<DelegateConsultation[]>('/delegate/consultations', bearer(accessToken))

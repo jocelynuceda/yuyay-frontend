@@ -19,6 +19,7 @@ import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { appointmentOrder, formatTime, initialsOf, todayIso } from '../utils/format';
 import { loadBySubject } from '../utils/loadBySubject';
+import { upcomingAgendaState } from '../utils/upcomingAgendaState';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'UpcomingConsultations'>;
 
@@ -70,9 +71,7 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
   const today = todayIso();
   const data = upcoming.data;
   const list = data?.items.filter((c) => subjectDataIsCurrent(access, data.access, c.careSubjectId)) ?? [];
-  const failed = upcoming.data?.failed ?? 0;
-  // Solo una carga completa permite afirmar que no hay citas
-  const complete = upcoming.data !== null && !upcoming.error && !failed;
+  const { warning, showEmpty } = upcomingAgendaState(upcoming, list.length);
 
   return (
     <ScrollView
@@ -81,12 +80,12 @@ export function UpcomingConsultationsScreen({ navigation }: Props) {
         <RefreshControl refreshing={upcoming.refreshing} onRefresh={upcoming.refresh} tintColor={colors.primary} />
       }
     >
-      <StatusMessage message={upcoming.error ?? (failed ? 'No pudimos cargar todas las citas.' : null)} />
-      {upcoming.error || failed ? (
+      <StatusMessage message={warning} />
+      {warning ? (
         <SubmitButton label="Reintentar" loading={upcoming.loading} onPress={upcoming.reload} />
       ) : null}
 
-      {list.length === 0 && complete ? (
+      {showEmpty ? (
         <EmptyState
           title="No hay citas próximas"
           description="Regístralas desde Citas, en el perfil de cada persona."

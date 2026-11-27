@@ -72,10 +72,9 @@ test('seis consultas de una fila dan totales completos y muestran sólo el últi
   assert.doesNotMatch(container.textContent!, /Medicación agregada antes/)
   assert.match(container.textContent!, /Hemograma/)
   assert.match(container.textContent!, /Aún no hay registros de condiciones/)
-  const labels = ['Ver todas las alergias', 'Ver todas las condiciones', 'Ver todas las medicaciones', 'Ver todas las vacunas', 'Ver todos los episodios', 'Ver todos los exámenes']
-  assert.deepEqual([...container.querySelectorAll('a')].map((link) => link.textContent), labels)
-  assert.deepEqual([...container.querySelectorAll('a')].map((link) => link.getAttribute('href')),
-    PROFILE_CATEGORIES.map((code) => `/people/4/entries?category=${code}`))
+  const history = [...container.querySelectorAll('a')]
+  assert.deepEqual(history.map((link) => link.textContent), ['Ver todas las medicaciones'])
+  assert.equal(history[0].getAttribute('href'), '/people/4/entries?category=MEDICATION')
   await clickText(container, 'Nuevo registro')
   await clickText(container, 'Agregar medicación')
   await clickText(container, 'Agregar examen')
@@ -151,5 +150,5 @@ test('cambiar de persona cancela las seis cargas y descarta sus resultados tard�
   await act(async () => { releases.forEach((release) => release()) })
   assert.doesNotMatch(container.textContent!, /Medicación agregada hoy/)
   assert.match(container.textContent!, /Aún no hay registros de medicación/)
-  assert.equal(container.querySelector('a')?.getAttribute('href'), '/people/5/entries?category=MEDICATION')
+  assert.equal(container.querySelector('a'), null)
 })
