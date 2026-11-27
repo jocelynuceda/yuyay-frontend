@@ -59,10 +59,6 @@ export const loginWithGoogle = (idToken: string, acceptedTermsVersion?: string, 
 export const register = (account: RegisterInput, acceptance: TermsAcceptance) =>
   http.post<AuthResponse>('/auth/register', { ...account, ...acceptance }).then((r) => r.data);
 
-/** Nombre que figura en el DNI, para que la persona confirme que es ella. */
-export const lookupDni = (dni: string) =>
-  http.post<{ fullName: string }>('/auth/dni-lookup', { dni }).then((r) => r.data);
-
 export const forgotPassword = (email: string) => http.post('/auth/forgot-password', { email });
 
 export const resetPassword = (email: string, code: string, newPassword: string) =>

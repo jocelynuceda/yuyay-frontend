@@ -194,14 +194,11 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
   let version = '1.0'
   let signedIn = 0
   let outerFormSubmits = 0
-  let finishLookup: (() => void) | undefined
+  let finishContrast: (() => void) | undefined
   const contrastError = 'Revisa el DNI y los nombres ingresados.'
   const errors: string[] = []
   const data = { accessToken: 'A1', refreshToken: 'R1', tokenType: 'Bearer', expiresInSeconds: 3600, user: { id: 7, name: 'Ana' } }
   http.publicApi.defaults.adapter = async (config) => {
-    if (config.url === '/auth/dni-lookup') {
-      return { data: { fullName: 'ANA FLORES' }, status: 200, statusText: 'OK', headers: {}, config }
-    }
     if (config.url === '/auth/terms') {
       documentsRead.push(version)
       return {
@@ -216,7 +213,7 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
     if (body.acceptedTermsVersion !== version) throw termsError('TERMS_VERSION_OUTDATED', version)
     if (!body.dni) throw httpError(428, { code: 'REGISTRATION_DETAILS_REQUIRED' })
     if (body.dni === '11111111') {
-      await new Promise<void>((resolve) => { finishLookup = resolve })
+      await new Promise<void>((resolve) => { finishContrast = resolve })
       throw httpError(400, { fieldErrors: [{ field: 'dni', message: contrastError }] })
     }
     return { status: 200, statusText: 'OK', data, headers: {}, config }
@@ -302,37 +299,30 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
     { idToken, acceptedTermsVersion: '2.0' },
   ])
   assert.match(dialog()?.textContent ?? '', /Completa tu cuenta/)
+  assert.doesNotMatch(dialog()?.textContent ?? '', /Ver mi nombre|Sí, soy yo/)
   assert.equal(signedIn, 0)
   await click(button('Crear cuenta con Google'))
   assert.match(dialog()?.textContent ?? '', /8 dígitos/)
   assert.equal(bodies.length, 4)
   await type('google-signup-dni', '11111111')
-  const confirmName = async () => {
-    await click(button('Ver mi nombre'))
-    await click(button('Sí, soy yo'))
-    return document.getElementById('google-signup-full-name') as HTMLInputElement
-  }
-  const fullName = await confirmName()
+  const fullName = await type('google-signup-full-name', 'Ana Flores')
   const alias = await type('google-signup-name', 'Anita')
   const submit = button('Crear cuenta con Google')
   assert.ok(submit)
   await act(async () => { submit.click(); submit.click(); triggerGoogle?.({ credential: idToken }) })
   assert.equal(bodies.length, 5)
   assert.equal(submit.disabled, true)
-  assert.ok(finishLookup)
-  await act(async () => { finishLookup?.() })
+  assert.ok(finishContrast)
+  await act(async () => { finishContrast?.() })
   assert.match(dialog()?.textContent ?? '', new RegExp(contrastError))
   assert.equal(document.activeElement?.id, 'google-signup-dni')
-  assert.equal(fullName.value, 'ANA FLORES')
+  assert.equal(fullName.value, 'Ana Flores')
   assert.equal(alias.value, 'Anita')
   await type('google-signup-dni', '01234567')
-  // Otro DNI obliga a confirmar otra vez; el nombre de usuario elegido se conserva.
-  await confirmName()
-  assert.equal(alias.value, 'Anita')
   await click(button('Crear cuenta con Google'))
   assert.deepEqual(bodies.slice(4), [
-    { idToken, acceptedTermsVersion: '2.0', dni: '11111111', fullName: 'ANA FLORES', name: 'Anita' },
-    { idToken, acceptedTermsVersion: '2.0', dni: '01234567', fullName: 'ANA FLORES', name: 'Anita' },
+    { idToken, acceptedTermsVersion: '2.0', dni: '11111111', fullName: 'Ana Flores', name: 'Anita' },
+    { idToken, acceptedTermsVersion: '2.0', dni: '01234567', fullName: 'Ana Flores', name: 'Anita' },
   ])
   assert.equal(dialog(), null)
   assert.equal(outerFormSubmits, 0)

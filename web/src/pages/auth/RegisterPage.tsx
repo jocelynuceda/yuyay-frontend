@@ -10,7 +10,6 @@ import { registerSchema } from '../../schemas/auth'
 import { applyServerErrors } from '../../utils/apiErrors'
 import { linkClass } from '../../utils/styles'
 import { getPostLoginTarget } from '../../utils/redirect'
-import { suggestUserName } from '../../utils/personName'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, FormActions, FormShell, GenderField, ServerError } from '../forms/fields'
 import { GoogleSignIn } from './GoogleSignIn'
@@ -31,7 +30,6 @@ export default function RegisterPage() {
     setError,
     getValues,
     trigger,
-    setValue,
     control,
     formState: { errors, isSubmitting },
   } = useForm({
@@ -40,7 +38,6 @@ export default function RegisterPage() {
     mode: 'onTouched',
   })
   const password = useWatch({ control, name: 'password' })
-  const [dniValue, fullNameValue] = useWatch({ control, name: ['dni', 'fullName'] })
 
   const onSubmit = handleSubmit(async ({ name, fullName, gender, dni, email, password }) => {
     setServerError(null)
@@ -84,19 +81,7 @@ export default function RegisterPage() {
           onSignedIn={() => void navigate(getPostLoginTarget(location.state), { replace: true })}
           onError={setServerError}
         />
-        <RegistrationIdentityFields
-          prefix="auth"
-          dni={register('dni')}
-          dniValue={dniValue}
-          fullName={fullNameValue}
-          name={register('name')}
-          errors={errors}
-          onConfirm={(fullName) => {
-            setValue('fullName', fullName, { shouldValidate: true })
-            if (!getValues('name').trim()) setValue('name', suggestUserName(fullName), { shouldValidate: true })
-          }}
-          onReset={() => setValue('fullName', '')}
-        />
+        <RegistrationIdentityFields prefix="auth" dni={register('dni')} fullName={register('fullName')} name={register('name')} errors={errors} />
         <GenderField field={register('gender')} legend="Género (opcional, puedes saltarlo)" />
         <Field id="auth-email" label="Correo electrónico" error={errors.email}>
           <input {...register('email')} {...a11yProps('auth-email', errors.email)} type="email" autoComplete="email" />
