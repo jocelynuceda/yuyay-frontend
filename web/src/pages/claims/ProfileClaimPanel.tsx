@@ -103,7 +103,7 @@ function ClaimManager({ subject, onChanged }: { subject: CareSubject; onChanged:
     try {
       const result = await checkSubjectName(subject.id, parsed.data.dni)
       setIdentity({ ...result, name: subject.name })
-    } catch (error) { setIdentityError(getErrorMessage(error)) }
+    } catch (error) { setIdentityError(getErrorMessage(error).split(parsed.data.dni).join('[documento]')) }
     finally {
       setDni('')
       setChecking(false)

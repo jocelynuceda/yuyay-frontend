@@ -7,8 +7,8 @@ import { useFetch } from '../../hooks/useFetch'
 import { getCareAuthorizationPolicy } from '../../services/api/careSubjects'
 import { exchangeProfileClaim } from '../../services/api/profileClaims'
 import {
-  acknowledgeClaimHistory, acquireClaimAttempt, clearClaimToken, forgetClaimAttempts,
-  getClaimToken, rememberClaimToken, requiresClaimHistoryCheck,
+  acquireClaimAttempt, clearClaimToken, releaseClaimAttempt,
+  getClaimToken, rememberClaimToken,
 } from '../../utils/profileClaim'
 import { linkClass, linkSecondaryClass } from '../../utils/styles'
 import { LoadError } from '../../components/layout/LoadError'
@@ -67,7 +67,6 @@ function Recipient({ userId, email, token }: { userId: number; email: string; to
   }
   const policy = useFetch(getCareAuthorizationPolicy, [])
   const [confirmed, setConfirmed] = useState(false)
-  const [historyRequired, setHistoryRequired] = useState(requiresClaimHistoryCheck)
   const model = useMemo(() => acquireClaimAttempt(userId, token, () => exchangeProfileClaim(token)), [userId, token])
   const state = useSyncExternalStore(model.subscribe, model.getSnapshot)
   const self = policy.data?.options.find((option) => option.type === 'SELF')
@@ -83,12 +82,22 @@ function Recipient({ userId, email, token }: { userId: number; email: string; to
     window.addEventListener('beforeunload', warn)
     return () => {
       window.removeEventListener('beforeunload', warn)
-      if (model.getSnapshot().phase === 'saved') {
-        clearClaimToken()
-        forgetClaimAttempts(userId)
+      if (['saved', 'resolved'].includes(model.getSnapshot().phase)) {
+        clearClaimToken(token)
+        releaseClaimAttempt(userId, token)
       }
     }
-  }, [model, userId])
+  }, [model, userId, token])
+
+  if (state.phase === 'checking') return <p role="status">Comprobando esta revisión de entrega…</p>
+
+  if (state.phase === 'resolved') return (
+    <div className="grid gap-4">
+      <h2 className="text-xl font-semibold">Revisión cerrada</h2>
+      <p role="status">Marcaste esta revisión como comprobada. Esto no cancela ni vuelve a enviar una entrega recibida por el servidor.</p>
+      <Link to="/people" className={linkSecondaryClass}>Consultar mis personas</Link>
+    </div>
+  )
 
   if (state.phase === 'saved' && state.result) return (
     <div className="grid gap-4">
@@ -102,7 +111,8 @@ function Recipient({ userId, email, token }: { userId: number; email: string; to
   if (state.phase === 'uncertain') return (
     <div className="grid gap-4">
       <p role="alert">{state.message}</p>
-      <Link to="/people" className={linkSecondaryClass}>Comprobar mis personas</Link>
+      <Link to="/people" onClick={model.visitHistory} className={linkSecondaryClass}>Comprobar mis personas</Link>
+      <Button variant="secondary" disabled={!state.historyVisited} onClick={model.acknowledgeHistory}>Ya comprobé mis personas; cerrar revisión</Button>
       <p className="text-sm text-muted">Al salir conservaremos este resultado incierto mientras la aplicación siga abierta. Si recargas o cierras, consulta tus personas antes de volver al correo.</p>
     </div>
   )
@@ -116,11 +126,11 @@ function Recipient({ userId, email, token }: { userId: number; email: string; to
     </div>
   )
 
-  if (historyRequired) return (
+  if (state.historyRequired) return (
     <div className="grid gap-4">
       <p role="alert">Una entrega anterior puede haberse completado. Comprueba tus personas antes de continuar con este enlace.</p>
-      <Link to="/people" className={linkClass}>Consultar mis personas</Link>
-      <Button onClick={() => { acknowledgeClaimHistory(); setHistoryRequired(false) }}>Ya comprobé mis personas; continuar</Button>
+      <Link to="/people" onClick={model.visitHistory} className={linkClass}>Consultar mis personas</Link>
+      <Button disabled={!state.historyVisited} onClick={model.acknowledgeHistory}>Ya comprobé mis personas; continuar</Button>
     </div>
   )
 
