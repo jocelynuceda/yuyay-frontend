@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useController, useForm, useWatch } from 'react-hook-form'
 import { MIN_YEAR, todayIso } from '../../schemas/common'
 import {
@@ -128,6 +128,9 @@ export function HealthEntryForm({
   }
 
   const ocr = useReadAttachment(subjectId, uploadFile)
+  // Lo que rellenó la lectura del archivo actual, para retirarlo si se cambia de archivo
+  const fromOcr = useRef<Partial<Record<'title' | 'occurredOn' | 'details', string>>>({})
+  const [staleNotice, setStaleNotice] = useState<string | null>(null)
   const canRead = !!file && !file.type.startsWith('audio/')
   // Foto o PDF a la vista: archivo a la izquierda y formulario a la derecha, como al revisar un documento
   const split = canAttach && canRead && showFile
@@ -137,12 +140,28 @@ export function HealthEntryForm({
     const clean = text.replace(/\r\n?/g, '\n')
     const suggestion = suggestEntryFromOcr(clean)
     const options = { shouldDirty: true, shouldValidate: true }
-    if (suggestion.title && !getValues('title').trim()) setValue('title', suggestion.title, options)
-    if (suggestion.occurredOn && !getValues('occurredOn')) setValue('occurredOn', suggestion.occurredOn, options)
+    const fill = (field: 'title' | 'occurredOn' | 'details', value: string) => {
+      setValue(field, value, options)
+      fromOcr.current[field] = value
+    }
+    if (suggestion.title && !getValues('title').trim()) fill('title', suggestion.title)
+    if (suggestion.occurredOn && !getValues('occurredOn')) fill('occurredOn', suggestion.occurredOn)
     if (getValues('details')?.trim()) return 'Ya habías escrito en el resultado, así que no lo reemplazamos.'
-    setValue('details', clean, options)
+    fill('details', clean)
     setValue('confidenceLevel', 'UNCERTAIN', options)
     return 'Copiamos el texto leído. Revísalo con el archivo antes de guardar.'
+  }
+
+  /** Retira lo que puso la lectura del archivo anterior; lo que la persona corrigió se conserva y se avisa. */
+  function discardPreviousRead() {
+    let kept = false
+    for (const [field, value] of Object.entries(fromOcr.current) as ['title' | 'occurredOn' | 'details', string][]) {
+      const current = getValues(field)
+      if (current === value) setValue(field, '', { shouldValidate: false })
+      else if (current) kept = true
+    }
+    fromOcr.current = {}
+    setStaleNotice(kept ? 'Cambiaste de archivo y conservamos lo que editaste del anterior. Revisa que corresponda al nuevo.' : null)
   }
 
   useEffect(() => {
@@ -309,6 +328,7 @@ export function HealthEntryForm({
                 setFile(problem ? null : picked)
                 setShowFile(!problem && !!picked && !picked.type.startsWith('audio/'))
                 ocr.cancel()
+                discardPreviousRead()
                 if (problem) event.target.value = ''
               }}
             />
@@ -324,6 +344,7 @@ export function HealthEntryForm({
                 </button>
               ) : null}
             </div>
+            {staleNotice ? <p role="alert" className="text-sm text-danger">{staleNotice}</p> : null}
             {file && showFile && !split ? <FilePreview file={file} name={file.name} /> : null}
             {canRead ? (
               <div className="flex flex-wrap items-center gap-3">
