@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { CategoryIcon } from '../components/CategoryIcon';
 import { EmptyState } from '../components/EmptyState';
 import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
@@ -15,8 +16,10 @@ import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
+import { createAttemptKey } from '../utils/attemptKey';
 import { formatDate } from '../utils/format';
 import { manualHandoffInput } from '../utils/manualHandoff';
+import { newSummaryRequestId } from '../utils/summaryRequestId';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewHandoff'>;
 
@@ -40,6 +43,7 @@ function ManualHandoffScreen({ route, navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
+  const [attemptKey] = useState(() => createAttemptKey(newSummaryRequestId));
 
   if (entries.loading && !entries.data) return <LoadingView />;
 
@@ -62,8 +66,9 @@ function ManualHandoffScreen({ route, navigation }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const handoff = await createHandoff(subjectId, manualHandoffInput(all, selected, reason, questions));
-      navigation.replace('HandoffView', { handoffId: handoff.id, isPrincipal });
+      const input = manualHandoffInput(all, selected, reason, questions);
+      const handoff = await createHandoff(subjectId, { ...input, requestId: attemptKey(input) });
+      navigation.replace('HandoffView', { subjectId, handoffId: handoff.id, isPrincipal });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         setPicked(new Set(selected));
@@ -113,9 +118,7 @@ function ManualHandoffScreen({ route, navigation }: Props) {
             return (
               <View key={c.code} style={styles.group}>
                 <Pressable onPress={() => toggle(ids)} style={styles.groupHeader} accessibilityRole="button">
-                  <View style={[styles.groupIcon, { backgroundColor: colors[meta.bg] }]}>
-                    <Ionicons name={meta.icon} size={16} color={colors[meta.fg]} />
-                  </View>
+                  <CategoryIcon code={c.code} size={16} style={styles.groupIcon} />
                   <Text style={styles.groupTitle}>{meta.plural}</Text>
                   <Text style={styles.groupToggle}>{allOn ? 'Quitar todos' : 'Marcar todos'}</Text>
                 </Pressable>

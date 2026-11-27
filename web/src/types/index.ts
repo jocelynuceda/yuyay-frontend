@@ -257,6 +257,8 @@ export interface HandoffRequest {
   questions: string | null
   healthEntryIds: number[]
   expectedVersionIds?: Record<string, number>
+  /** Reintentar con la misma clave devuelve el resumen ya guardado. */
+  requestId?: string
 }
 
 export type HandoffSessionRequest = (
@@ -327,7 +329,7 @@ export interface Notification {
   id: number
   type: 'ENTRY_CHANGED' | 'INVITATION' | 'CAREGIVER_JOINED' | 'APPOINTMENT_REMINDER' | 'PROFILE_CLAIMED' | (string & {})
   title: string
-  body: string
+  body: string | null
   careSubjectId: number | null
   read: boolean
   readAt: string | null
@@ -342,6 +344,7 @@ export interface UserProfile {
   id: number
   email: string
   name: string
+  fullName?: string | null
   role: string
   gender?: Gender | null
   createdAt: string

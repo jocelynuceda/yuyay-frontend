@@ -8,7 +8,7 @@ import { APPOINTMENT_MINUTES, googleCalendarUrl } from '../../utils/calendar'
 import { formatDate } from '../../utils/format'
 import { focusRing } from '../../utils/styles'
 
-const actionClass = `inline-flex items-center gap-2 rounded-xl border border-line px-3 py-1.5 text-sm font-semibold text-primary ${focusRing}`
+const actionClass = `inline-flex items-center gap-2 rounded-xl border border-line px-3 py-1.5 text-sm font-semibold text-primary-fg ${focusRing}`
 
 export function AddToCalendar({ consultation, subjectName }: { consultation: Consultation; subjectName: string }) {
   const [open, setOpen] = useState(false)

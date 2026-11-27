@@ -4,6 +4,7 @@ import { useLayoutEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from 'react-native-paper';
+import { CategoryIcon } from '../components/CategoryIcon';
 import { Badge } from '../components/Badge';
 import { DurationField } from '../components/DurationField';
 import { DownloadPermission } from '../components/DownloadPermission';
@@ -16,6 +17,7 @@ import { HandoffAccessCode } from '../components/security/HandoffAccessCode';
 import { useAuth } from '../hooks/useAuth';
 import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
+import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import {
   createHandoffSession,
   deleteHandoff,
@@ -52,7 +54,7 @@ function sessionState(s: HandoffSession) {
 export function HandoffViewScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { handoffId, isPrincipal } = route.params;
+  const { subjectId, handoffId, isPrincipal } = route.params;
   const { user } = useAuth();
   const [doctorMode, setDoctorMode] = useState(false);
   const [expiry, setExpiry] = useState(defaultHandoffExpiry);
@@ -64,13 +66,15 @@ export function HandoffViewScreen({ route, navigation }: Props) {
   const [accessSessionId, setAccessSessionId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; tone: 'error' | 'info' } | null>(null);
   const runAction = useConfirmedAction((text) => setMessage(text ? { text, tone: 'error' } : null));
-  const handoff = useFetch(() => getHandoff(handoffId), [handoffId]);
+  const handoff = useFetch(() => getHandoff(subjectId, handoffId), [subjectId, handoffId]);
   // Solo quien creó el resumen o el principal puede ver sus enlaces: a los demás el backend responde 403
   const canManageLinks = !!handoff.data && canManageHandoffLinks(handoff.data.createdByUserId, user?.id, isPrincipal);
   const sessions = useFetch(
-    () => (canManageLinks ? getHandoffSessions(handoffId) : Promise.resolve([])),
-    [handoffId, canManageLinks],
+    () => (canManageLinks ? getHandoffSessions(subjectId, handoffId) : Promise.resolve([])),
+    [subjectId, handoffId, canManageLinks],
   );
+
+  useRefreshOnFocus(() => { handoff.reload(); sessions.reload(); });
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: !doctorMode });
@@ -90,12 +94,12 @@ export function HandoffViewScreen({ route, navigation }: Props) {
     setSharing(true);
     try {
       const origin = handoffPublicOrigin(process.env.EXPO_PUBLIC_WEB_URL, __DEV__);
-      const s = await createHandoffSession(handoffId, { ...durations.request, ...(allowDownload ? { allowDownload: true } : {}) });
+      const s = await createHandoffSession(subjectId, handoffId, { ...durations.request, ...(allowDownload ? { allowDownload: true } : {}) });
       sessions.reload();
       if (s.accessCodeRequired !== true || (allowDownload && s.allowDownload !== true)) {
         setCreatedLink(null);
         setAccessSessionId(null);
-        try { await revokeHandoffSession(s.id); } catch { /* El token no se muestra aunque falle la revocación. */ }
+        try { await revokeHandoffSession(subjectId, s.id); } catch { /* El token no se muestra aunque falle la revocación. */ }
         setMessage({ text: s.accessCodeRequired === true
           ? 'El servidor todavía no admite el permiso de descarga. No compartimos este enlace. Desactiva la descarga o inténtalo cuando el servicio esté actualizado.'
           : 'El servidor todavía no admite enlaces protegidos con código. No compartimos el enlace creado.', tone: 'error' });
@@ -123,7 +127,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
   const handleRevoke = (sessionId: number) =>
     runAction({
       confirm: ['Revocar enlace', 'Quien tenga el enlace ya no podrá abrir el resumen.', 'Revocar'],
-      action: () => revokeHandoffSession(sessionId),
+      action: () => revokeHandoffSession(subjectId, sessionId),
       success: 'Enlace revocado.',
       fallback: 'No pudimos revocar el enlace.',
       onDone: () => {
@@ -136,7 +140,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
   const handleDelete = () =>
     runAction({
       confirm: ['Borrar resumen', 'Los enlaces que compartiste dejarán de funcionar.', 'Borrar'],
-      action: () => deleteHandoff(handoffId),
+      action: () => deleteHandoff(subjectId, handoffId),
       success: 'Resumen borrado.',
       fallback: 'No pudimos borrar el resumen.',
       onDone: navigation.goBack,
@@ -199,9 +203,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
           <FormCard key={code} title={meta.plural}>
             {items.map((i) => (
               <View key={i.healthEntryId} style={styles.item}>
-                <View style={[styles.itemIcon, { backgroundColor: colors[meta.bg] }]}>
-                  <Ionicons name={meta.icon} size={16} color={colors[meta.fg]} />
-                </View>
+                <CategoryIcon code={code} size={16} style={styles.itemIcon} />
                 <View style={styles.flex}>
                   <Text style={styles.itemTitle}>{i.title}</Text>
                   <ItemFacts item={i} />
@@ -250,7 +252,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
               <Button icon="share-variant" mode="outlined" onPress={() => void shareCreatedLink()}>Compartir enlace</Button>
             </View>
           ) : null}
-          {accessSessionId !== null && createdLink?.session.id === accessSessionId ? <HandoffAccessCode key={accessSessionId} sessionId={accessSessionId} /> : null}
+          {accessSessionId !== null && createdLink?.session.id === accessSessionId ? <HandoffAccessCode subjectId={subjectId} key={accessSessionId} sessionId={accessSessionId} /> : null}
           {(sessions.data ?? []).map((s) => {
             const state = sessionState(s);
             const live = state.label === 'Sin abrir' || state.label === 'Abierto';
@@ -279,7 +281,7 @@ export function HandoffViewScreen({ route, navigation }: Props) {
                     <Button icon="key-outline" onPress={() => setAccessSessionId(accessSessionId === s.id ? null : s.id)}>
                       {accessSessionId === s.id ? 'Ocultar código' : 'Mostrar código de acceso'}
                     </Button>
-                    {accessSessionId === s.id && createdLink?.session.id !== s.id ? <HandoffAccessCode key={s.id} sessionId={s.id} /> : null}
+                    {accessSessionId === s.id && createdLink?.session.id !== s.id ? <HandoffAccessCode subjectId={subjectId} key={s.id} sessionId={s.id} /> : null}
                   </View>
                 ) : undefined}
               />

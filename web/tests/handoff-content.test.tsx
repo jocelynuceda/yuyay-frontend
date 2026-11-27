@@ -105,6 +105,23 @@ test('409 bloquea repetir el guardado hasta recargar y revisar; conserva motivo'
   assert.equal(attempts, 2)
 })
 
+test('reintentar tras perder la respuesta repite la clave del intento', async (t) => {
+  const keys: string[] = []
+  adapter(t, async (config) => {
+    if (config.method === 'get') return ok(config, pageOf([entry]))
+    keys.push(JSON.parse(config.data).requestId)
+    if (keys.length === 1) throw new AxiosError('Sin respuesta', 'ERR_NETWORK', config)
+    return ok(config, { id: 12, careSubjectId: 3, items: [version] })
+  })
+  const container = await mount(t, <NewHandoffPage subjectId={3} />)
+  await selectAndReview(container)
+  await click(container, 'Crear resumen')
+  await click(container, 'Crear resumen')
+  assert.match(keys[0], /^[0-9a-f-]{36}$/)
+  assert.equal(keys[1], keys[0])
+  assert.match(container.textContent!, /Resumen creado/)
+})
+
 test('Vista del médico muestra contenido completo y solicita sólo el original de la versión compartida', async (t) => {
   let path = ''
   const originalOpen = window.open

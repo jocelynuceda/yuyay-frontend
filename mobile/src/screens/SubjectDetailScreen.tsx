@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { CategoryIcon } from '../components/CategoryIcon';
 import { HealthEntryCard } from '../components/HealthEntryCard';
 import { LoadingView } from '../components/LoadingView';
 import { AvatarPicker } from '../components/AvatarPicker';
@@ -19,11 +20,11 @@ import { PillAction, ProfileCard } from '../components/ProfileCard';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAvatar } from '../hooks/useAvatar';
 import { useFetch } from '../hooks/useFetch';
+import { useCareSubjects } from '../hooks/useSubjectAccess';
+import { SubjectScreen, useCurrentCareSubject } from '../navigation/SubjectScreen';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import {
   getCareRelationships,
-  getCareSubject,
-  getCareSubjects,
   getHealthCategories,
   getHealthEntries,
 } from '../services/api';
@@ -46,21 +47,25 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
   const pager = useRef<ScrollViewInstance>(null);
   const positioned = useRef(false);
   const [pageHeight, setPageHeight] = useState<number>();
-  const subjects = useFetch(getCareSubjects);
+  const subjects = useCareSubjects();
   useRefreshOnFocus(subjects.reload);
 
   const people = subjects.data ?? [];
   // La cabecera sigue al perfil visible, también si se le cambió el nombre
   const visibleName = people.find((p) => p.id === visibleId)?.name;
-  useEffect(() => {
-    if (visibleName) navigation.setOptions({ title: visibleName });
+  useLayoutEffect(() => {
+    navigation.setOptions({ title: visibleName ?? 'Persona' });
   }, [visibleName, navigation]);
 
   if (subjects.loading && !subjects.data) return <LoadingView />;
 
-  const startIndex = people.findIndex((p) => p.id === subjectId);
+  const startIndex = people.findIndex((p) => p.id === visibleId);
   if (people.length < 2 || startIndex < 0) {
-    return <SubjectProfile subjectId={subjectId} navigation={navigation} />;
+    return (
+      <SubjectScreen key={visibleId} subjectId={visibleId}>
+        <SubjectProfile subjectId={visibleId} navigation={navigation} />
+      </SubjectScreen>
+    );
   }
 
   const visibleIndex = people.findIndex((p) => p.id === visibleId);
@@ -100,7 +105,9 @@ export function SubjectDetailScreen({ route, navigation }: Props) {
           <View key={p.id} style={{ width, height: pageHeight }}>
             {/* Solo se cargan el perfil visible y sus vecinos */}
             {Math.abs(i - visibleIndex) <= 1 ? (
-              <SubjectProfile subjectId={p.id} navigation={navigation} active={p.id === visibleId} onSwipeLock={setSwipeLocked} />
+              <SubjectScreen subjectId={p.id}>
+                <SubjectProfile subjectId={p.id} navigation={navigation} active={p.id === visibleId} onSwipeLock={setSwipeLocked} />
+              </SubjectScreen>
             ) : null}
           </View>
         ))}
@@ -125,23 +132,18 @@ function SubjectProfile({
   // Categorías desplegadas en el perfil clínico (se pueden abrir varias)
   const [open, setOpen] = useState<Set<string>>(new Set());
 
-  const subject = useFetch(() => getCareSubject(subjectId), [subjectId]);
+  const s = useCurrentCareSubject();
   const categories = useFetch(getHealthCategories);
   // Se traen todos los registros una vez: los contadores y el filtro por categoría se calculan aquí
   const entries = useFetch(() => getHealthEntries(subjectId), [subjectId]);
   const relationships = useFetch(() => getCareRelationships(subjectId), [subjectId]);
-  const avatar = useAvatar({ type: 'subject', id: subjectId, age: ageFrom(subject.data?.birthDate), gender: subject.data?.gender });
+  const avatar = useAvatar({ type: 'subject', id: subjectId, age: ageFrom(s.birthDate), gender: s.gender });
   const [pickingAvatar, setPickingAvatar] = useState(false);
   useRefreshOnFocus(() => {
     entries.reload();
-    subject.reload();
     relationships.reload();
   });
 
-  if (subject.loading && !subject.data) return <LoadingView />;
-  if (!subject.data) return <StatusMessage message={subject.error ?? 'No encontramos a esta persona.'} />;
-
-  const s = subject.data;
   const age = ageFrom(s.birthDate);
   const all = entries.data ?? [];
   const entriesOf = (code: string) => all.filter((e) => e.categoryCode === code);
@@ -149,7 +151,7 @@ function SubjectProfile({
   const isPrincipal = s.myRole === 'PRINCIPAL';
 
   const quickActions: QuickAction[] = [
-    { icon: 'calendar-outline', label: 'Citas', onPress: () => navigation.navigate('Consultations', { subjectId, subjectName: s.name, isPrincipal }) },
+    { icon: 'calendar-outline', label: 'Citas', onPress: () => navigation.navigate('Consultations', { subjectId }) },
     { icon: 'people-outline', label: 'Cuidadores', onPress: () => navigation.navigate('Caregivers', { subjectId, isPrincipal }) },
     { icon: 'clipboard-outline', label: 'Resumen', onPress: () => navigation.navigate('Handoffs', { subjectId, isPrincipal }) },
     { icon: 'key-outline', label: 'Delegar', onPress: () => navigation.navigate('Delegations', { subjectId, isPrincipal }) },
@@ -220,7 +222,7 @@ function SubjectProfile({
           </View>
         ) : null}
         <Pressable
-          onPress={() => navigation.navigate('EditSubject', { subject: s })}
+          onPress={() => navigation.navigate('EditSubject', { subjectId })}
           hitSlop={6}
           style={({ pressed }) => [styles.editData, pressed && { opacity: 0.6 }]}
           accessibilityRole="button"
@@ -270,9 +272,7 @@ function SubjectProfile({
                   accessibilityState={{ expanded }}
                   accessibilityLabel={`${meta.plural}, ${items.length} registros`}
                 >
-                  <View style={[styles.rowIcon, { backgroundColor: colors[meta.bg] }]}>
-                    <Ionicons name={meta.icon} size={20} color={colors[meta.fg]} />
-                  </View>
+                  <CategoryIcon code={c.code} size={20} style={styles.rowIcon} />
                   <Text style={styles.rowLabel}>{meta.plural}</Text>
                   {items.length > 0 ? (
                     <View style={styles.count}>

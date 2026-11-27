@@ -169,6 +169,7 @@ export default function ProfilePage() {
               <AvatarPicker open={pickingAvatar} onClose={() => setPickingAvatar(false)} title="Tu avatar" target={{ type: 'me' }} />
               <div className="min-w-0">
                 <h2 className="text-xl font-bold wrap-break-word">{profile.name}</h2>
+                {profile.fullName ? <p className="text-sm wrap-break-word">{profile.fullName}</p> : null}
                 <p className="text-muted wrap-break-word">{profile.email}</p>
               </div>
             </div>
@@ -185,7 +186,7 @@ export default function ProfilePage() {
           </Card>
           <Card as="section" aria-labelledby="edit-profile" className="grid gap-4">
             <h2 id="edit-profile" className="text-xl font-bold">
-              Editar nombre
+              Editar nombre de usuario
             </h2>
             <ProfileForm profile={profile} onSaved={handleSaved} />
           </Card>

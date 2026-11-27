@@ -7,6 +7,7 @@ import { AuthLayout } from '../components/AuthLayout';
 import { AccountTerms } from '../components/AccountTerms';
 import { FormField, passwordInputProps } from '../components/FormField';
 import { GoogleSignInSection } from '../components/GoogleSignInSection';
+import { RegistrationIdentityFields } from '../components/RegistrationIdentityFields';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { needsTermsReview, useAccountTerms } from '../hooks/useAccountTerms';
@@ -18,11 +19,14 @@ import { passwordChecks, passwordError, utf8Bytes } from '../utils/password';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
+const DNI_PATTERN = /^\d{8}$/;
+
 export function RegisterScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { register } = useAuth();
-  const [name, setName] = useState('');
+  const [identity, setIdentity] = useState({ name: '', dni: '', fullName: '' });
+  const { name, dni, fullName } = identity;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -37,7 +41,8 @@ export function RegisterScreen({ navigation }: Props) {
   const checks = passwordChecks(password);
   const passwordOk = checks.every((c) => c.ok);
   const mismatch = confirm.length > 0 && confirm !== password;
-  const canSubmit = name.trim() && isEmail(email) && passwordOk && confirm === password;
+  const dniOk = DNI_PATTERN.test(dni);
+  const canSubmit = name.trim() && dniOk && fullName.trim() && isEmail(email) && passwordOk && confirm === password;
   const passwordMessage = submitted || utf8Bytes(password) > 72 ? passwordError(password) : undefined;
   const confirmMessage = mismatch
     ? 'Las contraseñas no coinciden.'
@@ -58,14 +63,16 @@ export function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     setFieldErrors({});
     try {
-      await register(name.trim(), email.trim(), password, terms.acceptance);
+      await register({ name: name.trim(), fullName: fullName.trim(), dni, email: email.trim(), password }, terms.acceptance);
     } catch (e) {
       if (needsTermsReview(e)) {
         setTermsError('Revisa el documento vigente y confirma tu aceptación para continuar.');
         terms.review();
       } else if (e instanceof ApiError) {
         setFieldErrors(e.fieldErrors);
-        setError(e.status === 409 ? 'Ya existe una cuenta con ese correo.' : e.message);
+        // Si el error ya quedó bajo un campo (p. ej. el DNI), no se repite arriba.
+        const shownInField = Object.keys(e.fieldErrors).length > 0;
+        setError(e.status === 409 ? 'Ya existe una cuenta con ese correo.' : shownInField ? null : e.message);
       } else {
         setError('No pudimos crear tu cuenta.');
       }
@@ -89,83 +96,75 @@ export function RegisterScreen({ navigation }: Props) {
         </Text>
       }
     >
-      <GoogleSignInSection disabled={loading} />
-      <StatusMessage message={error} />
-      <FormField
-        label="Nombre"
-        icon="account-outline"
-        value={name}
-        onChangeText={setName}
-        maxLength={120}
-        autoComplete="off"
-        textContentType="none"
-        error={(submitted && !name.trim() ? 'Ingresa tu nombre.' : undefined) ?? fieldErrors.name}
-      />
-      <FormField
-        label="Correo electrónico"
-        icon="email-outline"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="off"
-        textContentType="none"
-        autoCorrect={false}
-        spellCheck={false}
-        maxLength={150}
-        error={(submitted && !isEmail(email) ? 'Ingresa un correo válido.' : undefined) ?? fieldErrors.email}
-      />
-      <FormField
-        label="Contraseña"
-        icon="lock-outline"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry={!showPassword}
-        {...passwordInputProps}
-        error={passwordMessage ?? fieldErrors.password}
-        right={
-          <TextInput.Icon
-            icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
-            onPress={() => setShowPassword((s) => !s)}
-            accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-          />
-        }
-      />
-      <View style={styles.checks}>
-        {checks.map((c) => (
-          <View key={c.label} style={styles.check}>
-            <Ionicons
-              name={c.ok ? 'checkmark-circle' : 'ellipse-outline'}
-              size={14}
-              color={c.ok ? colors.accentText : colors.muted}
+      <GoogleSignInSection disabled={loading}>
+        <StatusMessage message={error} />
+        <RegistrationIdentityFields identity={identity} onChange={setIdentity} submitted={submitted} busy={loading} fieldErrors={fieldErrors} />
+        <FormField
+          label="Correo electrónico"
+          icon="email-outline"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="off"
+          textContentType="none"
+          autoCorrect={false}
+          spellCheck={false}
+          maxLength={150}
+          error={(submitted && !isEmail(email) ? 'Ingresa un correo válido.' : undefined) ?? fieldErrors.email}
+        />
+        <FormField
+          label="Contraseña"
+          icon="lock-outline"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+          {...passwordInputProps}
+          error={passwordMessage ?? fieldErrors.password}
+          right={
+            <TextInput.Icon
+              icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+              onPress={() => setShowPassword((s) => !s)}
+              accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             />
-            <Text style={[styles.checkText, c.ok && { color: colors.accentText }]}>{c.label}</Text>
-          </View>
-        ))}
-      </View>
-      <FormField
-        label="Confirma tu contraseña"
-        icon="lock-check-outline"
-        value={confirm}
-        onChangeText={setConfirm}
-        secureTextEntry={!showPassword}
-        {...passwordInputProps}
-        error={confirmMessage}
-        onSubmitEditing={handleSubmit}
-      />
-      <AccountTerms terms={terms} requireAcceptance disabled={loading} validationError={terms.acceptance ? null : termsError} />
-      <Button
-        mode="contained"
-        onPress={handleSubmit}
-        loading={loading}
-        disabled={loading}
-        icon="arrow-right"
-        contentStyle={styles.buttonContent}
-        labelStyle={styles.buttonLabel}
-        style={styles.button}
-      >
-        Crear cuenta
-      </Button>
+          }
+        />
+        <View style={styles.checks}>
+          {checks.map((c) => (
+            <View key={c.label} style={styles.check}>
+              <Ionicons
+                name={c.ok ? 'checkmark-circle' : 'ellipse-outline'}
+                size={14}
+                color={c.ok ? colors.accentText : colors.muted}
+              />
+              <Text style={[styles.checkText, c.ok && { color: colors.accentText }]}>{c.label}</Text>
+            </View>
+          ))}
+        </View>
+        <FormField
+          label="Confirma tu contraseña"
+          icon="lock-check-outline"
+          value={confirm}
+          onChangeText={setConfirm}
+          secureTextEntry={!showPassword}
+          {...passwordInputProps}
+          error={confirmMessage}
+          onSubmitEditing={handleSubmit}
+        />
+        <AccountTerms terms={terms} requireAcceptance disabled={loading} validationError={terms.acceptance ? null : termsError} />
+        <Button
+          mode="contained"
+          onPress={handleSubmit}
+          loading={loading}
+          disabled={loading}
+          icon="arrow-right"
+          contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
+          style={styles.button}
+        >
+          Crear cuenta
+        </Button>
+      </GoogleSignInSection>
     </AuthLayout>
   );
 }

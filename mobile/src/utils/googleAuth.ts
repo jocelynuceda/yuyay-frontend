@@ -9,18 +9,26 @@ export const GOOGLE_TERMS_REQUIRED =
   'Aún no tienes una cuenta en Yuyay. Para crearla con Google lee y acepta los términos de uso y el aviso de privacidad.';
 export const GOOGLE_SIGN_IN_FAILED = 'No se pudo abrir Google. Inténtalo de nuevo o usa tu correo y contraseña.';
 
-export type GoogleOutcome = { kind: 'terms' } | { kind: 'error'; message: string };
+export type GoogleOutcome =
+  | { kind: 'terms' }
+  | { kind: 'details' }
+  | { kind: 'retry'; message: string; fieldErrors: Record<string, string> }
+  | { kind: 'error'; message: string };
 
 /**
  * Qué hacer ante un error de POST /auth/google. Un 428 con código de términos significa que la cuenta
  * es nueva: se muestran los términos y se reintenta con la versión aceptada.
  */
-export function classifyGoogleError(error: unknown): GoogleOutcome {
+export function classifyGoogleError(error: unknown, registrationPending = false): GoogleOutcome {
   if (!(error instanceof ApiError)) return { kind: 'error', message: GOOGLE_SIGN_IN_FAILED };
+  if (error.status === 428 && error.code === 'REGISTRATION_DETAILS_REQUIRED') return { kind: 'details' };
   if (error.status === 428 && (error.code === 'TERMS_ACCEPTANCE_REQUIRED' || error.code === 'TERMS_VERSION_OUTDATED')) {
     return { kind: 'terms' };
   }
   if (error.code === 'GOOGLE_EMAIL_CONFLICT') return { kind: 'error', message: error.message };
+  if (registrationPending && (error.status === 0 || error.status === 400 || error.status === 429 || error.status >= 500)) {
+    return { kind: 'retry', message: error.message, fieldErrors: error.fieldErrors };
+  }
   switch (error.status) {
     case 401:
       return { kind: 'error', message: GOOGLE_INVALID_TOKEN };

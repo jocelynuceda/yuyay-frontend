@@ -1,12 +1,13 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { forgetSummarySession, summarySession } from '../utils/summaryAttempts'
+import { forgetSubjectSummaryAttempts, forgetSummarySession, summarySession } from '../utils/summaryAttempts'
 import NotFoundPage from '../pages/NotFoundPage'
 import { getPostLoginTarget } from '../utils/redirect'
 import { forgetClaimAttempts } from '../utils/profileClaim'
 import PrivateRoute from './PrivateRoute'
 import SessionRoute, { RouteLoading } from './SessionRoute'
+import { subscribeToCareSubjectAccess } from '../services/http'
 
 const AppLayout = lazy(() => import('../components/layout/AppLayout'))
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'))
@@ -57,6 +58,7 @@ function LegacyRedirect({ to }: { to: string }) {
 
 export default function AppRoutes() {
   const { user } = useAuth()
+  const userId = user?.id
   const previousUser = useRef(user?.id)
   useEffect(() => {
     if (previousUser.current !== undefined && previousUser.current !== user?.id) {
@@ -65,6 +67,12 @@ export default function AppRoutes() {
     }
     previousUser.current = user?.id
   }, [user])
+  useEffect(() => {
+    if (userId === undefined) return
+    return subscribeToCareSubjectAccess(({ subjectId, denial }) => {
+      if (denial) forgetSubjectSummaryAttempts(summarySession(userId), subjectId)
+    })
+  }, [userId])
 
   return (
     <Suspense fallback={<RouteLoading />}>

@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { api } from '../http'
 import type { Attachment, AttachmentAccess } from '../../types'
 
@@ -60,7 +61,8 @@ async function getAttachmentAccess(careSubjectId: number, attachmentId: number) 
 async function attachmentUrl(careSubjectId: number, attachmentId: number) {
   try {
     return (await getAttachmentAccess(careSubjectId, attachmentId)).url
-  } catch {
+  } catch (error) {
+    if (axios.isCancel(error)) throw error
     const url = URL.createObjectURL(await getAttachmentContent(careSubjectId, attachmentId))
     setTimeout(() => URL.revokeObjectURL(url), 60000)
     return url

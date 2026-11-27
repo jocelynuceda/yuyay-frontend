@@ -13,10 +13,24 @@ export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION' | '
 /** Género (opcional). Decide si el avatar automático es león o leona. */
 export type Gender = 'FEMALE' | 'MALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 
+/** Datos del alta por correo. `name` es el nombre de usuario; el DNI no se guarda. */
+export interface RegistrationIdentity {
+  name: string;
+  fullName: string;
+  dni: string;
+}
+
+export interface RegisterInput extends RegistrationIdentity {
+  email: string;
+  password: string;
+}
+
 export interface User {
   id: number;
   email: string;
   name: string;
+  /** Nombre completo del documento. Falta en cuentas anteriores y de Google. */
+  fullName?: string | null;
   role: Role;
   gender?: Gender | null;
   createdAt: string;
@@ -92,6 +106,8 @@ export interface HandoffInput {
   questions?: string;
   healthEntryIds: number[];
   expectedVersionIds?: Record<string, number>;
+  /** Reintentar con la misma clave devuelve el resumen ya guardado. */
+  requestId?: string;
 }
 
 export interface HandoffSession {
@@ -309,17 +325,15 @@ export type TabNavigatorParamList = {
 
 export type HomeStackParamList = {
   Home: undefined;
-  SubjectDetail: { subjectId: number; name: string };
+  SubjectDetail: { subjectId: number };
   NewSubject: undefined;
-  EditSubject: { subject: CareSubject };
+  EditSubject: { subjectId: number };
   Exams: { subjectId: number };
   NewEntry: {
     subjectId: number;
     categoryCode?: string;
-    details?: string;
     sourceAttachmentId?: number;
-    /** Borrador de la revisión de texto, editable y por confirmar al abrir el formulario. */
-    ocrDraft?: { title?: string; occurredOn?: string; confidenceLevel: 'UNCERTAIN' };
+    ocrDraftId?: number;
     /** Vuelve a la pantalla anterior en lugar de saltarse la revisión del documento */
     returnToSource?: boolean;
   };
@@ -329,14 +343,14 @@ export type HomeStackParamList = {
   InviteCaregiver: { subjectId: number };
   Handoffs: { subjectId: number; isPrincipal: boolean };
   NewHandoff: { subjectId: number; isPrincipal: boolean; consultationId?: number };
-  HandoffView: { handoffId: number; isPrincipal: boolean };
+  HandoffView: { subjectId: number; handoffId: number; isPrincipal: boolean };
   Delegations: { subjectId: number; isPrincipal: boolean };
   NewDelegation: { subjectId: number };
-  Consultations: { subjectId: number; subjectName: string; isPrincipal: boolean };
-  NewConsultation: { subjectId: number; consultation?: Consultation };
-  ConsultationChanges: { subjectId: number; consultationId: number; since: string };
+  Consultations: { subjectId: number };
+  NewConsultation: { subjectId: number; consultationId?: number };
+  ConsultationChanges: { subjectId: number; consultationId: number };
   AccessLog: { subjectId: number };
-  AccessLogDetail: { subjectId: number; log: AccessLog; actor: string };
+  AccessLogDetail: { subjectId: number; logId: number };
   Documents: { subjectId: number };
   ReviewOcr: { subjectId: number; attachmentId: number };
   VoiceNotes: { subjectId: number };

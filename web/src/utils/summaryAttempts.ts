@@ -76,6 +76,19 @@ export function releaseSummaryAttempt(session: object, key: string, model: Model
   model.dispose()
 }
 
+/** Descarta incluso los intentos pendientes de una persona cuyo acceso se retiró. */
+export function forgetSubjectSummaryAttempts(session: object, subjectId: number) {
+  const attempts = sessions.get(session)
+  for (const [key, attempt] of attempts ?? []) {
+    if (!key.startsWith(`${subjectId}/`)) continue
+    attempt.unsubscribe()
+    pending.delete(attempt.model)
+    attempt.model.dispose()
+    attempts?.delete(key)
+  }
+  if (!pending.size) window.removeEventListener('beforeunload', warnOnClose)
+}
+
 /** Cambiar de cuenta descarta datos privados, pero conserva el aviso de resultado desconocido. */
 export function forgetSummarySession(session: object) {
   const attempts = sessions.get(session)

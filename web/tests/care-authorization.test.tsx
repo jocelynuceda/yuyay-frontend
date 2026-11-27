@@ -155,3 +155,23 @@ test('distingue historial vacío, error de lectura y declaración registrada', a
   t.after(await mount(<CareAuthorizationStatus subjectId={88} />))
   assert.match(document.body.textContent ?? '', /Sin declaración registrada/)
 })
+
+test('la fecha elegida en el calendario se envía al crear la persona', async (t) => {
+  const posts: { birthDate: string | null }[] = []
+  api.defaults.adapter = async (config) => {
+    if (config.url === '/care-subjects/authorization-policy') return ok(config, policy)
+    posts.push(JSON.parse(config.data))
+    return ok(config, { id: 51, name: 'Persona de prueba' })
+  }
+  t.after(await mount(<CareSubjectForm onSaved={() => {}} />))
+  await enterName('Persona de prueba')
+  await click(radio('FICTITIOUS'))
+  await click(checkbox())
+  await click(document.querySelector<HTMLButtonElement>('#subject-birthDate')!)
+  const year = document.querySelector<HTMLSelectElement>('select[aria-label="Año"]')!
+  await act(async () => { year.value = '1954'; year.dispatchEvent(new window.Event('change', { bubbles: true })) })
+  const day = document.querySelector<HTMLButtonElement>('button[aria-label$="de 1954"]')!
+  await click(day)
+  await click(submit())
+  assert.match(posts[0].birthDate ?? '', /^1954-\d{2}-01$/)
+})

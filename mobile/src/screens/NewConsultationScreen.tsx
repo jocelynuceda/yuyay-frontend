@@ -5,13 +5,16 @@ import { FormCard, formStyles, SubmitButton, TextArea } from '../components/Form
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { StatusMessage } from '../components/StatusMessage';
+import { LoadingView } from '../components/LoadingView';
+import { useFetch } from '../hooks/useFetch';
+import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { TimeField } from '../components/TimeField';
-import { createConsultation, updateConsultation } from '../services/api';
+import { createConsultation, getConsultation, updateConsultation } from '../services/api';
 import { syncReminder } from '../services/reminders';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { ApiError } from '../services/http';
-import type { HomeStackParamList } from '../types';
+import type { Consultation, HomeStackParamList } from '../types';
 import { parseTime, TIME_ERROR, type TimeParts, timePartsOf, toApiTime } from '../utils/calendar';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewConsultation'>;
@@ -20,8 +23,25 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'NewConsultation'>;
 const DATE_RULES = { allowFuture: true, maxYearsAhead: 2 };
 
 export function NewConsultationScreen({ route, navigation }: Props) {
-  // Con `consultation` el formulario edita esa cita en lugar de crear una nueva
-  const { subjectId, consultation } = route.params;
+  const { subjectId, consultationId } = route.params;
+  const consultation = useFetch(
+    () => consultationId === undefined ? Promise.resolve(null) : getConsultation(subjectId, consultationId),
+    [subjectId, consultationId],
+  );
+  useRefreshOnFocus(consultation.reload);
+  if (consultationId !== undefined && !consultation.data) {
+    return consultation.loading
+      ? <LoadingView />
+      : <StatusMessage message={consultation.error ?? 'No encontramos esta cita.'} />;
+  }
+  return <ConsultationForm subjectId={subjectId} consultation={consultation.data} navigation={navigation} />;
+}
+
+function ConsultationForm({ subjectId, consultation, navigation }: {
+  subjectId: number;
+  consultation: Consultation | null;
+  navigation: Props['navigation'];
+}) {
   const initialDate = consultation ? datePartsOf(consultation.date) : undefined;
   const [dateParts, setDateParts] = useState(initialDate ?? { day: '', month: '', year: '' });
   const [timeParts, setTimeParts] = useState<TimeParts>(
@@ -52,7 +72,7 @@ export function NewConsultationScreen({ route, navigation }: Props) {
     try {
       const data = { date: date.iso, time: time ? toApiTime(time) : undefined, reason: reason.trim(), notes: notes.trim() };
       if (consultation) {
-        const updated = await updateConsultation(consultation.id, { ...data, clearTime: !time });
+        const updated = await updateConsultation(subjectId, consultation.id, { ...data, clearTime: !time });
         // Si esta cita tenía aviso en el celular, se mueve a la nueva hora o se quita
         if (user) await syncReminder(user.id, updated).catch(() => undefined);
       } else await createConsultation(subjectId, data);

@@ -60,7 +60,7 @@ function Option({
       onClick={onSelect}
       className={cx(
         'relative grid justify-items-center gap-1 rounded-2xl border-2 p-3 text-center transition-colors',
-        selected ? 'border-primary bg-primary-tint' : 'border-transparent bg-surface hover:bg-primary-tint',
+        selected ? 'border-primary-fg bg-primary-tint' : 'border-transparent bg-surface hover:bg-primary-tint',
         focusRing,
       )}
     >

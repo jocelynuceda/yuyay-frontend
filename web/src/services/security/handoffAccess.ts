@@ -9,8 +9,8 @@ export interface HandoffAccessCode {
 }
 
 /** El código viene exclusivamente del servidor; nunca se genera ni persiste en el cliente. */
-export async function getHandoffAccessCode(sessionId: number, signal?: AbortSignal): Promise<HandoffAccessCode> {
-  const { data } = await api.get<HandoffAccessCode>(`/handoff-sessions/${sessionId}/access-code`, { signal })
+export async function getHandoffAccessCode(sessionId: number, signal?: AbortSignal, careSubjectId?: number): Promise<HandoffAccessCode> {
+  const { data } = await api.get<HandoffAccessCode>(`/handoff-sessions/${sessionId}/access-code`, { signal, careSubjectId })
   const validCode = data?.consumed === true ? data.code === null : data?.consumed === false && typeof data.code === 'string' && /^[0-9]{6}$/.test(data.code)
   if (!validCode || data.periodSeconds !== 30 ||
       !Number.isFinite(Date.parse(data.expiresAt)) || !Number.isFinite(Date.parse(data.serverTime))) {

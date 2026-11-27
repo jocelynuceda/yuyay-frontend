@@ -99,7 +99,7 @@ export function DelegateAccessPage({ token }: { token: string }) {
                   aria-pressed={selected}
                   onClick={() => setCategory(code)}
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${focusRing} ${
-                    selected ? 'border-ink bg-ink text-white' : 'border-line bg-card text-ink hover:border-primary'
+                    selected ? 'border-ink bg-ink text-surface' : 'border-line bg-card text-ink hover:border-primary-fg'
                   }`}
                 >
                   {code === 'ALL' ? 'Todas' : (categoryLabels[code]?.plural ?? code)}

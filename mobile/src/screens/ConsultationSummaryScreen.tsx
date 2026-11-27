@@ -25,11 +25,11 @@ export function ConsultationSummaryScreen({ route, navigation }: Props) {
   const [navigationMessage, setNavigationMessage] = useState<string | null>(null);
   const model = useMemo(() => createSummaryReview({
     prepare: async () => {
-      const data = await prepareConsultation(consultationId!);
+      const data = await prepareConsultation(subjectId, consultationId!);
       if (data.careSubjectId !== subjectId) throw new ApiError(404, 'La cita no pertenece a esta persona.');
       return data;
     },
-    confirm: (body) => confirmConsultation(consultationId!, body),
+    confirm: (body) => confirmConsultation(subjectId, consultationId!, body),
     newId: newSummaryRequestId,
     status: (error) => error instanceof ApiError ? error.status : undefined,
     errorMessage: (error) => {
@@ -60,7 +60,7 @@ export function ConsultationSummaryScreen({ route, navigation }: Props) {
           <Text style={styles.text}>{state.saved.questions || 'Sin preguntas.'}</Text>
           {state.saved.items.map((item) => <VersionContent key={item.healthEntryId} version={item} />)}
         </FormCard>
-        <SubmitButton label="Abrir resumen guardado" onPress={() => navigation.replace('HandoffView', { handoffId: state.saved!.id, isPrincipal })} />
+        <SubmitButton label="Abrir resumen guardado" onPress={() => navigation.replace('HandoffView', { subjectId, handoffId: state.saved!.id, isPrincipal })} />
       </FormScroll>
     );
   }

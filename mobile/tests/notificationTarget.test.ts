@@ -21,12 +21,12 @@ test('notificationTarget follows the same rules as the web', () => {
   // Cambio en un registro: al perfil de la persona
   assert.deepEqual(notificationTarget({ type: 'ENTRY_CHANGED', careSubjectId: 2 }, pending, subjects), {
     screen: 'SubjectDetail',
-    params: { subjectId: 2, name: 'Pedro' },
+    params: { subjectId: 2 },
   });
   // Recordatorio de cita: a las citas de la persona
   assert.deepEqual(notificationTarget({ type: 'APPOINTMENT_REMINDER', careSubjectId: 2 }, pending, subjects), {
     screen: 'Consultations',
-    params: { subjectId: 2, subjectName: 'Pedro', isPrincipal: false },
+    params: { subjectId: 2 },
   });
 });
 

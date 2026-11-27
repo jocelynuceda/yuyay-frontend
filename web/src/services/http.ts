@@ -1,6 +1,14 @@
 import axios, { CanceledError } from 'axios'
 import type { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import type { AuthResponse } from '../types'
+import { isAccessLost } from '../utils/accessStatus'
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** Persona de la ruta cuando su identificador no forma parte del endpoint. */
+    careSubjectId?: number
+  }
+}
 
 const baseURL = `${(import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')}/api/v1`
 const REFRESH_TOKEN_KEY = 'yuyay.refreshToken'
@@ -29,6 +37,54 @@ interface AuthRequestConfig extends InternalAxiosRequestConfig {
   _retryCount?: number
   _accessToken?: string | null
   _sessionVersion?: number
+  _careAccessVersion?: number
+}
+
+type CareSubjectAccessEvent = {
+  subjectId: number
+  denial?: { status: number; message: string }
+}
+
+const careSubjectAccessListeners = new Set<(event: CareSubjectAccessEvent) => void>()
+let careAccessVersions = new Map<number, number>()
+
+export function subscribeToCareSubjectAccess(listener: (event: CareSubjectAccessEvent) => void) {
+  careSubjectAccessListeners.add(listener)
+  return () => { careSubjectAccessListeners.delete(listener) }
+}
+
+export function getCareSubjectAccessSnapshot(): ReadonlyMap<number, number> {
+  return careAccessVersions
+}
+
+function getCareSubjectPath(url: string | undefined) {
+  return url?.match(/^\/care-subjects\/(\d+)(?:\/([^?]*))?(?:\?|$)/)
+}
+
+function careAccessIsCurrent(config: AuthRequestConfig) {
+  const id = config.careSubjectId
+  return id === undefined || (
+    config._sessionVersion === sessionVersion && config._careAccessVersion === (careAccessVersions.get(id) ?? 0)
+  )
+}
+
+function reportCareAccessError(error: AxiosError, config: AuthRequestConfig) {
+  const subjectId = config.careSubjectId
+  const status = error.response?.status
+  if (subjectId === undefined || !isAccessLost(status)) return
+
+  const path = getCareSubjectPath(config.url)
+  const read = config.method === 'get'
+  const section = path?.[2]
+  const subjectRead = read && path && !section
+  // Estas listas están disponibles para toda relación de cuidado activa.
+  const clinicalList = read && (section === 'health-entries' || section === 'attachments' || section === 'consultations')
+  const denied = subjectRead || (status === 403 && clinicalList)
+  if (denied) {
+    careAccessVersions = new Map(careAccessVersions).set(subjectId, (careAccessVersions.get(subjectId) ?? 0) + 1)
+  }
+  const denial = denied ? { status, message: getHttpErrorMessage(error) } : undefined
+  careSubjectAccessListeners.forEach((listener) => listener({ subjectId, denial }))
 }
 
 let accessToken: string | null = null
@@ -52,6 +108,7 @@ function storeTokens(tokens: AuthTokens) {
 export function setTokens(tokens: AuthTokens) {
   storeTokens(tokens)
   sessionVersion += 1
+  careAccessVersions = new Map()
   refreshPromise = null
 }
 
@@ -72,6 +129,7 @@ export function clearTokens() {
   accessToken = null
   refreshTokenInMemory = null
   sessionVersion += 1
+  careAccessVersions = new Map()
   refreshPromise = null
   try {
     sessionStorage.removeItem(REFRESH_TOKEN_KEY)
@@ -252,21 +310,36 @@ export function refreshAuthSession(): Promise<AuthResponse> {
 }
 
 api.interceptors.request.use((config: AuthRequestConfig) => {
+  if (config._careAccessVersion !== undefined && !careAccessIsCurrent(config)) {
+    throw new CanceledError('El acceso cambió.', config)
+  }
   const token = getAccessToken()
   config._accessToken = token
   config._sessionVersion = sessionVersion
+  const path = getCareSubjectPath(config.url)
+  if (path) config.careSubjectId = Number(path[1])
+  if (config.careSubjectId !== undefined) {
+    config._careAccessVersion = careAccessVersions.get(config.careSubjectId) ?? 0
+  }
   if (token) config.headers.set('Authorization', `Bearer ${token}`)
   return config
 })
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (!careAccessIsCurrent(response.config)) throw new CanceledError('El acceso cambió.', response.config)
+    return response
+  },
   async (error: unknown) => {
+    if (!axios.isAxiosError(error) || axios.isCancel(error)) throw error
+    const config = error.config as AuthRequestConfig | undefined
+    if (config) {
+      if (!careAccessIsCurrent(config)) throw new CanceledError('El acceso cambió.', config)
+      reportCareAccessError(error, config)
+    }
     // Un error reintentable nunca es un 401, así que va antes de la lógica de sesión.
     const retried = await retryRequest(api, error)
     if (retried) return retried
-    if (!axios.isAxiosError(error) || axios.isCancel(error)) throw error
-    const config = error.config as AuthRequestConfig | undefined
     if (error.response?.status !== 401 || !config || config._retried || isRefreshRequest(config)) {
       return rejectWithFriendlyMessage(error)
     }
