@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent, type Ref } from 'react'
 import { LoadError } from '../../components/layout/LoadError'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -12,6 +12,7 @@ import { AttachmentRow } from './AttachmentRow'
 import { useAttachmentList } from './useAttachmentList'
 import { linkClass } from '../../utils/styles'
 import { useSuccessNotice } from '../../hooks/useSuccessNotice'
+import { useToast } from '../../hooks/useToast'
 import {
   MAX_RECORDING_MINUTES,
   VOICE_FILE_ACCEPT,
@@ -35,6 +36,8 @@ function SubjectVoiceNotes({ subjectId, isPrincipal }: VoiceNotesPanelProps) {
   const titleId = useId()
   const { user } = useAuth()
   const { notify, anchorProps } = useSuccessNotice()
+  const toast = useToast()
+  const uploadButton = useRef<HTMLButtonElement>(null)
   const { data, error, loading, reload, applyChange } = useAttachmentList(subjectId)
   const [openedId, setOpenedId] = useState<number | null>(null)
   const notes = (data ?? [])
@@ -49,7 +52,7 @@ function SubjectVoiceNotes({ subjectId, isPrincipal }: VoiceNotesPanelProps) {
           Graba hasta {MAX_RECORDING_MINUTES} minutos o elige un archivo de audio M4A o WebM de hasta 10 MB.
         </p>
       </div>
-      <VoiceNoteComposer subjectId={subjectId} onSaved={() => {
+      <VoiceNoteComposer subjectId={subjectId} uploadButton={uploadButton} onSaved={() => {
         notify('Nota de voz guardada.')
         reload()
       }} />
@@ -69,10 +72,11 @@ function SubjectVoiceNotes({ subjectId, isPrincipal }: VoiceNotesPanelProps) {
               <AttachmentRow key={note.id} file={note} subjectId={subjectId}
                 canManage={isPrincipal || note.uploadedById === user?.id}
                 onAccessLost={reload}
+                focusUpload={() => uploadButton.current?.focus()}
                 onChanged={(updated) => {
                   applyChange(note.id, updated)
                   if (!updated && opened) setOpenedId(null)
-                  notify(updated ? 'Nombre guardado.' : 'Nota de voz borrada.')
+                  toast.success(updated ? 'Nombre guardado.' : 'Nota de voz borrada.')
                 }}
                 action={
                   <Button
@@ -101,7 +105,7 @@ interface VoiceCapture {
   stop?: () => void
 }
 
-function VoiceNoteComposer({ subjectId, onSaved }: { subjectId: number; onSaved: () => void }) {
+function VoiceNoteComposer({ subjectId, uploadButton, onSaved }: { subjectId: number; uploadButton: Ref<HTMLButtonElement>; onSaved: () => void }) {
   const input = useRef<HTMLInputElement>(null)
   const capture = useRef<VoiceCapture | null>(null)
   const [recording, setRecording] = useState<'idle' | 'requesting' | 'recording' | 'stopping'>('idle')
@@ -177,7 +181,7 @@ function VoiceNoteComposer({ subjectId, onSaved }: { subjectId: number; onSaved:
         <>
           <div className="flex flex-wrap gap-2">
             <Button onClick={startRecording} disabled={!!unavailable}>Grabar nota de voz</Button>
-            <Button variant="secondary" onClick={() => input.current?.click()}>Elegir archivo de audio</Button>
+            <Button ref={uploadButton} variant="secondary" onClick={() => input.current?.click()}>Elegir archivo de audio</Button>
           </div>
           <input
             ref={input}
@@ -205,7 +209,7 @@ function VoiceNoteComposer({ subjectId, onSaved }: { subjectId: number; onSaved:
                 capture.current?.stop?.()
               }}>Detener grabación</Button>
             ) : null}
-            <Button variant="secondary" onClick={discard}>Cancelar grabación</Button>
+            <Button ref={uploadButton} variant="secondary" onClick={discard}>Cancelar grabación</Button>
           </div>
         </>
       ) : null}
@@ -216,7 +220,7 @@ function VoiceNoteComposer({ subjectId, onSaved }: { subjectId: number; onSaved:
           <VoicePlayer blob={draft} name="Vista previa de la nota de voz" />
           <div className="flex flex-wrap gap-2">
             <Button onClick={save} loading={uploading}>{uploading ? 'Subiendo…' : 'Guardar nota de voz'}</Button>
-            <Button variant="secondary" onClick={discard} disabled={uploading}>Descartar audio</Button>
+            <Button ref={uploadButton} variant="secondary" onClick={discard} disabled={uploading}>Descartar audio</Button>
           </div>
         </>
       ) : null}

@@ -14,7 +14,7 @@ import { uploadAttachment } from '../../services/api/attachments'
 import type { OcrStatus } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { DOCUMENT_ACCEPT, documentsOnly, validateDocumentFile } from '../../utils/attachments'
-import { useSuccessNotice } from '../../hooks/useSuccessNotice'
+import { useToast } from '../../hooks/useToast'
 import { useOcrPolling } from './useOcrPolling'
 
 const ocrBadges: Record<OcrStatus, { label: string; tone: 'soft' | 'accent' | 'danger' }> = {
@@ -27,7 +27,8 @@ const ocrBadges: Record<OcrStatus, { label: string; tone: 'soft' | 'accent' | 'd
 export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; isPrincipal: boolean }) {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { notify, anchorProps } = useSuccessNotice()
+  const toast = useToast()
+  const uploadButton = useRef<HTMLButtonElement>(null)
   const { data, error, loading, reload, applyChange } = useAttachmentList(subjectId)
   const input = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -63,7 +64,7 @@ export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; 
           </h2>
           <p className="mt-1 text-sm text-muted">JPG, PNG o PDF de una página, hasta 10 MB. Leemos el texto por ti.</p>
         </div>
-        <Button onClick={() => input.current?.click()} loading={uploading}>
+        <Button ref={uploadButton} onClick={() => input.current?.click()} loading={uploading}>
           {uploading ? 'Subiendo…' : 'Subir documento'}
         </Button>
         <input
@@ -76,8 +77,6 @@ export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; 
           aria-hidden="true"
         />
       </div>
-
-      <span {...anchorProps} />
 
       {uploadError ? (
         <p role="alert" className="rounded-2xl bg-danger-bg p-4 text-danger">
@@ -105,9 +104,10 @@ export function DocumentsPanel({ subjectId, isPrincipal }: { subjectId: number; 
                 documentPath={`/people/${subjectId}/documents/${d.id}`}
                 badges={<><Badge tone={badge.tone}>{badge.label}</Badge><DocumentScopeBadge label={d.scopeLabel} /></>}
                 onAccessLost={reload}
+                focusUpload={() => uploadButton.current?.focus()}
                 onChanged={(updated) => {
                   applyChange(d.id, updated)
-                  notify(updated ? 'Nombre guardado.' : 'Documento borrado.')
+                  toast.success(updated ? 'Nombre guardado.' : 'Documento borrado.')
                 }}
               />
             )

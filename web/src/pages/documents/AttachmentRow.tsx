@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../components/ui/Icon'
 import { deleteAttachment, renameAttachment } from '../../services/api/attachments'
@@ -37,18 +37,21 @@ interface Props {
   canManage: boolean
   onChanged: (updated?: Attachment) => void
   onAccessLost: () => void
+  focusUpload: () => void
   documentPath?: string
   badges?: ReactNode
   action?: ReactNode
   children?: ReactNode
 }
 
-export function AttachmentRow({ file, subjectId, canManage, onChanged, onAccessLost, documentPath, badges, action, children }: Props) {
+export function AttachmentRow({ file, subjectId, canManage, onChanged, onAccessLost, focusUpload, documentPath, badges, action, children }: Props) {
   const [mode, setMode] = useState<'view' | 'rename' | 'delete'>('view')
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const pending = useRef(false)
+  const row = useRef<HTMLLIElement>(null)
+  const restoreFocus = useRef<'rename' | 'delete' | null>(null)
   const pencil = useRef<HTMLButtonElement>(null)
   const trash = useRef<HTMLButtonElement>(null)
   const name = file.originalFilename
@@ -57,12 +60,18 @@ export function AttachmentRow({ file, subjectId, canManage, onChanged, onAccessL
   const editing = managing && mode === 'rename'
   const confirming = managing && mode === 'delete'
 
+  useLayoutEffect(() => {
+    if (mode !== 'view' || !restoreFocus.current) return
+    const trigger = restoreFocus.current === 'rename' ? pencil : trash
+    restoreFocus.current = null
+    trigger.current?.focus()
+  }, [mode])
+
   function cancel() {
     if (pending.current) return
-    const trigger = editing ? pencil : trash
+    restoreFocus.current = editing ? 'rename' : 'delete'
     setError('')
     setMode('view')
-    requestAnimationFrame(() => trigger.current?.focus())
   }
 
   async function save(event?: FormEvent) {
@@ -73,14 +82,25 @@ export function AttachmentRow({ file, subjectId, canManage, onChanged, onAccessL
       return
     }
     pending.current = true
+    const hadFocus = row.current?.contains(document.activeElement)
+    // A disabled submit button can leave focus on body while the request is in flight.
+    const needsFocus = () => row.current && (row.current.contains(document.activeElement)
+      || (hadFocus && document.activeElement === document.body))
     setBusy(true)
     setError('')
     try {
       if (editing) {
         const updated = await renameAttachment(subjectId, file.id, draft.trim() + suffix)
+        if (needsFocus()) restoreFocus.current = 'rename'
         onChanged(updated)
       } else {
         await deleteAttachment(subjectId, file.id)
+        if (needsFocus()) {
+          const neighbor = row.current?.nextElementSibling ?? row.current?.previousElementSibling
+          const control = neighbor?.querySelector<HTMLElement>('a[href], input:not(:disabled), button:not(:disabled)')
+          if (control) control.focus()
+          else focusUpload()
+        }
         onChanged()
       }
       setMode('view')
@@ -94,7 +114,7 @@ export function AttachmentRow({ file, subjectId, canManage, onChanged, onAccessL
   }
 
   return (
-    <li className="grid min-w-0 gap-2 rounded-2xl bg-card p-4"
+    <li ref={row} className="grid min-w-0 gap-2 rounded-2xl bg-card p-4"
       onKeyDown={(event) => { if (event.key === 'Escape' && (editing || confirming)) cancel() }}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <div className="min-w-0">

@@ -22,6 +22,9 @@ Object.assign(dom.window.HTMLDialogElement.prototype, {
 
 const { createRoot } = await import('react-dom/client')
 const { VoiceNotesPanel } = await import('../src/pages/documents/VoiceNotesPanel')
+const { DocumentsPanel } = await import('../src/pages/documents/DocumentsPanel')
+const { MemoryRouter } = await import('react-router-dom')
+const { userEvent } = await import('@testing-library/user-event')
 const { AuthContext } = await import('../src/contexts/auth-context')
 const { ToastContext } = await import('../src/contexts/toast-context')
 const { api, clearTokens, setTokens } = await import('../src/services/http')
@@ -142,7 +145,7 @@ function fail(config: InternalAxiosRequestConfig, status: number, message: strin
   })
 }
 
-function mountPanel(t: TestContext, adapter: AxiosAdapter) {
+function mountPanel(t: TestContext, adapter: AxiosAdapter, Panel = VoiceNotesPanel) {
   const previousAdapter = api.defaults.adapter
   api.defaults.adapter = adapter
   setTokens({ accessToken: 'voice-access', refreshToken: 'voice-refresh' })
@@ -161,7 +164,7 @@ function mountPanel(t: TestContext, adapter: AxiosAdapter) {
       login: async () => true, register: async () => true, loginWithGoogle: async () => true, logout: noop, updateUser: () => {},
     }}>
       <ToastContext.Provider value={{ success: (message) => notices.push(message), info: () => {}, error: () => {} }}>
-        <VoiceNotesPanel subjectId={subjectId} isPrincipal={isPrincipal} />
+        <MemoryRouter><Panel subjectId={subjectId} isPrincipal={isPrincipal} /></MemoryRouter>
       </ToastContext.Provider>
     </AuthContext.Provider>,
   ))
@@ -169,6 +172,58 @@ function mountPanel(t: TestContext, adapter: AxiosAdapter) {
 }
 
 const body = () => document.body.textContent ?? ''
+
+for (const { Panel, type, suffix, upload } of [
+  { Panel: DocumentsPanel, type: 'application/pdf', suffix: '.pdf', upload: 'Subir documento' },
+  { Panel: VoiceNotesPanel, type: 'audio/mp4', suffix: '.m4a', upload: 'Elegir archivo de audio' },
+]) {
+  test(`teclado en ${upload}: guardar, borrar y continuar donde corresponde`, async (t) => {
+    let files = ['Uno', 'Dos', 'Tres'].map((name, i) => attachment({
+      id: i + 1, originalFilename: name + suffix, contentType: type,
+    }))
+    const { render } = mountPanel(t, async (config) => {
+      if (config.method === 'get') return ok(config, files.slice())
+      const id = Number(config.url?.split('/').at(-1))
+      if (config.method === 'patch') {
+        const updated = { ...files.find(f => f.id === id)!, originalFilename: JSON.parse(config.data).filename }
+        files = files.map(f => f.id === id ? updated : f)
+        return ok(config, updated)
+      }
+      assert.equal(config.method, 'delete')
+      files = files.filter(f => f.id !== id)
+      return ok(config, null)
+    }, Panel)
+    const keyboard = userEvent.setup({ document })
+    const press = (keys: string) => act(async () => { await keyboard.keyboard(keys) })
+    async function tabTo(label: string) {
+      const target = button(label)
+      assert.ok(target, label)
+      for (let i = 0; i < 32 && document.activeElement !== target; i++) {
+        await act(async () => { await keyboard.tab() })
+      }
+      assert.equal(document.activeElement, target)
+    }
+    async function remove(name: string) {
+      await tabTo('Borrar ' + name + suffix)
+      await press('{Enter}')
+      assert.equal(document.activeElement, button('Confirmar eliminación de ' + name + suffix))
+      await press('{Enter}')
+    }
+    await render()
+    await tabTo('Cambiar nombre de Uno' + suffix)
+    await press('{Enter}')
+    assert.equal(document.activeElement?.tagName, 'INPUT')
+    await press('Control{Enter}')
+    assert.equal(document.activeElement, button('Cambiar nombre de Control' + suffix))
+
+    await remove('Control')
+    assert.match(document.activeElement?.closest('li')?.textContent ?? '', /Dos/)
+    await remove('Tres')
+    assert.match(document.activeElement?.closest('li')?.textContent ?? '', /Dos/)
+    await remove('Dos')
+    assert.equal(document.activeElement, button(upload))
+  })
+}
 const button = (label: string) => [...document.querySelectorAll('button')].find((el) =>
   el.getAttribute('aria-label') === label || el.textContent?.trim() === label,
 )
