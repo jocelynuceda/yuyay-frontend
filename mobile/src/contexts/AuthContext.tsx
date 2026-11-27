@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import * as api from '../services/api';
 import { cancelAllReminders, reconcileAllReminders } from '../services/reminders';
 import { NoSessionError, refreshSession, session, setSessionHandlers, vault } from '../services/http';
-import type { AuthResponse, User } from '../types';
+import type { AuthResponse, RegisterInput, User } from '../types';
 import type { TermsAcceptance } from '../types/terms';
 
 type AuthStatus = 'loading' | 'locked' | 'authenticated' | 'anonymous' | 'recoverable' | 'logout-failed';
@@ -18,7 +18,7 @@ export interface AuthContextValue {
   recoveryError: string | null;
   retrySession: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, dni: string, email: string, password: string, acceptance: TermsAcceptance) => Promise<void>;
+  register: (account: RegisterInput, acceptance: TermsAcceptance) => Promise<void>;
   /** Ingresa o crea la cuenta con Google; el backend decide si la persona ya existe. */
   loginWithGoogle: (idToken: string, acceptedTermsVersion?: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -162,8 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBiometricState(enabled);
     },
     login: (email, password) => startSession(() => api.login(email, password)),
-    register: (name, dni, email, password, acceptance) =>
-      startSession(() => api.register(name, dni, email, password, acceptance)),
+    register: (account, acceptance) => startSession(() => api.register(account, acceptance)),
     loginWithGoogle: (idToken, acceptedTermsVersion) => startSession(() => api.loginWithGoogle(idToken, acceptedTermsVersion)),
     logout: async () => {
       // Los avisos de citas son de esta cuenta: no deben sonar después de cerrar sesión

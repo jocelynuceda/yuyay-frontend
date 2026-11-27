@@ -6,7 +6,7 @@ import { passwordChecks, passwordError } from '../src/utils/password'
 const email = 'ana@example.test'
 const name = 'Ana'
 const dni = '45678912'
-const form = (password: string, confirmPassword = password) => ({ name, dni, email, password, confirmPassword })
+const form = (password: string, confirmPassword = password) => ({ name, fullName: 'Ana Quispe', dni, email, password, confirmPassword })
 
 test('El registro acepta exactamente 72 bytes UTF-8 y rechaza 74 bytes', () => {
   const password = 'A1' + 'ñ'.repeat(35)

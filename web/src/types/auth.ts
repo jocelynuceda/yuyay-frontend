@@ -2,6 +2,8 @@ import type { CareUserSummary, Gender } from './index'
 import type { RefreshResponse } from '../services/http'
 
 export interface User extends CareUserSummary {
+  /** Nombre completo del documento; `name` es el nombre de usuario. Falta en cuentas anteriores. */
+  fullName?: string | null
   role: string
   gender?: Gender | null
   createdAt: string
@@ -23,10 +25,13 @@ export interface TermsDocument {
 }
 
 export interface RegisterRequest extends LoginRequest, TermsAcceptance {
+  /** Nombre de usuario: el que se muestra en la app. */
   name: string
+  /** El servidor solo lo usa si no puede consultar el DNI. */
+  fullName: string
   /** Opcional: quien no quiera decirlo puede saltar la pregunta. */
   gender?: Gender | null
-  /** Se contrasta con el nombre en el backend; no se guarda. */
+  /** Solo sirve para consultar el nombre completo; no se guarda. */
   dni: string
 }
 

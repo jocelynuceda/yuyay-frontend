@@ -80,6 +80,9 @@ export function ProfileScreen({ navigation }: Props) {
   ];
 
   const rows: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; tint: string }[] = [
+    ...(user.fullName
+      ? [{ icon: 'person-outline' as const, label: 'Nombre completo', value: user.fullName, tint: colors.primary }]
+      : []),
     { icon: 'mail-outline', label: 'Correo', value: user.email, tint: colors.primary },
     {
       icon: 'shield-checkmark-outline',
@@ -154,7 +157,7 @@ export function ProfileScreen({ navigation }: Props) {
 
       {editingName ? (
         <View style={styles.nameForm}>
-          <FormField label="Nombre" value={name} onChangeText={setName} maxLength={120} autoComplete="name" error={nameError} />
+          <FormField label="Nombre de usuario" value={name} onChangeText={setName} maxLength={120} autoComplete="nickname" error={nameError} />
           <Text style={styles.genderLabel}>Género (opcional)</Text>
           <GenderChips value={gender} onChange={setGender} />
           <SubmitButton label="Guardar cambios" onPress={saveName} loading={savingName} />

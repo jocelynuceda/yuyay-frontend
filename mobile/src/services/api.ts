@@ -6,6 +6,7 @@ import { createHandoffAccessApi } from './security/handoffAccessCodeApi';
 import { collectPages, type Page } from './pagination';
 import type { TermsAcceptance } from '../types/terms';
 import type {
+  RegisterInput,
   Gender,
   AccessLog,
   Attachment,
@@ -53,8 +54,12 @@ export const loginWithGoogle = (idToken: string, acceptedTermsVersion?: string) 
   http.post<AuthResponse>('/auth/google', { idToken, acceptedTermsVersion }).then((r) => r.data);
 
 /** El DNI solo se contrasta con el nombre en el backend; no se guarda. */
-export const register = (name: string, dni: string, email: string, password: string, acceptance: TermsAcceptance) =>
-  http.post<AuthResponse>('/auth/register', { name, dni, email, password, ...acceptance }).then((r) => r.data);
+/** Nombre completo del documento, para mostrarlo antes de crear la cuenta. */
+export const lookupDni = (dni: string) =>
+  http.post<{ fullName: string }>('/auth/dni-lookup', { dni }).then((r) => r.data);
+
+export const register = (account: RegisterInput, acceptance: TermsAcceptance) =>
+  http.post<AuthResponse>('/auth/register', { ...account, ...acceptance }).then((r) => r.data);
 
 export const forgotPassword = (email: string) => http.post('/auth/forgot-password', { email });
 

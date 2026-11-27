@@ -13,10 +13,21 @@ export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION' | '
 /** Género (opcional). Decide si el avatar automático es león o leona. */
 export type Gender = 'FEMALE' | 'MALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 
+/** Datos del alta por correo. `name` es el nombre de usuario; el DNI no se guarda. */
+export interface RegisterInput {
+  name: string;
+  fullName: string;
+  dni: string;
+  email: string;
+  password: string;
+}
+
 export interface User {
   id: number;
   email: string;
   name: string;
+  /** Nombre completo del documento. Falta en cuentas anteriores y de Google. */
+  fullName?: string | null;
   role: Role;
   gender?: Gender | null;
   createdAt: string;

@@ -19,7 +19,8 @@ export const loginSchema = z.object({
 
 export const registerSchema = z
   .object({
-    name: requiredText('Escribe tu nombre.', 120),
+    name: requiredText('Elige un nombre de usuario.', 120),
+    fullName: requiredText('Ingresa tu DNI para obtener tu nombre completo.', 200),
     gender: optionalGender(),
     dni: z.string().trim().regex(/^\d{8}$/, 'Ingresa los 8 dígitos de tu DNI.'),
     email: email(),

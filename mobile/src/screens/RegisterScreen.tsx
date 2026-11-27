@@ -10,6 +10,7 @@ import { GoogleSignInSection } from '../components/GoogleSignInSection';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
 import { needsTermsReview, useAccountTerms } from '../hooks/useAccountTerms';
+import { useDniLookup } from '../hooks/useDniLookup';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { AuthStackParamList } from '../types';
@@ -26,6 +27,7 @@ export function RegisterScreen({ navigation }: Props) {
   const { register } = useAuth();
   const [name, setName] = useState('');
   const [dni, setDni] = useState('');
+  const [typedFullName, setTypedFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -41,7 +43,10 @@ export function RegisterScreen({ navigation }: Props) {
   const passwordOk = checks.every((c) => c.ok);
   const mismatch = confirm.length > 0 && confirm !== password;
   const dniOk = DNI_PATTERN.test(dni);
-  const canSubmit = name.trim() && dniOk && isEmail(email) && passwordOk && confirm === password;
+  const { lookup, retry } = useDniLookup(dni);
+  const manualName = lookup.status === 'manual';
+  const fullName = lookup.status === 'found' ? lookup.fullName : manualName ? typedFullName.trim() : '';
+  const canSubmit = name.trim() && dniOk && fullName && isEmail(email) && passwordOk && confirm === password;
   const passwordMessage = submitted || utf8Bytes(password) > 72 ? passwordError(password) : undefined;
   const confirmMessage = mismatch
     ? 'Las contraseñas no coinciden.'
@@ -62,7 +67,7 @@ export function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     setFieldErrors({});
     try {
-      await register(name.trim(), dni, email.trim(), password, terms.acceptance);
+      await register({ name: name.trim(), fullName, dni, email: email.trim(), password }, terms.acceptance);
     } catch (e) {
       if (needsTermsReview(e)) {
         setTermsError('Revisa el documento vigente y confirma tu aceptación para continuar.');
@@ -98,16 +103,6 @@ export function RegisterScreen({ navigation }: Props) {
       <GoogleSignInSection disabled={loading} />
       <StatusMessage message={error} />
       <FormField
-        label="Nombre y apellidos (como en tu DNI)"
-        icon="account-outline"
-        value={name}
-        onChangeText={setName}
-        maxLength={120}
-        autoComplete="off"
-        textContentType="none"
-        error={(submitted && !name.trim() ? 'Ingresa tu nombre.' : undefined) ?? fieldErrors.name}
-      />
-      <FormField
         label="DNI"
         icon="card-account-details-outline"
         value={dni}
@@ -116,8 +111,38 @@ export function RegisterScreen({ navigation }: Props) {
         maxLength={8}
         autoComplete="off"
         textContentType="none"
-        accessibilityHint="Solo lo usamos para comprobar que tu nombre coincide. No lo guardamos."
-        error={(submitted && !dniOk ? 'Ingresa los 8 dígitos de tu DNI.' : undefined) ?? fieldErrors.dni}
+        hint="Lo enviamos a APIsPERU para obtener tu nombre. No lo guardamos."
+        error={
+          (submitted && !dniOk ? 'Ingresa los 8 dígitos de tu DNI.' : undefined)
+          ?? (lookup.status === 'error' ? lookup.message : fieldErrors.dni)
+        }
+      />
+      {lookup.status === 'loading' ? <StatusMessage message="Buscando tu nombre…" tone="info" /> : null}
+      {lookup.status === 'error' && !lookup.invalid ? <Button onPress={retry}>Reintentar la consulta</Button> : null}
+      {manualName ? <StatusMessage message={lookup.message} tone="info" /> : null}
+      <FormField
+        label="Nombre completo"
+        icon="card-text-outline"
+        value={manualName ? typedFullName : fullName}
+        onChangeText={setTypedFullName}
+        editable={manualName}
+        multiline={!manualName}
+        maxLength={200}
+        autoComplete="off"
+        textContentType="none"
+        hint={manualName ? undefined : 'Se completa con tu DNI.'}
+        error={(submitted && dniOk && !fullName ? 'Necesitamos tu nombre completo.' : undefined) ?? fieldErrors.fullName}
+      />
+      <FormField
+        label="Nombre de usuario"
+        icon="account-outline"
+        value={name}
+        onChangeText={setName}
+        maxLength={120}
+        autoComplete="off"
+        textContentType="none"
+        hint="Así te verán en Yuyay."
+        error={(submitted && !name.trim() ? 'Elige un nombre de usuario.' : undefined) ?? fieldErrors.name}
       />
       <FormField
         label="Correo electrónico"

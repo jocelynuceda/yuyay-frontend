@@ -344,6 +344,7 @@ export interface UserProfile {
   id: number
   email: string
   name: string
+  fullName?: string | null
   role: string
   gender?: Gender | null
   createdAt: string
