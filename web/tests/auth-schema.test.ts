@@ -5,7 +5,8 @@ import { passwordChecks, passwordError } from '../src/utils/password'
 
 const email = 'ana@example.test'
 const name = 'Ana'
-const form = (password: string, confirmPassword = password) => ({ name, email, password, confirmPassword })
+const dni = '45678912'
+const form = (password: string, confirmPassword = password) => ({ name, dni, email, password, confirmPassword })
 
 test('El registro acepta exactamente 72 bytes UTF-8 y rechaza 74 bytes', () => {
   const password = 'A1' + 'ñ'.repeat(35)
@@ -24,6 +25,13 @@ test('El registro exige confirmar la misma contraseña', () => {
   const issue = (confirm: string) => registerSchema.safeParse(form('Clave123', confirm)).error?.issues[0].message
   assert.equal(issue(''), 'Confirma tu contraseña.')
   assert.equal(issue('Clave124'), 'Las contraseñas no coinciden.')
+})
+
+test('El registro exige un DNI de exactamente ocho dígitos', () => {
+  for (const value of ['', '1234567', '123456789', '1234567a']) {
+    assert.equal(registerSchema.safeParse({ ...form('Clave123'), dni: value }).success, false, value)
+  }
+  assert.equal(registerSchema.parse({ ...form('Clave123'), dni: ' 45678912 ' }).dni, '45678912')
 })
 
 test('La contraseña nueva usa las mismas reglas y pide un código de 6 dígitos', () => {

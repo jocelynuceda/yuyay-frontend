@@ -52,8 +52,9 @@ export const login = (email: string, password: string) =>
 export const loginWithGoogle = (idToken: string, acceptedTermsVersion?: string) =>
   http.post<AuthResponse>('/auth/google', { idToken, acceptedTermsVersion }).then((r) => r.data);
 
-export const register = (name: string, email: string, password: string, acceptance: TermsAcceptance) =>
-  http.post<AuthResponse>('/auth/register', { name, email, password, ...acceptance }).then((r) => r.data);
+/** El DNI solo se contrasta con el nombre en el backend; no se guarda. */
+export const register = (name: string, dni: string, email: string, password: string, acceptance: TermsAcceptance) =>
+  http.post<AuthResponse>('/auth/register', { name, dni, email, password, ...acceptance }).then((r) => r.data);
 
 export const forgotPassword = (email: string) => http.post('/auth/forgot-password', { email });
 

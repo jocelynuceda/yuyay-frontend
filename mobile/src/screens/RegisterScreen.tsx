@@ -18,11 +18,14 @@ import { passwordChecks, passwordError, utf8Bytes } from '../utils/password';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
+const DNI_PATTERN = /^\d{8}$/;
+
 export function RegisterScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { register } = useAuth();
   const [name, setName] = useState('');
+  const [dni, setDni] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -37,7 +40,8 @@ export function RegisterScreen({ navigation }: Props) {
   const checks = passwordChecks(password);
   const passwordOk = checks.every((c) => c.ok);
   const mismatch = confirm.length > 0 && confirm !== password;
-  const canSubmit = name.trim() && isEmail(email) && passwordOk && confirm === password;
+  const dniOk = DNI_PATTERN.test(dni);
+  const canSubmit = name.trim() && dniOk && isEmail(email) && passwordOk && confirm === password;
   const passwordMessage = submitted || utf8Bytes(password) > 72 ? passwordError(password) : undefined;
   const confirmMessage = mismatch
     ? 'Las contraseñas no coinciden.'
@@ -58,14 +62,16 @@ export function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     setFieldErrors({});
     try {
-      await register(name.trim(), email.trim(), password, terms.acceptance);
+      await register(name.trim(), dni, email.trim(), password, terms.acceptance);
     } catch (e) {
       if (needsTermsReview(e)) {
         setTermsError('Revisa el documento vigente y confirma tu aceptación para continuar.');
         terms.review();
       } else if (e instanceof ApiError) {
         setFieldErrors(e.fieldErrors);
-        setError(e.status === 409 ? 'Ya existe una cuenta con ese correo.' : e.message);
+        // Si el error ya quedó bajo un campo (p. ej. el DNI), no se repite arriba.
+        const shownInField = Object.keys(e.fieldErrors).length > 0;
+        setError(e.status === 409 ? 'Ya existe una cuenta con ese correo.' : shownInField ? null : e.message);
       } else {
         setError('No pudimos crear tu cuenta.');
       }
@@ -92,7 +98,7 @@ export function RegisterScreen({ navigation }: Props) {
       <GoogleSignInSection disabled={loading} />
       <StatusMessage message={error} />
       <FormField
-        label="Nombre"
+        label="Nombre y apellidos (como en tu DNI)"
         icon="account-outline"
         value={name}
         onChangeText={setName}
@@ -100,6 +106,18 @@ export function RegisterScreen({ navigation }: Props) {
         autoComplete="off"
         textContentType="none"
         error={(submitted && !name.trim() ? 'Ingresa tu nombre.' : undefined) ?? fieldErrors.name}
+      />
+      <FormField
+        label="DNI"
+        icon="card-account-details-outline"
+        value={dni}
+        onChangeText={(value) => setDni(value.replace(/\D/g, ''))}
+        keyboardType="number-pad"
+        maxLength={8}
+        autoComplete="off"
+        textContentType="none"
+        accessibilityHint="Solo lo usamos para comprobar que tu nombre coincide. No lo guardamos."
+        error={(submitted && !dniOk ? 'Ingresa los 8 dígitos de tu DNI.' : undefined) ?? fieldErrors.dni}
       />
       <FormField
         label="Correo electrónico"

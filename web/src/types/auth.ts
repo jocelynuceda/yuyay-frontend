@@ -24,6 +24,10 @@ export interface TermsDocument {
 
 export interface RegisterRequest extends LoginRequest, TermsAcceptance {
   name: string
+  /** Opcional: quien no quiera decirlo puede saltar la pregunta. */
+  gender?: Gender | null
+  /** Se contrasta con el nombre en el backend; no se guarda. */
+  dni: string
 }
 
 export interface GoogleAuthRequest {

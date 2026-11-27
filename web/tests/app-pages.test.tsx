@@ -122,6 +122,12 @@ function backend() {
     })
     if (url === '/auth/register') {
       db.registers.push(body)
+      if (body.dni === '99999999') {
+        const error = fail(config, 400)
+        throw Object.assign(error, { response: { ...error.response, data: {
+          message: 'El nombre no coincide', fieldErrors: [{ field: 'dni', message: 'El nombre no coincide con el de este DNI.' }],
+        } } })
+      }
       if (db.nextTermsVersion) {
         db.termsVersion = db.nextTermsVersion
         db.nextTermsVersion = null
@@ -505,6 +511,7 @@ test('Registro: conserva el formulario al leer términos y exige aceptar la vers
   t.after(unmount)
   await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
   await type(inputById('auth-name'), 'Ana')
+  await type(inputById('auth-dni'), '45678912')
   await type(inputById('auth-email'), 'ana@example.test')
   await type(inputById('auth-password'), 'Clave123')
   await waitFor(() => /✓ Una letra \(A-Z\)/.test(text()), 'requisitos actualizados')
@@ -540,9 +547,61 @@ test('Registro: conserva el formulario al leer términos y exige aceptar la vers
   await click(document.querySelector('input[type="checkbox"]'), 'Aceptar términos')
   await click(byText('button', 'Registrarme'), 'Registrarme')
   await waitFor(() => b.db.registers.length === 1, 'registro enviado')
+  // Sin elegir género: la pregunta se salta y viaja como null.
   assert.deepEqual(b.db.registers[0], {
-    name: 'Ana', email: 'ana@example.test', password: 'Clave123', termsAccepted: true, termsVersion: '1.0',
+    name: 'Ana', gender: null, dni: '45678912', email: 'ana@example.test', password: 'Clave123', termsAccepted: true, termsVersion: '1.0',
   })
+})
+
+test('Registro: el género elegido se envía con la cuenta', async (t) => {
+  const { b, unmount } = await mountApp('/register', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
+  assert.match(text(), /Género \(opcional, puedes saltarlo\)/)
+  await type(inputById('auth-name'), 'Ana')
+  await type(inputById('auth-dni'), '45678912')
+  await click(document.querySelector('input[type="radio"][value="FEMALE"]'), 'Mujer')
+  await type(inputById('auth-email'), 'ana@example.test')
+  await type(inputById('auth-password'), 'Clave123')
+  await type(inputById('auth-confirm'), 'Clave123')
+  await click(byText('button', /^Leer los términos/), 'Leer los términos')
+  await waitFor(() => !!byText('dialog[open] div[tabindex="0"]', /Documento de prueba/), 'texto del documento')
+  await act(async () => {
+    document.querySelector('dialog[open]')?.dispatchEvent(new window.Event('cancel', { cancelable: true }))
+  })
+  await click(document.querySelector('input[type="checkbox"]'), 'Aceptar términos')
+  await click(byText('button', 'Registrarme'), 'Registrarme')
+  await waitFor(() => b.db.registers.length === 1, 'registro enviado')
+  assert.equal((b.db.registers[0] as { gender?: string }).gender, 'FEMALE')
+})
+
+test('Registro: el DNI es obligatorio y el rechazo del backend aparece bajo el campo', async (t) => {
+  const { b, unmount } = await mountApp('/register', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!inputById('auth-dni'), 'campo DNI')
+  assert.equal(inputById('auth-dni').getAttribute('aria-describedby'), 'auth-dni-hint')
+  await type(inputById('auth-name'), 'Ana Quispe')
+  await type(inputById('auth-dni'), '1234')
+  await type(inputById('auth-email'), 'ana@example.test')
+  await type(inputById('auth-password'), 'Clave123')
+  await type(inputById('auth-confirm'), 'Clave123')
+  await click(byText('button', /^Leer los términos/), 'Leer los términos')
+  await waitFor(() => !!byText('dialog[open] div[tabindex="0"]', /Documento de prueba/), 'texto del documento')
+  await act(async () => {
+    document.querySelector('dialog[open]')?.dispatchEvent(new window.Event('cancel', { cancelable: true }))
+  })
+  await click(document.querySelector('input[type="checkbox"]'), 'Aceptar términos')
+
+  await click(byText('button', 'Registrarme'), 'Registrarme')
+  await waitFor(() => /Ingresa los 8 dígitos de tu DNI/.test(text()), 'error de formato')
+  assert.equal(b.db.registers.length, 0)
+
+  await type(inputById('auth-dni'), '99999999')
+  await click(byText('button', 'Registrarme'), 'Registrarme')
+  await waitFor(() => /El nombre no coincide con el de este DNI/.test(text()), 'rechazo del backend')
+  assert.equal(inputById('auth-dni').getAttribute('aria-invalid'), 'true')
+  assert.equal(inputById('auth-dni').getAttribute('aria-describedby'), 'auth-dni-error')
+  assert.equal(pathname(), '/register')
 })
 
 test('Registro: una versión vencida abre el texto vigente y vuelve a pedir aceptación', async (t) => {
@@ -550,6 +609,7 @@ test('Registro: una versión vencida abre el texto vigente y vuelve a pedir acep
   t.after(unmount)
   await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
   await type(inputById('auth-name'), 'Ana')
+  await type(inputById('auth-dni'), '45678912')
   await type(inputById('auth-email'), 'ana@example.test')
   await type(inputById('auth-password'), 'Clave123')
   await type(inputById('auth-confirm'), 'Clave123')
