@@ -19,7 +19,7 @@ export const loginSchema = z.object({
 
 export const registrationIdentitySchema = z.object({
   name: requiredText('Elige un nombre de usuario.', 120),
-  fullName: requiredText('Escribe tus nombres y apellidos según tu DNI.', 200),
+  fullName: requiredText('Confirma tu nombre antes de continuar.', 200),
   dni: z.string().trim().regex(/^\d{8}$/, 'Ingresa los 8 dígitos de tu DNI.'),
 })
 

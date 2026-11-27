@@ -17,6 +17,12 @@ export async function register(request: RegisterRequest): Promise<AuthResponse> 
   return data
 }
 
+/** Nombre que figura en el DNI, para que la persona confirme que es ella. */
+export async function lookupDni(dni: string, signal?: AbortSignal): Promise<{ fullName: string }> {
+  const { data } = await publicApi.post<{ fullName: string }>('/auth/dni-lookup', { dni }, { signal })
+  return data
+}
+
 /** El backend verifica el ID token con Google y devuelve una sesión normal de Yuyay. */
 export async function loginWithGoogle(request: GoogleAuthRequest): Promise<AuthResponse> {
   const { data } = await publicApi.post<AuthResponse>('/auth/google', request)

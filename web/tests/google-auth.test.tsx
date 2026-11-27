@@ -199,6 +199,9 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
   const errors: string[] = []
   const data = { accessToken: 'A1', refreshToken: 'R1', tokenType: 'Bearer', expiresInSeconds: 3600, user: { id: 7, name: 'Ana' } }
   http.publicApi.defaults.adapter = async (config) => {
+    if (config.url === '/auth/dni-lookup') {
+      return { data: { fullName: 'ANA FLORES' }, status: 200, statusText: 'OK', headers: {}, config }
+    }
     if (config.url === '/auth/terms') {
       documentsRead.push(version)
       return {
@@ -304,7 +307,12 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
   assert.match(dialog()?.textContent ?? '', /8 dígitos/)
   assert.equal(bodies.length, 4)
   await type('google-signup-dni', '11111111')
-  const fullName = await type('google-signup-full-name', 'Ana Flores')
+  const confirmName = async () => {
+    await click(button('Ver mi nombre'))
+    await click(button('Sí, soy yo'))
+    return document.getElementById('google-signup-full-name') as HTMLInputElement
+  }
+  const fullName = await confirmName()
   const alias = await type('google-signup-name', 'Anita')
   const submit = button('Crear cuenta con Google')
   assert.ok(submit)
@@ -315,13 +323,16 @@ test('El alta Google requiere términos vigentes y conserva los datos al corregi
   await act(async () => { finishLookup?.() })
   assert.match(dialog()?.textContent ?? '', new RegExp(contrastError))
   assert.equal(document.activeElement?.id, 'google-signup-dni')
-  assert.equal(fullName.value, 'Ana Flores')
+  assert.equal(fullName.value, 'ANA FLORES')
   assert.equal(alias.value, 'Anita')
   await type('google-signup-dni', '01234567')
+  // Otro DNI obliga a confirmar otra vez; el nombre de usuario elegido se conserva.
+  await confirmName()
+  assert.equal(alias.value, 'Anita')
   await click(button('Crear cuenta con Google'))
   assert.deepEqual(bodies.slice(4), [
-    { idToken, acceptedTermsVersion: '2.0', dni: '11111111', fullName: 'Ana Flores', name: 'Anita' },
-    { idToken, acceptedTermsVersion: '2.0', dni: '01234567', fullName: 'Ana Flores', name: 'Anita' },
+    { idToken, acceptedTermsVersion: '2.0', dni: '11111111', fullName: 'ANA FLORES', name: 'Anita' },
+    { idToken, acceptedTermsVersion: '2.0', dni: '01234567', fullName: 'ANA FLORES', name: 'Anita' },
   ])
   assert.equal(dialog(), null)
   assert.equal(outerFormSubmits, 0)

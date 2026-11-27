@@ -120,6 +120,7 @@ function backend() {
       version: db.termsVersion,
       text: `TÉRMINOS DE USO Y AVISO DE PRIVACIDAD DE YUYAY\nVersión ${db.termsVersion}\n\nDocumento de prueba.`,
     })
+    if (url === '/auth/dni-lookup') return ok(config, { fullName: 'ANA QUISPE MAMANI' })
     if (url === '/auth/register') {
       db.registers.push(body)
       if (body.dni === '88888888') {
@@ -568,13 +569,39 @@ test('Enlace antiguo /invitaciones/:id redirige a /invitations/:id', async (t) =
 
 const inputById = (id: string) => document.getElementById(id) as HTMLInputElement
 
+async function confirmDniName() {
+  await click(byText('button', 'Ver mi nombre'), 'Ver mi nombre')
+  await waitFor(() => !!byText('button', 'Sí, soy yo'), 'nombre del DNI')
+  await click(byText('button', 'Sí, soy yo'), 'Sí, soy yo')
+}
+
+test('Registro: muestra el nombre del DNI, se confirma y el nombre de usuario se puede cambiar', async (t) => {
+  const { b, unmount } = await mountApp('/register', { loggedIn: false })
+  t.after(unmount)
+  await waitFor(() => !!inputById('auth-dni'), 'campo DNI')
+  await type(inputById('auth-dni'), '45678912')
+  await click(byText('button', 'Ver mi nombre'), 'Ver mi nombre')
+  await waitFor(() => /¿Eres ANA QUISPE MAMANI\?/.test(text()), 'pregunta de confirmación')
+  await click(byText('button', 'No soy yo'), 'No soy yo')
+  assert.equal(inputById('auth-full-name'), null)
+  assert.equal(inputById('auth-name').value, '')
+
+  await confirmDniName()
+  assert.equal(inputById('auth-full-name').value, 'ANA QUISPE MAMANI')
+  assert.equal(inputById('auth-full-name').readOnly, true)
+  assert.equal(inputById('auth-name').value, 'Ana Quispe Mamani')
+  await type(inputById('auth-name'), 'Anita')
+  assert.equal(inputById('auth-name').value, 'Anita')
+  assert.equal(b.db.registers.length, 0)
+})
+
 test('Registro: conserva el formulario al leer términos y exige aceptar la versión antes de enviarlo', async (t) => {
   const { b, unmount } = await mountApp('/register', { loggedIn: false })
   t.after(unmount)
   await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
   await type(inputById('auth-name'), 'Ana')
   await type(inputById('auth-dni'), '45678912')
-  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
+  await confirmDniName()
   await type(inputById('auth-email'), 'ana@example.test')
   await type(inputById('auth-password'), 'Clave123')
   await waitFor(() => /✓ Una letra \(A-Z\)/.test(text()), 'requisitos actualizados')
@@ -612,7 +639,7 @@ test('Registro: conserva el formulario al leer términos y exige aceptar la vers
   await waitFor(() => b.db.registers.length === 1, 'registro enviado')
   // Sin elegir género: la pregunta se salta y viaja como null.
   assert.deepEqual(b.db.registers[0], {
-    name: 'Ana', fullName: 'Ana Quispe Mamani', gender: null, dni: '45678912', email: 'ana@example.test', password: 'Clave123', termsAccepted: true, termsVersion: '1.0',
+    name: 'Ana', fullName: 'ANA QUISPE MAMANI', gender: null, dni: '45678912', email: 'ana@example.test', password: 'Clave123', termsAccepted: true, termsVersion: '1.0',
   })
 })
 
@@ -623,7 +650,7 @@ test('Registro: el género elegido se envía con la cuenta', async (t) => {
   assert.match(text(), /Género \(opcional, puedes saltarlo\)/)
   await type(inputById('auth-name'), 'Ana')
   await type(inputById('auth-dni'), '45678912')
-  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
+  await confirmDniName()
   await click(document.querySelector('input[type="radio"][value="FEMALE"]'), 'Mujer')
   await type(inputById('auth-email'), 'ana@example.test')
   await type(inputById('auth-password'), 'Clave123')
@@ -661,9 +688,10 @@ test('Registro: el DNI es obligatorio y el rechazo del backend aparece bajo el c
   assert.equal(b.db.registers.length, 0)
 
   await type(inputById('auth-dni'), '88888888')
-  assert.equal(inputById('auth-full-name').value, '')
-  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
+  // Cambiar el número no consulta solo ni deja un nombre sin confirmar.
+  assert.equal(inputById('auth-full-name'), null)
   assert.equal(b.calls.some((call) => call.includes('dni-lookup')), false)
+  await confirmDniName()
   assert.equal(b.db.registers.length, 0)
   assert.equal(document.querySelector('form a[href^="mailto:"]'), null)
   await click(byText('button', 'Registrarme'), 'Registrarme')
@@ -679,7 +707,7 @@ test('Registro: una versión vencida abre el texto vigente y vuelve a pedir acep
   await waitFor(() => !!inputById('auth-name'), 'formulario de registro')
   await type(inputById('auth-name'), 'Ana')
   await type(inputById('auth-dni'), '45678912')
-  await type(inputById('auth-full-name'), 'Ana Quispe Mamani')
+  await confirmDniName()
   await type(inputById('auth-email'), 'ana@example.test')
   await type(inputById('auth-password'), 'Clave123')
   await type(inputById('auth-confirm'), 'Clave123')
