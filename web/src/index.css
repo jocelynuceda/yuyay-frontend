@@ -36,37 +36,39 @@
   --shadow-soft: 0 18px 40px -20px rgba(30, 33, 88, 0.28), 0 2px 8px -2px rgba(30, 33, 88, 0.06);
 }
 
-/* --color-white solo lo usan los textos sobre fondos sólidos (primary, danger, ink): en oscuro pasa a tinta oscura para mantener el contraste */
+/*
+ * Tema oscuro "medianoche": fondos índigo casi negros y el violeta de marca saturado.
+ * primary y danger-solid son rellenos con texto blanco (contraste AA); primary-fg y danger
+ * son sus versiones claras para texto, bordes y enlaces sobre tarjetas oscuras.
+ */
 .dark {
-  /* Índigo profundo con lila: los mismos tonos de la paleta, sin el azul marino frío */
-  --color-surface: #16152E;
-  --color-card: #211F42;
-  --color-ink: #EEEBFA;
-  --color-muted: #B3B0D6;
-  --color-primary: #ABA6F2;
-  --color-primary-fg: #ABA6F2;
-  --color-accent: #9DB9E3;
-  --color-soft: #2F2C5E;
-  --color-cream: #28264F;
-  --color-danger: #FF8DB5;
-  --color-danger-solid: #FF8DB5;
-  --color-danger-bg: #3D1730;
-  --color-accent-text: #A9D3F0;
-  --color-soft-text: #D8D4FF;
-  --color-on-accent: #16152E;
-  --color-on-hero: #EEEBFA;
-  --color-on-hero-soft: #CFCBEE;
-  --color-border: rgba(238, 235, 250, 0.08);
-  --color-line: rgba(238, 235, 250, 0.14);
-  --color-primary-tint: rgba(171, 166, 242, 0.16);
-  --color-accent-tint: rgba(157, 185, 227, 0.18);
-  --color-placeholder: rgba(179, 176, 214, 0.7);
-  --color-scrim: rgba(6, 5, 20, 0.6);
-  --color-hero-from: #3D3A96;
-  --color-hero-via: #4A4FA3;
-  --color-hero-to: #2F4B78;
-  --shadow-soft: 0 8px 24px -12px rgba(0, 0, 0, 0.5);
-  --color-white: #16152E;
+  --color-surface: #100F22;
+  --color-card: #1B1A33;
+  --color-cream: #242140;
+  --color-soft: #2C2857;
+  --color-ink: #F2EFFD;
+  --color-muted: #B4B0D8;
+  --color-primary: #5D57B8;
+  --color-primary-fg: #A6A1E4;
+  --color-accent: #7CC4E4;
+  --color-danger: #F0588F;
+  --color-danger-solid: #D93F79;
+  --color-danger-bg: #3A1530;
+  --color-accent-text: #9FD8F2;
+  --color-soft-text: #D6D2FF;
+  --color-on-accent: #100F22;
+  --color-on-hero: #F2EFFD;
+  --color-on-hero-soft: #D4D0F2;
+  --color-border: rgba(242, 239, 253, 0.07);
+  --color-line: rgba(242, 239, 253, 0.13);
+  --color-primary-tint: rgba(93, 87, 184, 0.24);
+  --color-accent-tint: rgba(124, 196, 228, 0.16);
+  --color-placeholder: rgba(180, 176, 216, 0.6);
+  --color-scrim: rgba(5, 4, 16, 0.65);
+  --color-hero-from: #4E48A6;
+  --color-hero-via: #3E3A88;
+  --color-hero-to: #2A2866;
+  --shadow-soft: 0 18px 40px -22px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(242, 239, 253, 0.05);
 }
 
 @layer base {

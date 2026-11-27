@@ -22,14 +22,14 @@ export function SideNav() {
   const logout = useLogout()
 
   return (
-    <aside className="group/nav peer/nav fixed inset-y-4 left-4 z-30 hidden w-20 flex-col gap-8 overflow-hidden rounded-[2rem] bg-primary px-4 py-6 shadow-[var(--shadow-soft)] transition-[width] duration-300 ease-out hover:w-60 has-[:focus-visible]:w-60 lg:flex">
+    <aside className="group/nav peer/nav fixed inset-y-4 left-4 z-30 hidden w-20 flex-col gap-8 overflow-hidden rounded-[2rem] bg-primary dark:bg-card dark:ring-1 dark:ring-white/6 px-4 py-6 shadow-[var(--shadow-soft)] transition-[width] duration-300 ease-out hover:w-60 has-[:focus-visible]:w-60 lg:flex">
       <Link to="/" aria-label="Yuyay, ir al inicio" className={cx('flex items-center gap-3 rounded-full', focusRing)}>
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-card">
           <Isotipo className="h-8 w-8" />
         </span>
-        <span className={cx(label, 'text-lg text-white')}>Yuyay</span>
+        <span className={cx(label, 'text-lg text-white dark:text-ink')}>Yuyay</span>
       </Link>
-      <span aria-hidden="true" className="h-px w-full bg-white/25" />
+      <span aria-hidden="true" className="h-px w-full bg-white/25 dark:bg-line" />
       <nav aria-label="Principal" className="flex-1">
         <ul className="grid grid-cols-[minmax(0,1fr)] gap-4">
           {navItems.map(({ to, label: text, icon }) => (
@@ -41,7 +41,7 @@ export function SideNav() {
                 className={({ isActive }) =>
                   cx(
                     row,
-                    isActive ? 'bg-card text-primary-fg shadow-[var(--shadow-soft)]' : 'bg-white/15 text-white hover:bg-white/25',
+                    isActive ? 'bg-card text-primary-fg shadow-[var(--shadow-soft)] dark:bg-accent dark:text-on-accent' : 'bg-white/15 text-white hover:bg-white/25 dark:bg-white/5 dark:text-muted dark:hover:bg-white/10 dark:hover:text-ink',
                     focusRing,
                   )
                 }
@@ -51,7 +51,7 @@ export function SideNav() {
                   {to === '/notifications' && count > 0 ? (
                     <span
                       aria-hidden="true"
-                      className="absolute -top-0.5 -right-0.5 min-w-5 rounded-full bg-danger-solid px-1 text-center text-[10px] leading-5 font-bold text-white ring-2 ring-primary"
+                      className="absolute -top-0.5 -right-0.5 min-w-5 rounded-full bg-danger-solid px-1 text-center text-[10px] leading-5 font-bold text-white ring-2 ring-primary dark:ring-card"
                     >
                       {formatBadge(count)}
                     </span>
@@ -65,12 +65,12 @@ export function SideNav() {
           ))}
         </ul>
       </nav>
-      <span aria-hidden="true" className="h-px w-full bg-white/25" />
+      <span aria-hidden="true" className="h-px w-full bg-white/25 dark:bg-line" />
       <button
         type="button"
         aria-label="Cerrar sesión"
         onClick={() => void logout()}
-        className={cx(row, 'bg-white/15 text-white hover:bg-white/25', focusRing)}
+        className={cx(row, 'bg-white/15 text-white hover:bg-white/25 dark:bg-white/5 dark:text-muted dark:hover:bg-white/10 dark:hover:text-ink', focusRing)}
       >
         <span className={iconSlot}>
           <Icon name="logout" />
