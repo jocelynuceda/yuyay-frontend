@@ -118,6 +118,16 @@
     --control-hover: var(--color-primary-tint);
     --control-pressed: var(--color-accent-tint);
   }
+
+  .handoff-delete {
+    --color-danger-solid: #af3341;
+    --control-hover: color-mix(in srgb, var(--color-danger-solid) 82%, black);
+    --control-pressed: color-mix(in srgb, var(--color-danger-solid) 72%, black);
+  }
+
+  .dark .handoff-delete {
+    --color-danger-solid: #bf3c4d;
+  }
 }
 
 @layer utilities {
