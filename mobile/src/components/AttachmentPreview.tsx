@@ -1,5 +1,5 @@
-import { ActivityIndicator, Image, type ImageErrorEvent, Text, View } from 'react-native';
-import { safeMessage, useAttachmentSource } from '../hooks/useAttachmentSource';
+import { ActivityIndicator, Image, Text, View } from 'react-native';
+import { useAttachmentSource } from '../hooks/useAttachmentSource';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 /** Muestra la foto guardada para compararla con el texto leído. */
@@ -14,10 +14,6 @@ function AttachmentImage({ subjectId, attachmentId }: Props) {
   const { colors } = useTheme();
   const { state, onImageError } = useAttachmentSource(subjectId, attachmentId);
 
-  function handleImageError(e: ImageErrorEvent) {
-    console.warn('[AttachmentPreview]', state.origin, safeMessage(e.nativeEvent?.error));
-    onImageError();
-  }
   return (
     <View style={styles.frame}>
       {state.status === 'failed' ? <Text accessibilityRole="alert" style={styles.message}>No pudimos cargar la imagen.</Text> : null}
@@ -29,7 +25,7 @@ function AttachmentImage({ subjectId, attachmentId }: Props) {
           style={styles.image}
           resizeMode="contain"
           accessibilityLabel="Documento guardado"
-          onError={handleImageError}
+          onError={onImageError}
         />
       ) : null}
     </View>

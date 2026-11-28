@@ -1,6 +1,6 @@
 import { useEffect, useReducer } from 'react';
 import { Platform } from 'react-native';
-import { getAttachmentAccess, getAttachmentSource } from '../services/api';
+import { getAttachmentAccess, getPreviewImageSource } from '../services/api';
 import { attachmentPreviewState } from './attachmentPreviewState';
 
 /** El enlace firmado es sensible y no debe quedar en los registros. */
@@ -17,12 +17,13 @@ export function useAttachmentSource(subjectId: number, attachmentId: number) {
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     let blobUri: string | undefined;
     (async () => {
       try {
         const source = origin === 's3'
           ? { uri: (await getAttachmentAccess(subjectId, attachmentId)).url }
-          : await getAttachmentSource(subjectId, attachmentId);
+          : await getPreviewImageSource(subjectId, attachmentId, controller.signal);
         if (Platform.OS === 'web') blobUri = source.uri;
         if (active) dispatch({ type: 'loaded', origin, source });
         else if (blobUri) URL.revokeObjectURL(blobUri);
@@ -34,6 +35,7 @@ export function useAttachmentSource(subjectId: number, attachmentId: number) {
     })();
     return () => {
       active = false;
+      controller.abort();
       if (blobUri) URL.revokeObjectURL(blobUri);
     };
   }, [subjectId, attachmentId, origin]);
