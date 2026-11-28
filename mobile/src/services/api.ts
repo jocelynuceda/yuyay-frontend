@@ -40,7 +40,7 @@ import type {
   MedicationSchedule,
   MedicationScheduleInput,
 } from '../types';
-import type { CareAuthorizationDeclaration, CareAuthorizationPolicy, CareSubjectCreation } from '../types/careAuthorization';
+import type { CareAuthorizationDeclaration, CareAuthorizationInput, CareAuthorizationPolicy, CareSubjectCreation } from '../types/careAuthorization';
 
 /** Quita los campos vacíos para que el backend reciba null. */
 function clean<T extends object>(obj: T): T {
@@ -92,6 +92,9 @@ export const getCareAuthorizationPolicy = () =>
 
 export const getCareAuthorizationHistory = (id: number) =>
   restrictedSubject(id, () => http.get<CareAuthorizationDeclaration[]>(`/care-subjects/${id}/authorization-declarations`).then((r) => r.data));
+
+export const registerFirstDeclaration = (id: number, declaration: CareAuthorizationInput) =>
+  restrictedSubject(id, () => http.post(`/care-subjects/${id}/authorization-declarations`, { ...declaration, previousDeclarationId: null }));
 
 export interface CareSubjectCreationFields {
   name: string;

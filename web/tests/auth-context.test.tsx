@@ -15,6 +15,7 @@ import { ToastProvider } from '../src/contexts/ToastContext'
 import { useAuth } from '../src/hooks/useAuth'
 import AppRoutes from '../src/routes/AppRoutes'
 import * as http from '../src/services/http'
+import { openPendingPerson, pendingPersonPrefix } from '../src/utils/pendingPersonDraft'
 
 class MemoryStorage {
   data = new Map<string, string>()
@@ -220,12 +221,27 @@ for (const path of ['/', '/login', '/people']) {
 test('Elegir iniciar sesión de nuevo cierra la sesión guardada y lleva al login', async (t) => {
   const { b, storage, root } = await mount(seedFailedRestore, routesAt('/register'))
   t.after(async () => { await act(async () => root.unmount()) })
+  const local = window.localStorage
+  const key = `${pendingPersonPrefix}1`
+  const another = `${pendingPersonPrefix}2`
+  const firstWrite = openPendingPerson(key)!
+  local.setItem(another, 'borrador anterior')
+  local.setItem('yuyay.theme', 'dark')
+  t.after(() => local.clear())
 
   await act(async () => { buttonWithText('Iniciar sesión de nuevo').click() })
   assert.equal(document.getElementById('pathname')?.textContent, '/login')
   assert.equal(storage.getItem('yuyay.refreshToken'), null)
   assert.deepEqual(b.active(), [])
   assert.equal(ctx.restoreError, null)
+  assert.equal(local.getItem(another), null)
+  assert.equal(local.getItem('yuyay.theme'), 'dark')
+  // El formulario de otra pestaña aún no había guardado nada al salir.
+  assert.equal(await firstWrite.update('escritura tardía'), false)
+  const reopened = openPendingPerson(key)!
+  assert.equal(await firstWrite.update('escritura de la sesión anterior'), false)
+  assert.equal(local.getItem(key), null)
+  assert.equal(await reopened.update('borrador nuevo'), true)
 })
 
 test('La ruta de login conserva el formulario durante un intento que termina en 401', async (t) => {
