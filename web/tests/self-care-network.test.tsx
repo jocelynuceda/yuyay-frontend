@@ -97,7 +97,7 @@ test('una lista vacía anterior no se presenta como resultado durante una recarg
   let calls = 0
   let fail!: () => void
   api.defaults.adapter = async (config) => {
-    if (++calls === 1) return ok(config, [])
+    if (++calls !== 2) return ok(config, [])
     return new Promise((_resolve, reject) => {
       fail = () => reject(new AxiosError('Error técnico', 'ERR_BAD_RESPONSE', config, undefined,
         { ...ok(config, {}), status: 500 }))
@@ -107,8 +107,12 @@ test('una lista vacía anterior no se presenta como resultado durante una recarg
   await until(() => !!container.textContent?.includes('Aún no cuidas'))
   await act(async () => window.dispatchEvent(new window.Event('focus')))
   await until(() => !!fail)
-  assert.doesNotMatch(container.textContent!, /Aún no cuidas/)
+  assert.doesNotMatch(container.textContent!, /Aún no cuidas|0 personas/)
   await act(async () => fail())
   await until(() => !!container.querySelector('[role=alert]'))
-  assert.doesNotMatch(container.textContent!, /Aún no cuidas/)
+  assert.doesNotMatch(container.textContent!, /Aún no cuidas|0 personas/)
+  const retry = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Reintentar')!
+  await act(async () => retry.click())
+  await until(() => !!container.textContent?.includes('Aún no cuidas'))
+  assert.match(container.textContent!, /0 personas/)
 })

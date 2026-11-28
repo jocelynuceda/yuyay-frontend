@@ -75,7 +75,9 @@ async function main() {
     assert.equal(result.careSubjectId, person.id)
     assert.equal(result.role, 'PRINCIPAL')
     assert.ok(result.claimedAt)
-    assert.equal((await getCareSubject(person.id)).myRole, 'PRINCIPAL')
+    const receivedProfile = await getCareSubject(person.id)
+    assert.equal(receivedProfile.myRole, 'PRINCIPAL')
+    assert.equal(receivedProfile.ownProfile, true)
     const declarations = await getCareAuthorizationHistory(person.id)
     assert.equal(declarations[0].type, 'SELF')
     assert.equal(declarations[0].declaredByUserId, recipient.user.id)
@@ -84,7 +86,9 @@ async function main() {
     await expectHttpFailure(exchangeProfileClaim(validToken), 409)
 
     setTokens(caregiver)
-    assert.equal((await getCareSubject(person.id)).myRole, 'CAREGIVER')
+    const deliveredProfile = await getCareSubject(person.id)
+    assert.equal(deliveredProfile.myRole, 'CAREGIVER')
+    assert.equal(deliveredProfile.ownProfile, false)
     await expectHttpFailure(emitClaimInvitation(person.id, recipient.user.email), 403)
     const notice = (await api.get('/notifications', { params: { size: 100 } })).data
     const notifications = Array.isArray(notice) ? notice : notice.content

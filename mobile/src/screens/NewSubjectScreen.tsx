@@ -15,6 +15,9 @@ import { Sparkle } from '../components/Sparkle';
 import { StatusMessage } from '../components/StatusMessage';
 import { createCareSubject, type CareSubjectCreationFields } from '../services/api';
 import { useCareAuthorization } from '../hooks/useCareAuthorization';
+import { useCareSubjects } from '../hooks/useSubjectAccess';
+import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
+import { selfProfileState } from '../utils/selfProfile';
 import { useToast } from '../hooks/useToast';
 import { API_URL, ApiError, session } from '../services/http';
 import { readPendingPerson, removePendingPerson, writePendingPerson, type PersonDraft } from '../services/pendingPersonDraft';
@@ -45,6 +48,10 @@ export function NewSubjectScreen({ navigation }: Props) {
 function NewSubjectForm({ navigation, user }: { navigation: Props['navigation']; user: User }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const people = useCareSubjects();
+  useRefreshOnFocus(people.reload);
+  const ownership = selfProfileState(people);
+  const allowSelf = ownership === 'available';
   const draftKey = pendingPersonKey(API_URL, user.id);
   const [openedInSession] = useState(() => session.generation);
   const [savedDraft] = useState(() => readPendingPerson(draftKey));
@@ -107,6 +114,7 @@ function NewSubjectForm({ navigation, user }: { navigation: Props['navigation'];
   const draft = { name, dateParts, gender, notes };
   const drafts = useRef<Partial<Record<ProfileKind, typeof draft>>>({});
   function chooseProfileKind(next: Parameters<typeof authorization.chooseProfileKind>[0]) {
+    if (next === 'SELF' && !allowSelf) return;
     const previous = authorization.profileKind;
     if (previous !== next && (previous || next === 'SELF')) {
       drafts.current[previous ?? 'THIRD_PARTY'] = draft;
@@ -149,7 +157,7 @@ function NewSubjectForm({ navigation, user }: { navigation: Props['navigation'];
       return;
     }
     setSubmitted(true);
-    if (!authorization.declaration || !name.trim() || date.error) return;
+    if (!authorization.declaration || !name.trim() || date.error || (self && !allowSelf)) return;
     const data = { name: name.trim(), birthDate: date.iso, gender, notes: notes.trim() };
     const requestId = savingDraft ? draftRequestId.current : undefined;
     void submitCreation(prepareCareSubjectCreation(attempt.current, authorization.declaration, data, () => requestId ?? newRequestId()));
@@ -170,13 +178,14 @@ function NewSubjectForm({ navigation, user }: { navigation: Props['navigation'];
       attempt.current = null;
       setMustCheck(false);
       toast(`Se agregó a ${subject.name}.`);
+      people.reload();
       setCreated(subject);
     } catch (e) {
       const status = e instanceof ApiError ? e.status : undefined;
       const uncertain = creationOutcomeUncertain(status, attempt.current?.uncertain);
       attempt.current = { request, uncertain };
       setMustCheck(uncertain);
-      if (status === 409) authorization.review();
+      if (status === 409) { authorization.review(); people.reload(); }
       if (uncertain) {
         setError('No pudimos confirmar si la persona se guardó. Comprueba el guardado para continuar.');
       } else if (e instanceof ApiError) {
@@ -211,7 +220,12 @@ function NewSubjectForm({ navigation, user }: { navigation: Props['navigation'];
       </View>
 
       <StatusMessage message={error} />
-      <CareAuthorizationFields authorization={{ ...authorization, chooseProfileKind, chooseThirdPartyType }} disabled={saving || mustCheck} />
+      {ownership === 'checking' && <StatusMessage tone="info" message="Comprobando si ya tienes un perfil propio…" />}
+      {ownership === 'unknown' && <View>
+        <StatusMessage message="No pudimos comprobar tu perfil propio. Puedes seguir agregando a otra persona." />
+        <Button onPress={people.reload}>Volver a comprobar mi perfil</Button>
+      </View>}
+      <CareAuthorizationFields allowSelf={allowSelf} authorization={{ ...authorization, chooseProfileKind, chooseThirdPartyType }} disabled={saving || mustCheck} />
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Datos básicos</Text>
@@ -274,7 +288,7 @@ function NewSubjectForm({ navigation, user }: { navigation: Props['navigation'];
         icon="check"
         onPress={handleSave}
         loading={saving}
-        disabled={saving || (!mustCheck && !authorization.declaration)}
+        disabled={saving || (!mustCheck && (!authorization.declaration || (self && !allowSelf)))}
         contentStyle={styles.buttonContent}
         labelStyle={styles.buttonLabel}
         style={styles.button}

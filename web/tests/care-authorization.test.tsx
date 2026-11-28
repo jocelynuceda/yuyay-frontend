@@ -53,6 +53,11 @@ async function enterName(value: string) {
 }
 
 async function mount(node: ReactNode) {
+  const delegate = api.defaults.adapter
+  if (typeof delegate === 'function') {
+    api.defaults.adapter = (config) => config.method === 'get' && config.url === '/care-subjects'
+      ? Promise.resolve(ok(config, [])) : delegate(config)
+  }
   const root = createRoot(document.getElementById('root')!)
   await act(async () => root.render(node))
   return () => act(async () => root.unmount())
@@ -68,7 +73,7 @@ test('bloquea un perfil pendiente y recupera un guardado incierto con la misma s
     if (posts.length === 1) throw Object.assign(new Error('No llegó la respuesta'), { isAxiosError: true })
     return ok(config, { id: 51, name: 'Persona de prueba' })
   }
-  t.after(await mount(<CareSubjectForm onSaved={(subject) => savedIds.push(subject.id)} />))
+  t.after(await mount(<CareSubjectForm account={account} onSaved={(subject) => savedIds.push(subject.id)} />))
 
   assert.ok(submit().disabled)
   assert.equal(radio('SELF').checked, false)
@@ -117,7 +122,7 @@ test('revisa una política más reciente y conserva selección y datos después 
     }
     return ok(config, { id: 51, name: 'Persona de prueba' })
   }
-  t.after(await mount(<CareSubjectForm onSaved={() => {}} />))
+  t.after(await mount(<CareSubjectForm account={account} onSaved={() => {}} />))
   await enterName('Persona de prueba')
   await click(radio('FICTITIOUS'))
   await click(checkbox())
@@ -164,7 +169,7 @@ test('la fecha elegida en el calendario se envía al crear la persona', async (t
     posts.push(JSON.parse(config.data))
     return ok(config, { id: 51, name: 'Persona de prueba' })
   }
-  t.after(await mount(<CareSubjectForm onSaved={() => {}} />))
+  t.after(await mount(<CareSubjectForm account={account} onSaved={() => {}} />))
   await enterName('Persona de prueba')
   await click(radio('FICTITIOUS'))
   await click(checkbox())

@@ -44,3 +44,25 @@ Google real y dispositivos Android/iOS requieren comprobación manual aparte.
 Se incorporó origin/main 22066aa mediante integración local. El backend de referencia incluye c0cd5ce: el perfil debe copiar la fecha del DNI recibida en el registro, sin inventarla. El helper HTTP verifica esa igualdad.
 Web oculta el vacío anterior durante una recarga o un error y conserva su mensaje de incompatibilidad 409. Mobile conserva ese mensaje sin reintentar ni cerrar la sesión; actualmente el canje de entrega tiene interfaz en Web, no una pantalla nativa equivalente.
 Tras la integración pasaron 32 pruebas web y 23 móviles seleccionadas, lint, tipos móviles, build web y la integración HTTP local. No se repitieron las suites completas.
+
+- mobile/src/components/CareAuthorizationFields.tsx
+- mobile/src/screens/NewSubjectScreen.tsx
+- mobile/src/types/index.ts
+- mobile/src/utils/selfProfile.ts
+- mobile/tests/selfProfile.test.ts
+- mobile/tests/support/native-care-authorization.mjs
+- web/src/hooks/useAccessiblePeople.ts
+- web/src/pages/forms/CareAuthorizationFields.tsx
+- web/src/pages/forms/CareSubjectForm.tsx
+- web/src/types/index.ts
+- web/src/utils/selfProfile.ts
+- web/tests/care-authorization.test.tsx
+- web/tests/self-profile-creation.test.tsx
+- web/tests/integration/profile-claim.ts
+
+## Observaciones de los PR #97 y #103
+El listado incorpora ownProfile, calculado en Backend por el id del titular; para perfiles anteriores sin titular vinculado, se respeta la última declaración SELF explícita del usuario. No se deduce titularidad del nombre ni del rol PRINCIPAL.
+Los formularios de Web y Mobile solo ofrecen SELF tras una respuesta confirmada sin perfil propio. Durante carga, error o un contrato anterior sin indicador, mantienen la opción oculta y permiten agregar a otras personas. Se vuelve a consultar al regresar, crear o recibir un perfil y ante 409. Los reintentos de un guardado incierto conservan su solicitud.
+El contador web se oculta durante carga/error y reaparece al confirmar una respuesta exitosa. El DNI ficticio se comprueba contra 1990-01-01, tanto en la cuenta como en el perfil.
+Validar e integrar ambos PR conjuntamente después de la exposición; no desplegar ni integrar uno de forma aislada.
+Pruebas finales: Web 355/355, Mobile 163/163; lint de ambas plataformas, tipos móviles y build web correctos. PostgreSQL real y dispositivos nativos siguen pendientes.

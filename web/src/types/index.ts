@@ -59,6 +59,8 @@ export interface CareSubject {
   notes: string | null
   createdAt: string
   myRole: CareRole
+  /** Titularidad del usuario actual, calculada por el backend; ausente con servidores anteriores. */
+  ownProfile?: boolean
 }
 
 export interface CareSubjectRequest {

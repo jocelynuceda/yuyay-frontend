@@ -123,11 +123,11 @@ export function PeopleGrid({
 
       {data ? (
         <>
-          <p aria-live="polite" className="text-sm text-muted">
+          {!loading && !error && <p aria-live="polite" className="text-sm text-muted">
             {query
               ? `${visible.length} de ${subjects.length} personas coinciden con “${params.q.trim()}”`
               : `${subjects.length} persona${subjects.length === 1 ? '' : 's'}`}
-          </p>
+          </p>}
           {visible.length === 0 ? (
             !loading && !error ? (
               <p className="rounded-2xl bg-card p-6 text-muted">
