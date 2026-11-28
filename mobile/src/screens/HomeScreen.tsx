@@ -4,7 +4,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { Alert, FlatList, Platform, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CareSubjectCard } from '../components/CareSubjectCard';
@@ -23,6 +23,7 @@ import { useCareSubjects, useSubjectAccess, useSubjectNotifications } from '../h
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import {
   acceptInvitation,
+  declineInvitation,
   getConsultations,
   getPendingInvitations,
   subjectAccess,
@@ -146,6 +147,17 @@ export function HomeScreen({ navigation }: Props) {
         </View>
       </LinearGradient>
 
+      {/* Invitaciones pendientes, arriba para que no se pasen por alto */}
+      {invitations.data && invitations.data.length > 0 ? (
+        <Invitations
+          items={invitations.data}
+          onChanged={() => {
+            invitations.reload();
+            subjects.reload();
+          }}
+        />
+      ) : null}
+
       {/* Bento: tarjetas de distintos tamaños que aparecen escalonadas */}
       <View style={styles.bento}>
         <FadeIn delay={80} style={styles.flex}>
@@ -267,16 +279,6 @@ export function HomeScreen({ navigation }: Props) {
         />
       </FadeIn>
 
-      {invitations.data && invitations.data.length > 0 ? (
-        <Invitations
-          items={invitations.data}
-          onAccepted={() => {
-            invitations.reload();
-            subjects.reload();
-          }}
-        />
-      ) : null}
-
       <StatusMessage message={subjects.error} />
       <View style={styles.sectionRow}>
         <Text style={styles.section}>Personas a tu cuidado</Text>
@@ -339,23 +341,54 @@ export function HomeScreen({ navigation }: Props) {
   );
 }
 
-function Invitations({ items, onAccepted }: { items: CareRelationship[]; onAccepted: () => void }) {
+/** Máximo de invitaciones visibles antes de "Ver más". */
+const VISIBLE_INVITATIONS = 2;
+
+function Invitations({ items, onChanged }: { items: CareRelationship[]; onChanged: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? items : items.slice(0, VISIBLE_INVITATIONS);
 
   async function accept(id: number) {
     setBusyId(id);
     setError(null);
     try {
       await acceptInvitation(id);
-      onAccepted();
+      onChanged();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo aceptar.');
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function decline(id: number) {
+    setBusyId(id);
+    setError(null);
+    try {
+      await declineInvitation(id);
+      onChanged();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo rechazar.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function confirmDecline(r: CareRelationship) {
+    const message = `¿Rechazar la invitación para cuidar a ${r.careSubjectName}? Podrán volver a invitarte más adelante.`;
+    // Alert.alert con botones no hace nada en react-native-web
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) void decline(r.id);
+      return;
+    }
+    Alert.alert('Rechazar invitación', message, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Rechazar', style: 'destructive', onPress: () => void decline(r.id) },
+    ]);
   }
 
   return (
@@ -365,26 +398,51 @@ function Invitations({ items, onAccepted }: { items: CareRelationship[]; onAccep
         <Text style={styles.invitationsTitle}>Te invitaron a cuidar</Text>
       </View>
       <StatusMessage message={error} />
-      {items.map((r) => (
+      {visible.map((r) => (
         <View key={r.id} style={styles.invitation}>
-          <View style={styles.flex}>
+          <View style={styles.invitationInfo}>
             <Text style={styles.invitationName}>{r.careSubjectName}</Text>
             <Text style={styles.invitationMeta}>
               Como {careRoleLabel[r.role].toLowerCase()}
               {r.relationshipLabel ? ` · ${r.relationshipLabel}` : ''}
             </Text>
           </View>
-          <Button
-            mode="contained"
-            compact
-            loading={busyId === r.id}
-            onPress={() => accept(r.id)}
-            style={styles.acceptButton}
-          >
-            Aceptar
-          </Button>
+          <View style={styles.invitationActions}>
+            <Button
+              mode="contained"
+              compact
+              loading={busyId === r.id}
+              disabled={busyId !== null}
+              onPress={() => accept(r.id)}
+              style={styles.acceptButton}
+              accessibilityLabel={`Aceptar invitación para cuidar a ${r.careSubjectName}`}
+            >
+              Aceptar
+            </Button>
+            <Button
+              mode="text"
+              compact
+              textColor={colors.danger}
+              disabled={busyId !== null}
+              onPress={() => confirmDecline(r)}
+              accessibilityLabel={`Rechazar invitación para cuidar a ${r.careSubjectName}`}
+            >
+              Rechazar
+            </Button>
+          </View>
         </View>
       ))}
+      {items.length > VISIBLE_INVITATIONS ? (
+        <Pressable
+          onPress={() => setExpanded((v) => !v)}
+          accessibilityRole="button"
+          style={styles.moreLink}
+        >
+          <Text style={styles.moreText}>
+            {expanded ? 'Ver menos' : `Ver ${items.length - VISIBLE_INVITATIONS} más`}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -500,7 +558,7 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 16,
-    marginTop: 16,
+    marginTop: 18,
     gap: 10,
     ...shadow,
     shadowOpacity: 0.06,
@@ -511,6 +569,10 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     fontSize: 18,
     color: colors.ink,
   },
+  invitationInfo: { flex: 1, minWidth: 0 },
+  invitationActions: { alignItems: 'center' },
+  moreLink: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 8 },
+  moreText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary },
   invitation: {
     flexDirection: 'row',
     alignItems: 'center',

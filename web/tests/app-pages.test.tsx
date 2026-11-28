@@ -270,6 +270,13 @@ function backend() {
       db.pending = db.pending.filter((r) => r !== rel)
       return ok(config, { ...rel, status: 'ACTIVE' })
     }
+    const decline = url.match(/^\/me\/relationships\/(\d+)\/decline$/)
+    if (decline && method === 'POST') {
+      const rel = db.pending.find((r) => r.id === Number(decline[1]))
+      if (!rel) throw fail(config, 404)
+      db.pending = db.pending.filter((r) => r !== rel)
+      return { config, data: undefined, headers: {}, status: 204, statusText: 'No Content' }
+    }
     if (url === '/notifications/unread-count') return ok(config, { unreadCount: db.notifications.filter((n) => !n.read).length })
     if (url === '/notifications') {
       const all = params.unread === true ? db.notifications.filter((n) => !n.read) : db.notifications
@@ -867,6 +874,33 @@ test('Enlace del correo sin sesión: login y vuelve a la invitación; aceptar ll
   await click(byText('button', /Aceptar invitación/), 'el botón Aceptar invitación')
   await waitFor(() => pathname() === '/people/3', 'ir a la persona aceptada')
   assert.ok(b.calls.includes('POST /me/relationships/7/accept'))
+})
+
+test('Invitación: Rechazar pide confirmación y Cancelar restaura los botones', async (t) => {
+  const { b, unmount } = await mountApp('/invitations/7', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Lucía/.test(text()), 'mostrar la invitación')
+  await click(byText('button', 'Rechazar'), 'el botón Rechazar')
+  assert.match(text(), /¿Rechazar la invitación para cuidar a Lucía\? Podrán volver a invitarte más adelante\./)
+  assert.equal(byText('button', /Aceptar invitación/), null, 'los botones se reemplazan por la confirmación')
+  assert.ok(byText('button', 'Sí, rechazar'))
+  assert.equal(document.activeElement?.getAttribute('role'), 'alert', 'el foco va al texto de confirmación')
+  await click(byText('button', 'Cancelar'), 'el botón Cancelar')
+  assert.ok(byText('button', /Aceptar invitación/), 'vuelven los botones')
+  assert.equal(byText('button', 'Sí, rechazar'), null)
+  assert.equal(document.activeElement, byText('button', 'Rechazar'), 'el foco vuelve a Rechazar')
+  assert.ok(!b.calls.some((c) => c.includes('/decline')), 'cancelar no rechaza')
+})
+
+test('Invitación: Sí, rechazar llama al backend y vuelve al inicio', async (t) => {
+  const { b, unmount } = await mountApp('/invitations/7', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Lucía/.test(text()), 'mostrar la invitación')
+  await click(byText('button', 'Rechazar'), 'el botón Rechazar')
+  await click(byText('button', 'Sí, rechazar'), 'el botón Sí, rechazar')
+  await waitFor(() => pathname() === '/', 'volver al inicio')
+  assert.ok(b.calls.includes('POST /me/relationships/7/decline'))
+  assert.deepEqual(b.db.pending, [])
 })
 
 test('Invitación que ya no está pendiente: estado vacío, sin botón de aceptar', async (t) => {
