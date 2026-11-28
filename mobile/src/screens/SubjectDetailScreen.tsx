@@ -243,7 +243,7 @@ function SubjectProfile({
           <PillAction
             label="Nuevo registro"
             onPress={() => navigation.navigate('NewEntry', { subjectId })}
-            onDragChange={onSwipeLock}
+            onHoldChange={onSwipeLock}
           />
         </View>
       </ProfileCard>
