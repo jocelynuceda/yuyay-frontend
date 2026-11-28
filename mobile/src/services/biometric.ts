@@ -1,11 +1,10 @@
+import { isRunningInExpoGo } from 'expo';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { describeBiometrics, type BiometricSupport } from '../utils/biometricSupport';
 
-export type BiometricSupport =
-  | { status: 'unsupported' }
-  | { status: 'not-enrolled'; label: string }
-  | { status: 'available'; label: string };
+export type { BiometricKind, BiometricSupport } from '../utils/biometricSupport';
 
 /**
  * Comprueba si este teléfono puede proteger la sesión con biometría. No basta con tener sensor: tiene que haber
@@ -14,16 +13,19 @@ export type BiometricSupport =
 export async function getBiometricSupport(): Promise<BiometricSupport> {
   if (Platform.OS === 'web') return { status: 'unsupported' };
   try {
-    const [hardware, level, types] = await Promise.all([
+    const [hasHardware, level, types] = await Promise.all([
       LocalAuthentication.hasHardwareAsync(),
       LocalAuthentication.getEnrolledLevelAsync(),
       LocalAuthentication.supportedAuthenticationTypesAsync(),
     ]);
-    if (!hardware) return { status: 'unsupported' };
-    const face = types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION);
-    const label = Platform.OS === 'ios' ? (face ? 'Face ID' : 'Touch ID') : 'tu huella';
-    const strong = level >= LocalAuthentication.SecurityLevel.BIOMETRIC_STRONG && SecureStore.canUseBiometricAuthentication();
-    return strong ? { status: 'available', label } : { status: 'not-enrolled', label };
+    return describeBiometrics({
+      platform: Platform.OS,
+      hasHardware,
+      face: types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION),
+      fingerprint: types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT),
+      strong: level >= LocalAuthentication.SecurityLevel.BIOMETRIC_STRONG && SecureStore.canUseBiometricAuthentication(),
+      expoGo: isRunningInExpoGo(),
+    });
   } catch {
     return { status: 'unsupported' };
   }

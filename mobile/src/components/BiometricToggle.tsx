@@ -5,6 +5,7 @@ import { Switch } from 'react-native-paper';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { getBiometricSupport, type BiometricSupport } from '../services/biometric';
+import { biometricHint } from '../utils/biometricSupport';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 /**
@@ -44,14 +45,10 @@ export function BiometricToggle() {
   return (
     <View style={styles.card}>
       <View style={styles.row}>
-        <Ionicons name="finger-print" size={22} color={colors.primary} />
+        <Ionicons name={support.status !== 'unsupported' && support.kind === 'face' ? 'scan' : 'finger-print'} size={22} color={colors.primary} />
         <View style={styles.text}>
           <Text style={styles.title}>Desbloquear con {label}</Text>
-          <Text style={styles.hint}>
-            {canEnable || biometricEnabled
-              ? 'Al abrir Yuyay o volver a la app se pedirá tu huella o rostro. Se guarda solo en este celular.'
-              : 'Tu teléfono tiene sensor, pero no hay huella ni rostro registrado. Regístralo en los ajustes del teléfono para activar esta opción.'}
-          </Text>
+          <Text style={styles.hint}>{biometricHint(support, biometricEnabled)}</Text>
         </View>
         <Switch
           value={biometricEnabled}
