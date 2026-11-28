@@ -3,9 +3,9 @@ import { getCareAuthorizationPolicy } from '../services/api';
 import { makeCareDeclaration, type ProfileKind, type ThirdPartyType } from '../utils/careAuthorization';
 import { useFetch } from './useFetch';
 
-export function useCareAuthorization(enabled = true) {
-  const [profileKind, setProfileKind] = useState<ProfileKind | null>(null)
-  const [thirdPartyType, setThirdPartyType] = useState<ThirdPartyType | null>(null)
+export function useCareAuthorization(enabled = true, resumePending = false) {
+  const [profileKind, setProfileKind] = useState<ProfileKind | null>(resumePending ? 'THIRD_PARTY' : null)
+  const [thirdPartyType, setThirdPartyType] = useState<ThirdPartyType | null>(resumePending ? 'PENDING' : null)
   const [acceptedVersion, setAcceptedVersion] = useState<string | null>(null)
   const policy = useFetch(() => enabled ? getCareAuthorizationPolicy() : Promise.resolve(null), [enabled])
   const selectedType = profileKind === 'THIRD_PARTY' ? thirdPartyType : profileKind
@@ -21,7 +21,7 @@ export function useCareAuthorization(enabled = true) {
     setAcceptedVersion(null)
   }
 
-  function chooseThirdPartyType(next: ThirdPartyType) {
+  function chooseThirdPartyType(next: ThirdPartyType | null) {
     if (next === thirdPartyType) return
     setThirdPartyType(next)
     setAcceptedVersion(null)
