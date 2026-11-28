@@ -7,12 +7,14 @@ const compact = (date: Date) => date.toISOString().replace(/[-:]|\.\d{3}/g, '')
 
 /** Prepara un evento para revisar en Google Calendar con la fecha y la hora local de la consulta. */
 export function googleCalendarUrl(
-  { date, reason, time }: Pick<Consultation, 'date' | 'reason' | 'time'>,
+  { date, reason, time, notes }: Pick<Consultation, 'date' | 'reason' | 'time' | 'notes'>,
   subjectName: string,
 ) {
   const url = new URL('https://calendar.google.com/calendar/render')
   url.searchParams.set('action', 'TEMPLATE')
   url.searchParams.set('text', `Cita de ${subjectName}: ${reason}`)
+  const details = [`Persona: ${subjectName}`, `Motivo: ${reason}`, notes?.trim() ? `Notas: ${notes.trim()}` : null]
+  url.searchParams.set('details', details.filter(Boolean).join('\n'))
 
   if (time) {
     // El navegador interpreta la hora como local. Usamos instantes para conservar la duración al cambiar el horario.

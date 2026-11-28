@@ -53,11 +53,13 @@ export function googleCalendarUrl(
         .map(compactDateTime)
         .join('/')
     : `${compactDate(new Date(year, month - 1, day))}/${compactDate(new Date(year, month - 1, day + 1))}`;
+  const notes = consultation.notes?.trim();
+  const details = [`Persona: ${subjectName}`, `Motivo: ${consultation.reason}`, notes ? `Notas: ${notes}` : null];
   const params = [
     ['action', 'TEMPLATE'],
     ['text', `Cita de ${subjectName}: ${consultation.reason}`],
     ['dates', dates],
-    ['details', consultation.notes ?? ''],
+    ['details', details.filter(Boolean).join('\n')],
     // La hora escrita es la del teléfono, aunque la cuenta de Google tenga otra zona
     ...(time ? [['ctz', Intl.DateTimeFormat().resolvedOptions().timeZone]] : []),
   ];
