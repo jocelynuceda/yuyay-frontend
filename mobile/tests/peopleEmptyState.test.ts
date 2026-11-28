@@ -57,3 +57,13 @@ test('el perfil propio del backend cuenta como persona y no se agregan filas art
     { initialLoading: false, showEmpty: false, count: 1 });
   assert.deepEqual(rows, [own]);
 });
+
+test('la ilustración de avisos mantiene el tamaño grande y el estilo sin recuadro', () => {
+  const html = renderToStaticMarkup(React.createElement(EmptyState, {
+    title: 'Sin notificaciones', image: 1, showIcon: false,
+  }));
+  assert.match(html, /data-illustration/);
+  assert.match(html, /paddingTop.*56/);
+  assert.match(html, /width.*168/);
+  assert.doesNotMatch(html, /borderStyle|data-decoration|paddingVertical/);
+});
