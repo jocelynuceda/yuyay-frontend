@@ -270,9 +270,12 @@ test('avisos: «Posponer» no programa nada si los avisos se apagaron después d
 function fakeStorage(initial: string | null) {
   const store = { value: initial };
   let gate: Promise<void> | null = null;
+  let entered: (() => void) | null = null;
   const storage = {
     read: async () => store.value,
     write: async () => {
+      entered?.();
+      entered = null;
       if (gate) await gate;
       store.value = '1';
     },
@@ -280,11 +283,15 @@ function fakeStorage(initial: string | null) {
       store.value = null;
     },
   };
-  /** El próximo `write` queda esperando hasta `resume()`. */
+  /**
+   * El próximo `write` queda esperando hasta `resume()`.
+   * `started` se cumple cuando la escritura ya empezó.
+   */
   const pauseWrite = () => {
     let resume!: () => void;
     gate = new Promise<void>((r) => (resume = () => { gate = null; r(); }));
-    return { resume };
+    const started = new Promise<void>((r) => (entered = r));
+    return { resume, started };
   };
   return { store, storage, pauseWrite };
 }
@@ -302,6 +309,7 @@ test('preferencia: si A sale mientras se guarda y entra B, la activación de A s
   const preference = createReminderPreference(storage, () => active);
   const gate = pauseWrite();
   const enabling = preference.enable(7);
+  await gate.started;
   active = null;
   active = 8;
   gate.resume();
@@ -315,6 +323,7 @@ test('preferencia: si B apaga mientras se guarda la activación de A, queda apag
   const preference = createReminderPreference(storage, () => active);
   const gate = pauseWrite();
   const enabling = preference.enable(7);
+  await gate.started;
   active = 8;
   const disabling = preference.disable();
   gate.resume();
@@ -327,6 +336,7 @@ test('preferencia: si B activa mientras se guarda la de A, queda encendida por B
   const preference = createReminderPreference(storage, () => active);
   const gate = pauseWrite();
   const enablingA = preference.enable(7);
+  await gate.started;
   active = 8;
   const enablingB = preference.enable(8);
   gate.resume();
@@ -340,6 +350,7 @@ test('preferencia: una activación vieja no apaga los avisos que ya estaban ence
   const preference = createReminderPreference(storage, () => active);
   const gate = pauseWrite();
   const enabling = preference.enable(7);
+  await gate.started;
   active = 8;
   gate.resume();
   assert.equal(await enabling, false);
