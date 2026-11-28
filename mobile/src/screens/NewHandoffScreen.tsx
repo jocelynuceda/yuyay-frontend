@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { ClampedText } from '../components/ClampedText';
 import { ConfidenceBadge } from '../components/ConfidenceBadge';
 import { EmptyState } from '../components/EmptyState';
 import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
@@ -22,7 +23,6 @@ import { createAttemptKey } from '../utils/attemptKey';
 import { formatDate } from '../utils/format';
 import { manualHandoffInput } from '../utils/manualHandoff';
 import { newSummaryRequestId } from '../utils/summaryRequestId';
-import { isLongText } from '../utils/text';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewHandoff'>;
 
@@ -157,9 +157,10 @@ function ManualHandoffScreen({ route, navigation }: Props) {
                         </View>
                         {e.latestVersion.occurredOn ? <Text style={styles.itemMeta}>{formatDate(e.latestVersion.occurredOn)}</Text> : null}
                         {extra ? (
-                          <>
-                            <Text style={styles.itemMeta} numberOfLines={3}>{extra}</Text>
-                            {isLongText(extra) ? (
+                          <ClampedText
+                            text={extra}
+                            style={styles.itemMeta}
+                            renderMore={() => (
                               // Al ser un Pressable interno, captura el toque y no alterna la selección
                               <Pressable
                                 onPress={() => setReading({ title, text: extra })}
@@ -169,8 +170,8 @@ function ManualHandoffScreen({ route, navigation }: Props) {
                               >
                                 <Text style={styles.more}>Ver todo</Text>
                               </Pressable>
-                            ) : null}
-                          </>
+                            )}
+                          />
                         ) : null}
                       </View>
                     </Pressable>
