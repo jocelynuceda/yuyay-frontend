@@ -24,3 +24,7 @@ export async function acceptInvitation(relationshipId: number) {
   const { data } = await api.post<CareRelationship>(`/me/relationships/${relationshipId}/accept`)
   return data
 }
+
+export async function declineInvitation(relationshipId: number) {
+  await api.post(`/me/relationships/${relationshipId}/decline`)
+}

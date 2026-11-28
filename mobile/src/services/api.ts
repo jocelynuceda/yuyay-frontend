@@ -149,6 +149,9 @@ export const getPendingInvitations = () =>
 export const acceptInvitation = (relationshipId: number) =>
   http.post<CareRelationship>(`/me/relationships/${relationshipId}/accept`).then((r) => r.data);
 
+export const declineInvitation = (relationshipId: number) =>
+  http.post<void>(`/me/relationships/${relationshipId}/decline`).then(() => undefined);
+
 export const getHealthCategories = () => http.get<HealthCategory[]>('/health-categories').then((r) => r.data);
 
 export const getHealthEntriesPage = (subjectId: number, page = 0, category?: string, size = 100) =>
