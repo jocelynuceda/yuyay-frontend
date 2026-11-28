@@ -11,6 +11,7 @@ import {
   matchesWho,
   limaInstant,
   planDoseReminders,
+  scheduleView,
   remindersUntil,
   staleSnoozed,
   startOfWeek,
@@ -275,4 +276,18 @@ test('el texto del aviso no dice el medicamento ni la persona', () => {
   const content = doseReminderContent({ mine: false });
   assert.doesNotMatch(`${content.title} ${content.body}`, /Losartán|Rosa/);
   assert.match(doseReminderContent({ mine: true }).body, /tu medicamento/);
+});
+
+test('scheduleView: mientras carga o si falló no ofrece crear un horario encima de uno existente', () => {
+  const existing = { id: 1 };
+  assert.deepEqual(scheduleView({ saved: undefined, data: null, loading: true, error: null }), { kind: 'loading' });
+  assert.deepEqual(scheduleView({ saved: undefined, data: null, loading: false, error: 'Sin conexión' }), { kind: 'error', message: 'Sin conexión' });
+  // Solo con la respuesta del servidor confirmando que no hay horario se ofrece crearlo
+  assert.deepEqual(scheduleView({ saved: undefined, data: null, loading: false, error: null }), { kind: 'none' });
+  assert.deepEqual(scheduleView({ saved: undefined, data: existing, loading: false, error: null }), { kind: 'show', schedule: existing });
+  // Lo ya cargado se sigue mostrando aunque una recarga falle
+  assert.deepEqual(scheduleView({ saved: undefined, data: existing, loading: false, error: 'Sin conexión' }), { kind: 'show', schedule: existing });
+  // Lo guardado o quitado en la pantalla manda
+  assert.deepEqual(scheduleView({ saved: null, data: existing, loading: false, error: null }), { kind: 'none' });
+  assert.deepEqual(scheduleView({ saved: existing, data: null, loading: true, error: null }), { kind: 'show', schedule: existing });
 });

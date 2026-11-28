@@ -958,6 +958,24 @@ test('Inicio: agenda de medicamentos; se marca desde 2 h antes hasta 30 min desp
   await waitFor(() => /No hay tomas de Rosa este día/.test(agenda().textContent ?? ''), 'día vacío con el filtro de Rosa')
 })
 
+test('Inicio: al cambiar de semana no se muestran las tomas de la semana anterior mientras carga', async (t) => {
+  let release!: () => void
+  let nextWeek = false
+  const { unmount } = await mountApp('/', { loggedIn: true, wrap: (adapter) => async (config: any) => {
+    if (nextWeek && String(config.url).endsWith('/me/medication-agenda')) await new Promise<void>((resolve) => { release = resolve })
+    return adapter(config)
+  } })
+  t.after(unmount)
+  await waitFor(() => /Metformina/.test(text()), 'tomas de esta semana')
+  const agenda = () => document.getElementById('agenda-title')!.closest('section')!
+  nextWeek = true
+  await click(agenda().querySelector('button[aria-label="Semana siguiente"]'), 'semana siguiente')
+  await waitFor(() => !!release, 'pide la semana siguiente')
+  assert.doesNotMatch(agenda().textContent ?? '', /No hay tomas|Metformina/, 'no muestra la semana anterior como si fuera la nueva')
+  release()
+  await waitFor(() => /No hay tomas para este día/.test(agenda().textContent ?? ''), 'semana siguiente cargada')
+})
+
 test('Medicamento: si el horario no carga, no ofrece crear uno encima; con «Reintentar» lo muestra', async (t) => {
   let failing = true
   const { b, unmount } = await mountApp('/people/1/entries/12', { loggedIn: true, seed: (db) => {

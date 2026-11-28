@@ -125,6 +125,24 @@ export const takenStatusFor = (dose: Pick<AgendaDose, 'date' | 'time'>, now: Dat
 export const statusToSend = (dose: Pick<AgendaDose, 'date' | 'time'>, chosen: DoseStatus, now: Date = new Date()): DoseStatus =>
   chosen === 'SKIPPED' ? chosen : takenStatusFor(dose, now);
 
+/**
+ * Qué mostrar en la pantalla del horario de un medicamento. Mientras carga o si falló, no se sabe si
+ * ya existe un horario: no se ofrece crear uno, porque guardarlo reemplazaría el existente.
+ * `saved` es lo guardado en esta pantalla (undefined si todavía no se guardó nada).
+ */
+export function scheduleView<T>(state: { saved: T | null | undefined; data: T | null; loading: boolean; error: string | null }):
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'none' }
+  | { kind: 'show'; schedule: T } {
+  const current = state.saved !== undefined ? state.saved : state.data;
+  if (state.saved === undefined && state.data === null) {
+    if (state.loading) return { kind: 'loading' };
+    if (state.error) return { kind: 'error', message: state.error };
+  }
+  return current ? { kind: 'show', schedule: current } : { kind: 'none' };
+}
+
 export const isTaken = (dose: Pick<AgendaDose, 'status'>) => dose.status === 'TAKEN' || dose.status === 'LATE';
 
 // ---- Filtro por persona ----

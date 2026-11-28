@@ -201,6 +201,11 @@ export function MedicationAgenda({
       <Text style={styles.hint}>Marca cada toma desde 2 horas antes hasta 30 minutos después. Si nadie la marca, queda como no tomada.</Text>
 
       <StatusMessage message={agenda.data ? null : agenda.error} />
+      {agenda.error && !agenda.data && !agenda.loading ? (
+        <Pressable onPress={agenda.reload} style={styles.retry} accessibilityRole="button">
+          <Text style={styles.retryText}>Reintentar</Text>
+        </Pressable>
+      ) : null}
       {(!agenda.data && agenda.loading) || !accessible ? <ActivityIndicator color={colors.primary} /> : null}
       {agenda.data && accessible && ofDay.length === 0 ? (
         <View style={styles.empty}>
@@ -345,6 +350,8 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   dot: { width: 5, height: 5, borderRadius: 3 },
   hint: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   empty: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 14, gap: 4 },
+  retry: { alignSelf: 'flex-start', paddingVertical: 6 },
+  retryText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.primary },
   emptyTitle: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
   emptyText: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   group: { gap: 8 },

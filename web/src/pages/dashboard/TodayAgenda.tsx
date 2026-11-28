@@ -44,7 +44,12 @@ export function TodayAgenda({ accessible }: { accessible: ReadonlySet<number> | 
   const [selected, setSelected] = useState(today)
   const weekStart = startOfWeek(selected)
   const weekEnd = addDays(weekStart, 6)
-  const agenda = useFetch((signal) => getMedicationAgenda(weekStart, weekEnd, signal), [weekStart])
+  // Cada lectura recuerda su semana: al cambiar de semana no se muestran las tomas de la anterior
+  const agenda = useFetch(
+    (signal) => getMedicationAgenda(weekStart, weekEnd, signal).then((doses) => ({ week: weekStart, doses })),
+    [weekStart],
+  )
+  const weekDoses = agenda.data?.week === weekStart ? agenda.data.doses : null
   // Al volver a la pestaña se relee: otro cuidador pudo marcar tomas o cambiar horarios
   useRefreshOnReturn(agenda.reload, !agenda.loading)
   // Cambios ya confirmados por el servidor, para no recargar toda la semana al marcar
@@ -58,7 +63,7 @@ export function TodayAgenda({ accessible }: { accessible: ReadonlySet<number> | 
   const [chosen, setWho] = useState<Who>('all')
 
   const allDoses = accessible
-    ? (agenda.data ?? []).filter((dose) => accessible.has(dose.careSubjectId)).map((dose) => changes[doseKey(dose)] ?? dose)
+    ? (weekDoses ?? []).filter((dose) => accessible.has(dose.careSubjectId)).map((dose) => changes[doseKey(dose)] ?? dose)
     : []
   const people = peopleIn(allDoses)
   // Si en esta semana la persona elegida no tiene tomas, se muestran todas
@@ -134,9 +139,9 @@ export function TodayAgenda({ accessible }: { accessible: ReadonlySet<number> | 
         Puedes marcar cada toma desde 2 horas antes hasta 30 minutos después de su hora. Si nadie la marca, queda como no tomada.
       </p>
 
-      {agenda.error && !agenda.data ? (
+      {agenda.error && !weekDoses ? (
         <LoadError message={agenda.error} onRetry={agenda.reload} />
-      ) : !agenda.data || !accessible ? (
+      ) : !weekDoses || !accessible ? (
         <Skeleton lines={3} />
       ) : ofDay.length === 0 ? (
         <div className="grid justify-items-start gap-2 rounded-2xl bg-surface p-5">

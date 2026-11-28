@@ -21,7 +21,7 @@ import { parseTime, TIME_ERROR, timePartsOf, toApiTime, type TimeParts } from '.
 import { confirmAction } from '../utils/confirm';
 import { datePartsOf, parseDateParts, type DateParts } from '../utils/dates';
 import { formatDate, formatTime } from '../utils/format';
-import { describeDays, FREQUENCY_PRESETS, todayInLima, WEEK_DAYS } from '../utils/medicationSchedule';
+import { describeDays, FREQUENCY_PRESETS, scheduleView, todayInLima, WEEK_DAYS } from '../utils/medicationSchedule';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'MedicationSchedule'>;
 
@@ -38,16 +38,20 @@ export function MedicationScheduleScreen({ route }: Props) {
   const { user } = useAuth();
   const toast = useToast();
   const styles = useStyles();
-  const current = saved !== undefined ? saved : schedule.data;
-
-  if (schedule.loading && current === undefined) return <LoadingView />;
-  if (current === undefined || (schedule.error && saved === undefined && !schedule.data)) {
+  // Mientras carga o si falló no se ofrece «Agregar horario»: podría reemplazar uno que ya existe
+  const view = scheduleView({ saved, data: schedule.data, loading: schedule.loading, error: schedule.error });
+  if (view.kind === 'loading') return <LoadingView />;
+  if (view.kind === 'error') {
     return (
       <FormScroll contentContainerStyle={formStyles.container}>
-        <StatusMessage message={schedule.error ?? 'No pudimos abrir el horario.'} />
+        <StatusMessage message={view.message} />
+        <Button mode="outlined" icon="refresh" onPress={schedule.reload}>
+          Reintentar
+        </Button>
       </FormScroll>
     );
   }
+  const current = view.kind === 'show' ? view.schedule : null;
 
   if (editing || !current) {
     return editing ? (
