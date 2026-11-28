@@ -27,6 +27,7 @@ function LockContent() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [label, setLabel] = useState('biometría');
+  const [face, setFace] = useState(false);
   const running = useRef(false);
 
   const attempt = useCallback(async () => {
@@ -36,9 +37,16 @@ function LockContent() {
     setMessage(null);
     try {
       const support = await getBiometricSupport();
-      if (support.status !== 'unsupported') setLabel(support.label);
+      if (support.status !== 'unsupported') {
+        setLabel(support.label);
+        setFace(support.kind === 'face');
+      }
       if (support.status !== 'available') {
-        setMessage('Ya no hay huella ni rostro registrado en este teléfono. Entra con tu cuenta para continuar.');
+        setMessage(
+          support.status === 'needs-app'
+            ? 'En Expo Go el iPhone no deja usar Face ID. Entra con tu cuenta para continuar.'
+            : 'Ya no hay huella ni rostro registrado en este teléfono. Entra con tu cuenta para continuar.',
+        );
         return;
       }
       const result = await unlock();
@@ -63,7 +71,7 @@ function LockContent() {
       <Text style={styles.title}>Yuyay está bloqueado</Text>
       <Text style={styles.body}>Desbloquéalo con {label} para ver la información de las personas a tu cuidado.</Text>
       {message ? <Text style={styles.message} accessibilityLiveRegion="polite">{message}</Text> : null}
-      <Button mode="contained" icon="fingerprint" onPress={() => { void attempt(); }} loading={busy} disabled={busy} style={styles.button}>
+      <Button mode="contained" icon={face ? 'face-recognition' : 'fingerprint'} onPress={() => { void attempt(); }} loading={busy} disabled={busy} style={styles.button}>
         Desbloquear
       </Button>
       <Button onPress={() => { void logout(); }} disabled={busy}>
