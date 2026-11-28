@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { ClampedText } from '../components/ClampedText';
-import { ConfidenceBadge } from '../components/ConfidenceBadge';
+import { ConfidenceBadge, confidenceLabel } from '../components/ConfidenceBadge';
 import { EmptyState } from '../components/EmptyState';
 import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
@@ -17,7 +17,7 @@ import { useFetch } from '../hooks/useFetch';
 import { createHandoff, getHealthCategories, getHealthEntries } from '../services/api';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { HomeStackParamList } from '../types';
+import type { HealthEntry, HomeStackParamList } from '../types';
 import { categoryMeta, fallbackCategory } from '../utils/categories';
 import { createAttemptKey } from '../utils/attemptKey';
 import { formatDate } from '../utils/format';
@@ -127,56 +127,15 @@ function ManualHandoffScreen({ route, navigation }: Props) {
                   <Text style={styles.groupTitle}>{meta.plural}</Text>
                   <Text style={styles.groupToggle}>{allOn ? 'Quitar todos' : 'Marcar todos'}</Text>
                 </Pressable>
-                {items.map((e) => {
-                  const on = selected.has(e.id);
-                  const title = e.latestVersion.title;
-                  const extra = [e.latestVersion.details, e.latestVersion.notes].filter(Boolean).join('\n');
-                  return (
-                    <Pressable
-                      key={e.id}
-                      onPress={() => toggle([e.id])}
-                      style={styles.item}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: on }}
-                    >
-                      <Ionicons
-                        name={on ? 'checkbox' : 'square-outline'}
-                        size={22}
-                        color={on ? colors.primary : colors.muted}
-                        style={{ marginTop: 1 }}
-                      />
-                      <View style={formStyles.flex}>
-                        <Text style={styles.itemTitle}>{title}</Text>
-                        {e.latestVersion.dose || e.latestVersion.frequency ? (
-                          <Text style={styles.itemMeta}>
-                            {[e.latestVersion.dose, e.latestVersion.frequency].filter(Boolean).join(' · ')}
-                          </Text>
-                        ) : null}
-                        <View style={{ marginTop: 4 }}>
-                          <ConfidenceBadge level={e.latestVersion.confidenceLevel} />
-                        </View>
-                        {e.latestVersion.occurredOn ? <Text style={styles.itemMeta}>{formatDate(e.latestVersion.occurredOn)}</Text> : null}
-                        {extra ? (
-                          <ClampedText
-                            text={extra}
-                            style={styles.itemMeta}
-                            renderMore={() => (
-                              // Al ser un Pressable interno, captura el toque y no alterna la selección
-                              <Pressable
-                                onPress={() => setReading({ title, text: extra })}
-                                hitSlop={8}
-                                accessibilityRole="button"
-                                accessibilityLabel={`Ver todo el detalle de ${title}`}
-                              >
-                                <Text style={styles.more}>Ver todo</Text>
-                              </Pressable>
-                            )}
-                          />
-                        ) : null}
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                {items.map((e) => (
+                  <EntryOption
+                    key={e.id}
+                    entry={e}
+                    checked={selected.has(e.id)}
+                    onToggle={() => toggle([e.id])}
+                    onReadAll={(title, text) => setReading({ title, text })}
+                  />
+                ))}
               </View>
             );
           })
@@ -201,22 +160,89 @@ function ManualHandoffScreen({ route, navigation }: Props) {
   );
 }
 
+/** Fila de la lista: casilla para elegir el registro y, aparte, el botón para leer todo el detalle. */
+function EntryOption({ entry, checked, onToggle, onReadAll }: {
+  entry: HealthEntry;
+  checked: boolean;
+  onToggle: () => void;
+  onReadAll: (title: string, text: string) => void;
+}) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  // Si el detalle quedó recortado en pantalla
+  const [clipped, setClipped] = useState(false);
+  const v = entry.latestVersion;
+  const title = v.title;
+  const extra = [v.details, v.notes].filter(Boolean).join('\n');
+  const doseFrequency = [v.dose, v.frequency].filter(Boolean).join(' · ');
+  // Etiqueta explícita: así el lector de pantalla no recita el texto largo del OCR ni la copia invisible.
+  // El detalle solo se lee si se ve completo; si quedó recortado, se llega con el botón Ver todo.
+  const label = [
+    title,
+    doseFrequency,
+    confidenceLabel(v.confidenceLevel),
+    v.occurredOn ? formatDate(v.occurredOn) : '',
+    clipped ? '' : extra,
+  ].filter(Boolean).join(', ');
+
+  return (
+    <View style={styles.item}>
+      <Pressable
+        onPress={onToggle}
+        style={styles.itemRow}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked }}
+        accessibilityLabel={label}
+      >
+        <Ionicons
+          name={checked ? 'checkbox' : 'square-outline'}
+          size={22}
+          color={checked ? colors.primary : colors.muted}
+          style={{ marginTop: 1 }}
+        />
+        <View style={formStyles.flex}>
+          <Text style={styles.itemTitle}>{title}</Text>
+          {doseFrequency ? <Text style={styles.itemMeta}>{doseFrequency}</Text> : null}
+          <View style={{ marginTop: 4 }}>
+            <ConfidenceBadge level={v.confidenceLevel} />
+          </View>
+          {v.occurredOn ? <Text style={styles.itemMeta}>{formatDate(v.occurredOn)}</Text> : null}
+          {extra ? <ClampedText text={extra} style={styles.itemMeta} onClippedChange={setClipped} /> : null}
+        </View>
+      </Pressable>
+      {clipped ? (
+        // Fuera de la casilla: así el lector de pantalla llega al botón por separado
+        <Pressable
+          onPress={() => onReadAll(title, extra)}
+          hitSlop={8}
+          style={styles.moreButton}
+          accessibilityRole="button"
+          accessibilityLabel={`Ver todo el detalle de ${title}`}
+        >
+          <Text style={styles.more}>Ver todo</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 const useStyles = makeStyles(({ colors }) => ({
   group: { gap: 4 },
   groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   groupIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   groupTitle: { flex: 1, fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
   groupToggle: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary },
-  item: {
+  item: { backgroundColor: colors.surface, borderRadius: radius.sm, overflow: 'hidden' },
+  itemRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  // 44 = 12 de relleno + 22 del ícono + 10 de separación: alinea el botón con el texto
+  moreButton: { alignSelf: 'flex-start', marginLeft: 44, marginTop: -6, paddingBottom: 10 },
   itemTitle: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
   itemMeta: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  more: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary, marginTop: 4, alignSelf: 'flex-start' },
+  more: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary },
 }));

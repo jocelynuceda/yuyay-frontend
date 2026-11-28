@@ -1,12 +1,13 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 
 /** Texto recortado a `lines` líneas que avisa si realmente quedó cortado en pantalla. */
-export function ClampedText({ text, lines = 3, style, renderMore }: {
+export function ClampedText({ text, lines = 3, style, onClippedChange }: {
   text: string;
   lines?: number;
   style?: StyleProp<TextStyle>;
-  renderMore: () => ReactNode;
+  // Se llama cuando cambia si el texto quedó recortado (pásale un setter estable)
+  onClippedChange?: (clipped: boolean) => void;
 }) {
   // Alturas medidas: la visible (con límite) y la copia completa
   const [shown, setShown] = useState(0);
@@ -14,25 +15,26 @@ export function ClampedText({ text, lines = 3, style, renderMore }: {
   // 1 px de tolerancia por redondeos
   const clipped = full > shown + 1;
 
+  useEffect(() => {
+    onClippedChange?.(clipped);
+  }, [clipped, onClippedChange]);
+
   return (
-    <View>
-      <View style={styles.inner}>
-        <Text style={style} numberOfLines={lines} onLayout={(e) => setShown(e.nativeEvent.layout.height)}>
-          {text}
-        </Text>
-        {/* Copia invisible sin límite de líneas: si es más alta que la visible, el texto quedó recortado */}
-        <Text
-          style={[style, styles.ghost]}
-          onLayout={(e) => setFull(e.nativeEvent.layout.height)}
-          aria-hidden
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          pointerEvents="none"
-        >
-          {text}
-        </Text>
-      </View>
-      {clipped ? renderMore() : null}
+    <View style={styles.inner}>
+      <Text style={style} numberOfLines={lines} onLayout={(e) => setShown(e.nativeEvent.layout.height)}>
+        {text}
+      </Text>
+      {/* Copia invisible sin límite de líneas: si es más alta que la visible, el texto quedó recortado */}
+      <Text
+        style={[style, styles.ghost]}
+        onLayout={(e) => setFull(e.nativeEvent.layout.height)}
+        aria-hidden
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        pointerEvents="none"
+      >
+        {text}
+      </Text>
     </View>
   );
 }
