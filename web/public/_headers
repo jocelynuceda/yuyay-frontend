@@ -1,0 +1,11 @@
+/entrega
+  Cache-Control: no-store, max-age=0
+  Referrer-Policy: no-referrer
+  CDN-Cache-Control: no-store
+  Netlify-CDN-Cache-Control: no-store
+
+/entrega/*
+  Cache-Control: no-store, max-age=0
+  Referrer-Policy: no-referrer
+  CDN-Cache-Control: no-store
+  Netlify-CDN-Cache-Control: no-store
