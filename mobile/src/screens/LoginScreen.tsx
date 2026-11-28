@@ -49,23 +49,15 @@ export function LoginScreen({ navigation }: Props) {
     <AuthLayout
       mode="login"
       onSwitchMode={() => navigation.replace('Register')}
-      title="Hola de nuevo"
+      title="Te damos la bienvenida a Yuyay"
       subtitle="Tu familia y tus cuidados, en un solo lugar."
       footer={
-        <>
-          <Text style={styles.footer}>
-            ¿Primera vez aquí?{' '}
-            <Text style={styles.link} onPress={() => navigation.navigate('Welcome')}>
-              Conoce Yuyay
-            </Text>
+        <Text style={styles.footer}>
+          ¿Te compartieron información?{' '}
+          <Text style={styles.link} onPress={() => rootNavigation.navigate('Delegate')}>
+            Tengo un código
           </Text>
-          <Text style={[styles.footer, styles.codeLink]}>
-            ¿Te compartieron información?{' '}
-            <Text style={styles.link} onPress={() => rootNavigation.navigate('Delegate')}>
-              Tengo un código
-            </Text>
-          </Text>
-        </>
+        </Text>
       }
     >
       <GoogleSignInSection disabled={loading}>
@@ -127,7 +119,6 @@ export function LoginScreen({ navigation }: Props) {
 const useStyles = makeStyles(({ colors }) => ({
   footer: { fontFamily: fonts.regular, color: colors.muted, fontSize: 14 },
   link: { fontFamily: fonts.semibold, color: colors.primary },
-  codeLink: { marginTop: 10 },
   forgot: { alignSelf: 'flex-end', fontSize: 14, paddingVertical: 4 },
   button: { marginTop: 12, borderRadius: radius.pill },
   buttonContent: { height: 52, flexDirection: 'row-reverse' },

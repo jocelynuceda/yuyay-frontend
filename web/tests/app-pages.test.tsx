@@ -897,14 +897,29 @@ test('Landing: Escape cierra el menú de secciones y devuelve el foco al botón'
   assert.equal(button.getAttribute('aria-expanded'), 'false')
 })
 
-test('Landing: la cifra de hipertensión enlaza el informe de MINSA', async (t) => {
+test('Landing: las tres cifras enlazan los informes oficiales', async (t) => {
   const { unmount } = await mountApp('/', { loggedIn: false })
   t.after(unmount)
   await waitFor(() => !!document.getElementById('por-que'), 'sección de cifras')
-  const link = document.querySelector<HTMLAnchorElement>('#por-que a[href*="minsa.gob.pe"]')
-  assert.match(link?.textContent ?? '', /MINSA · PP 0018, 2024/)
-  assert.equal(link?.getAttribute('rel'), 'noopener noreferrer')
-  assert.doesNotMatch(document.getElementById('por-que')!.textContent ?? '', /ENDES 2023/)
+  const links = [...document.querySelectorAll<HTMLAnchorElement>('#por-que a')]
+  assert.deepEqual(links.map(({ hostname, hash }) => [hostname, hash]), [
+    ['www.inei.gob.pe', '#page=2'],
+    ['www.minsa.gob.pe', '#page=4'],
+    ['www.inei.gob.pe', '#page=15'],
+  ])
+  for (const link of links) {
+    assert.equal(link.target, '_blank')
+    assert.equal(link.rel, 'noopener noreferrer')
+  }
+})
+
+test('Landing: Iniciar sesión del cierre abre el formulario de acceso', async (t) => {
+  const { unmount } = await mountApp('/', { loggedIn: false })
+  t.after(unmount)
+  const login = () => document.querySelector('section[aria-labelledby="cierre-titulo"] a[href="/login"]')
+  await waitFor(() => !!login(), 'botón de inicio de sesión del cierre')
+  await click(login(), 'Iniciar sesión')
+  await waitFor(() => pathname() === '/login' && !!document.querySelector('input[type="password"]'), 'formulario de acceso')
 })
 
 test('Sin sesión, las demás rutas privadas siguen llevando al login', async (t) => {

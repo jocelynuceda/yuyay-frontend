@@ -288,12 +288,10 @@ function Facts() {
             <p className="border-l-4 border-primary-fg pl-3 font-semibold">{fact.why}</p>
             <p className="mt-1 w-fit rounded-full bg-primary-tint px-3 py-1 text-xs font-semibold text-soft-text">
               Fuente:{' '}
-              {fact.url ? (
-                <a href={fact.url} target="_blank" rel="noopener noreferrer" className={`rounded-sm underline underline-offset-2 ${focusRing}`}>
-                  {fact.source}
-                  <span className="sr-only"> (abre el informe en otra pestaña)</span>
-                </a>
-              ) : fact.source}
+              <a href={fact.url} target="_blank" rel="noopener noreferrer" className={`rounded-sm underline underline-offset-2 ${focusRing}`}>
+                {fact.source}
+                <span className="sr-only"> (abre el informe en otra pestaña)</span>
+              </a>
             </p>
           </li>
         ))}
@@ -414,11 +412,10 @@ function Closing() {
         </h2>
         <p className="landing-lead mt-4">Tu información de salud organizada, disponible y lista para compartir.</p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link to="/register" className={linkButtonClass}>
+          <Link to="/register" className={cx(linkButtonClass, 'landing-closing-primary min-h-12 border border-transparent')}>
             Crear cuenta
-            <Icon name="chevron-right" />
           </Link>
-          <Link to="/login" className={cx('inline-flex min-h-12 items-center rounded-full px-5 font-semibold underline underline-offset-4', focusRing)}>
+          <Link to="/login" className={cx(linkSecondaryClass, 'min-h-12 border border-ink/25')}>
             Iniciar sesión
           </Link>
         </div>
