@@ -8,24 +8,27 @@ export function EmptyState({
   description,
   action,
   image,
+  showIcon = true,
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
   /** Ilustración que reemplaza a la estrella y a su recuadro punteado. */
   image?: ImageSourcePropType;
+  /** Permite omitir solo la estrella decorativa; las ilustraciones se conservan. */
+  showIcon?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <View style={image ? styles.plain : styles.box}>
+    <View style={[image ? styles.plain : styles.box, !image && !showIcon && styles.compact]}>
       {image ? (
         <Image source={image} style={styles.image} resizeMode="contain" accessible={false} />
-      ) : (
+      ) : showIcon ? (
         <View style={styles.icon}>
           <Sparkle size={24} color={colors.emptyStar} />
         </View>
-      )}
+      ) : null}
       <Text style={styles.title}>{title}</Text>
       {description ? <Text style={styles.description}>{description}</Text> : null}
       {action ? <View style={styles.action}>{action}</View> : null}
@@ -43,6 +46,7 @@ const useStyles = makeStyles(({ colors }) => ({
     borderColor: colors.line,
     backgroundColor: colors.glass,
   },
+  compact: { paddingVertical: 22 },
   icon: {
     width: 48,
     height: 48,

@@ -5,15 +5,17 @@ import { profileKinds, thirdPartyTypes } from '../../utils/careAuthorization'
 import { ChoiceOption, ServerError } from './fields'
 
 export function CareAuthorizationFields({
-  authorization, disabled, existing = false,
+  authorization, disabled, existing = false, allowSelf = true,
 }: {
   authorization: ReturnType<typeof useCareAuthorization>
   disabled: boolean
   existing?: boolean
+  allowSelf?: boolean
 }) {
   const profileGroup = useId()
   const thirdPartyGroup = useId()
-  const { document, profileKind, option, declaration } = authorization
+  const { document, profileKind, declaration } = authorization
+  const option = profileKind === 'SELF' && !allowSelf ? undefined : authorization.option
 
   if (authorization.loading) return <p role="status" className="text-sm text-muted">Cargando las opciones de autorización…</p>
   if (!document) return (
@@ -28,7 +30,7 @@ export function CareAuthorizationFields({
       <fieldset disabled={disabled}>
         <legend className="mb-2 font-semibold">¿Para quién es el perfil?</legend>
         <div className="grid gap-2">
-          {profileKinds.map((kind) => {
+          {profileKinds.filter((kind) => kind !== 'SELF' || allowSelf).map((kind) => {
             const policyOption = document.options.find((entry) => entry.type === kind)
             return kind === 'THIRD_PARTY' || policyOption ? (
               <ChoiceOption key={kind} name={profileGroup} value={kind} checked={profileKind === kind} onChange={() => authorization.chooseProfileKind(kind)}>

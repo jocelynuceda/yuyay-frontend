@@ -152,3 +152,25 @@ test('muestra el mensaje del servidor cuando falla la consulta del DNI', async (
   assert.equal(fail('DNI_LOOKUP_UNAVAILABLE').message, 'No se pudo consultar el DNI.');
   assert.equal(fail().message, 'El servidor tuvo un problema. Inténtalo de nuevo.');
 });
+
+test('409 conserva el mensaje de incompatibilidad sin reintentar ni cerrar el acceso', async () => {
+  let calls = 0, refreshes = 0;
+  const message = 'Tu perfil propio ya contiene información o actividad. Revisa ambos perfiles antes de recibir otra entrega.';
+  const http = createApiClient('http://localhost', {
+    generation: 1, accessToken: 'ficticio', refresh: async () => { refreshes++; },
+  }, { retryDelayMs: 1 });
+  http.defaults.adapter = async (config) => {
+    calls++;
+    throw new AxiosError('Error técnico', 'ERR_BAD_REQUEST', config, undefined,
+      { status: 409, statusText: 'Conflict', data: { message }, headers: {}, config });
+  };
+  await assert.rejects(http.post('/claim-invitations/exchange', { token: 'ficticio' }), (error) => {
+    assert.ok(error instanceof ApiError);
+    assert.equal(error.status, 409);
+    assert.equal(error.message, message);
+    assert.equal(isAccessLost(error), false);
+    return true;
+  });
+  assert.equal(calls, 1);
+  assert.equal(refreshes, 0);
+});

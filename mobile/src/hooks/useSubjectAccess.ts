@@ -13,7 +13,7 @@ export function useSubjectRows<T>(
   subjectId: (row: T) => number | null,
 ) {
   const access = useSubjectAccess();
-  const result = useFetch(fetcher);
+  const result = useFetch(fetcher, [access.generation]);
   const loaded = result.data;
   const data = loaded && loaded.access.generation === access.generation ? loaded.data.filter((row) => {
     const id = subjectId(row);

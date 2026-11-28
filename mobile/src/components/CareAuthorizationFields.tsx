@@ -41,14 +41,16 @@ function Choice({
 }
 
 export function CareAuthorizationFields({
-  authorization, disabled, existing = false,
+  authorization, disabled, existing = false, allowSelf = true,
 }: {
   authorization: ReturnType<typeof useCareAuthorization>;
   existing?: boolean;
+  allowSelf?: boolean;
   disabled: boolean;
 }) {
   const styles = useStyles();
-  const { document, profileKind, option, declaration } = authorization;
+  const { document, profileKind, declaration } = authorization;
+  const option = profileKind === 'SELF' && !allowSelf ? undefined : authorization.option;
 
   if (authorization.loading) {
     return <Text accessibilityLiveRegion="polite" style={styles.description}>Cargando las opciones de autorización…</Text>;
@@ -66,7 +68,7 @@ export function CareAuthorizationFields({
     <FormCard>
       <View accessibilityRole="radiogroup" accessibilityLabel="¿Para quién es el perfil?" style={styles.group}>
         <Text accessibilityRole="header" style={styles.heading}>¿Para quién es el perfil?</Text>
-        {profileKinds.map((kind) => {
+        {profileKinds.filter((kind) => kind !== 'SELF' || allowSelf).map((kind) => {
           const policyOption = document.options.find((entry) => entry.type === kind);
           return kind === 'THIRD_PARTY' || policyOption ? (
             <Choice

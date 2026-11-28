@@ -54,6 +54,8 @@ export interface CareSubject {
   notes: string | null;
   createdAt: string;
   myRole: CareRole;
+  /** Titularidad real del usuario actual, calculada por el backend. */
+  ownProfile?: boolean;
 }
 
 export interface CareRelationship {

@@ -15,6 +15,8 @@ import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { DatePicker } from '../../components/ui/DatePicker'
 import { useCareAuthorization } from '../../hooks/useCareAuthorization'
+import { useAccessiblePeople } from '../../hooks/useAccessiblePeople'
+import { selfProfileState } from '../../utils/selfProfile'
 import type { CareSubject, CareSubjectRequest, User } from '../../types'
 import type { CareSubjectCreation } from '../../types/careAuthorization'
 import { applyServerErrors, getErrorStatus } from '../../utils/apiErrors'
@@ -43,6 +45,9 @@ export function CareSubjectForm({
   onCancel?: () => void
   onCreationLockChange?: (locked: boolean) => void
 }) {
+  const people = useAccessiblePeople(account?.id, !subject && Boolean(account))
+  const ownership = selfProfileState(people)
+  const allowSelf = Boolean(account) && ownership === 'available'
   const [serverError, setServerError] = useState<string | null>(null)
   const draftKey = !subject && account ? `${pendingPersonPrefix}${account.id}` : undefined
   const [draftStore] = useState(() => openPendingPerson(draftKey))
@@ -116,6 +121,7 @@ export function CareSubjectForm({
   const drafts = useRef<Partial<Record<ProfileKind, CareSubjectFormValues>>>({})
 
   function chooseProfileKind(next: Parameters<typeof authorization.chooseProfileKind>[0]) {
+    if (next === 'SELF' && !allowSelf) return
     const previous = authorization.profileKind
     if (previous !== next && (previous || next === 'SELF')) {
       drafts.current[previous ?? 'THIRD_PARTY'] = getValues()
@@ -148,6 +154,7 @@ export function CareSubjectForm({
       attempt.current = null
       onCreationLockChange?.(false)
       setMustCheck(false)
+      people.reload()
       onSaved(saved)
     } catch (error) {
       const status = getErrorStatus(error)
@@ -155,7 +162,7 @@ export function CareSubjectForm({
       attempt.current = { request, uncertain }
       setMustCheck(uncertain)
       onCreationLockChange?.(uncertain)
-      if (status === 409) authorization.review()
+      if (status === 409) { authorization.review(); people.reload() }
       const message = applyServerErrors(error, setError, careSubjectFields)
       setServerError(uncertain ? 'No pudimos confirmar si la persona se guardó. Comprueba el guardado para continuar.' : message)
     } finally {
@@ -166,7 +173,7 @@ export function CareSubjectForm({
 
   async function saveForm(values: z.output<typeof careSubjectSchema>) {
     if (!subject) {
-      if (mustCheck || !authorization.declaration) return
+      if (mustCheck || !authorization.declaration || (authorization.profileKind === 'SELF' && !allowSelf)) return
       if (savingDraft && await persistDraft() === 'conflict') return
       const requestId = savingDraft ? draftRequestId.current : undefined
       await submitCreation(prepareCareSubjectCreation(attempt.current, authorization.declaration, values, () => requestId ?? newRequestId()))
@@ -189,7 +196,12 @@ export function CareSubjectForm({
       onSubmit={(event) => void handleSubmit(saveForm)(event)}
     >
       <ServerError message={serverError} />
-      {!subject && <CareAuthorizationFields authorization={{ ...authorization, chooseProfileKind, chooseThirdPartyType }} disabled={checking || mustCheck} />}
+      {!subject && account && ownership === 'checking' && <p role="status" className="text-sm text-muted">Comprobando si ya tienes un perfil propio…</p>}
+      {!subject && account && ownership === 'unknown' && <div className="grid justify-items-start gap-2">
+        <p role="status" className="text-sm text-muted">No pudimos comprobar tu perfil propio. Puedes seguir agregando a otra persona.</p>
+        <Button type="button" variant="secondary" onClick={people.reload}>Volver a comprobar mi perfil</Button>
+      </div>}
+      {!subject && <CareAuthorizationFields allowSelf={allowSelf} authorization={{ ...authorization, chooseProfileKind, chooseThirdPartyType }} disabled={checking || mustCheck} />}
 
       <fieldset disabled={checking || mustCheck} className="grid gap-5">
         <Field id="subject-name" label="Nombre" error={errors.name}>
@@ -234,7 +246,7 @@ export function CareSubjectForm({
       ) : (
         <FormActions
           submitting={isSubmitting || checking}
-          submitDisabled={!subject && !authorization.declaration}
+          submitDisabled={!subject && (!authorization.declaration || (authorization.profileKind === 'SELF' && !allowSelf))}
           submitLabel={subject ? 'Guardar cambios' : 'Agregar persona'}
           cancelLabel={savingDraft && !draftError ? 'Cerrar' : 'Cancelar'}
           onCancel={onCancel}

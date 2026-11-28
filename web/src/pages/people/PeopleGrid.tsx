@@ -118,20 +118,22 @@ export function PeopleGrid({
         </label>
       </div>
 
-      {loading && !data ? <p className="text-muted">Cargando personas…</p> : null}
+      {loading && (!data || visible.length === 0) ? <p className="text-muted">Cargando personas…</p> : null}
       {error ? <LoadError message={error} status={errorStatus} onRetry={reload} /> : null}
 
       {data ? (
         <>
-          <p aria-live="polite" className="text-sm text-muted">
+          {!loading && !error && <p aria-live="polite" className="text-sm text-muted">
             {query
               ? `${visible.length} de ${subjects.length} personas coinciden con “${params.q.trim()}”`
               : `${subjects.length} persona${subjects.length === 1 ? '' : 's'}`}
-          </p>
+          </p>}
           {visible.length === 0 ? (
-            <p className="rounded-2xl bg-card p-6 text-muted">
-              {subjects.length === 0 ? 'Aún no cuidas a nadie. Agrega a la primera persona.' : 'Nadie coincide con la búsqueda.'}
-            </p>
+            !loading && !error ? (
+              <p className="rounded-2xl bg-card p-6 text-muted">
+                {subjects.length === 0 ? 'Aún no cuidas a nadie. Agrega a la primera persona.' : 'Nadie coincide con la búsqueda.'}
+              </p>
+            ) : null
           ) : (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((subject) => (

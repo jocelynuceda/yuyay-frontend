@@ -228,7 +228,7 @@ for (const status of [403, 404, 409]) {
     claim.rememberClaimToken(secret)
     let writes = 0
     api.defaults.adapter = async (config) => {
-      if (config.method === 'post') { writes++; throw failure(config, status, 'Enlace usado: ' + secret) }
+      if (config.method === 'post') { writes++; throw failure(config, status, (status === 409 ? 'Tu perfil propio ya contiene información o actividad. Revisa ambos perfiles antes de recibir otra entrega. ' : 'Enlace usado: ') + secret) }
       return ok(config, policy)
     }
     const node = await mount(t, <AuthContext.Provider value={authenticated()}><MemoryRouter><ProfileClaimPage /></MemoryRouter></AuthContext.Provider>)
@@ -240,6 +240,10 @@ for (const status of [403, 404, 409]) {
     assert.equal(node.textContent?.includes(secret), false)
     assert.equal(node.textContent?.includes(subject.name), false)
     assert.equal(node.querySelector('input[type=checkbox]'), null)
+    if (status === 409) {
+      assert.match(node.textContent!, /Tu perfil propio ya contiene información o actividad/)
+      assert.ok(node.querySelector('a[href="/people"]'))
+    }
   })
 }
 

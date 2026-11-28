@@ -32,6 +32,7 @@ import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
 import { appointmentOrder, careRoleLabel, formatTime, todayIso } from '../utils/format';
 import { loadBySubject } from '../utils/loadBySubject';
+import { careNetworkState } from '../utils/careNetworkState';
 
 const monthShort = new Intl.DateTimeFormat('es-PE', { month: 'short' });
 const weekdayLong = new Intl.DateTimeFormat('es-PE', { weekday: 'long' });
@@ -86,7 +87,8 @@ export function HomeScreen({ navigation }: Props) {
     consultations.reload();
   });
 
-  if (subjects.loading && !subjects.data) return <LoadingView label="Abriendo tu espacio…" />;
+  const network = careNetworkState(subjects);
+  if (network.initialLoading) return <LoadingView label="Abriendo tu espacio…" />;
 
   const firstName = user?.name.split(' ')[0] ?? '';
   const unread = notifications.data?.filter((n) => !n.read).length ?? 0;
@@ -262,9 +264,9 @@ export function HomeScreen({ navigation }: Props) {
       <StatusMessage message={subjects.error} />
       <View style={styles.sectionRow}>
         <Text style={styles.section}>Personas a tu cuidado</Text>
-        {subjects.data?.length ? (
+        {network.count ? (
           <View style={styles.countChip}>
-            <Text style={styles.countText}>{subjects.data.length}</Text>
+            <Text style={styles.countText}>{network.count}</Text>
           </View>
         ) : null}
       </View>
@@ -291,8 +293,9 @@ export function HomeScreen({ navigation }: Props) {
       )}
       ListHeaderComponent={header}
       ListEmptyComponent={
-        subjects.error ? undefined : (
+        network.showEmpty ? (
           <EmptyState
+            showIcon={false}
             title="Aún no registras a nadie"
             description="Agrega a la persona que cuidas para anotar su medicación, alergias y consultas."
             action={
@@ -301,7 +304,7 @@ export function HomeScreen({ navigation }: Props) {
               </Button>
             }
           />
-        )
+        ) : undefined
       }
       contentContainerStyle={[styles.list, { paddingTop: insets.top + 8 }]}
       refreshControl={
