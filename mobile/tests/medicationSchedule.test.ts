@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   addDays,
+  createReminderPreference,
   createReminderSync,
   describeDays,
   doseReminderContent,
@@ -263,6 +264,86 @@ test('avisos: «Posponer» no programa nada si los avisos se apagaron después d
   // Y una sincronización tampoco programa avisos con el interruptor apagado
   assert.equal(await sync.sync(7, async () => [dose('2026-11-27', '20:00:00')], nineAm), undefined);
   assert.equal(queue.size, 0);
+});
+
+/** Almacenamiento simulado: `write` espera a que la prueba lo suelte si se pausó. */
+function fakeStorage(initial: string | null) {
+  const store = { value: initial };
+  let gate: Promise<void> | null = null;
+  const storage = {
+    read: async () => store.value,
+    write: async () => {
+      if (gate) await gate;
+      store.value = '1';
+    },
+    remove: async () => {
+      store.value = null;
+    },
+  };
+  /** El próximo `write` queda esperando hasta `resume()`. */
+  const pauseWrite = () => {
+    let resume!: () => void;
+    gate = new Promise<void>((r) => (resume = () => { gate = null; r(); }));
+    return { resume };
+  };
+  return { store, storage, pauseWrite };
+}
+
+test('preferencia: activar con la sesión vigente la deja encendida', async () => {
+  const { store, storage } = fakeStorage(null);
+  const preference = createReminderPreference(storage, () => active);
+  assert.equal(await preference.enable(7), true);
+  assert.equal(store.value, '1');
+  assert.equal(await preference.load(), true);
+});
+
+test('preferencia: si A sale mientras se guarda y entra B, la activación de A se deshace', async () => {
+  const { store, storage, pauseWrite } = fakeStorage(null);
+  const preference = createReminderPreference(storage, () => active);
+  const gate = pauseWrite();
+  const enabling = preference.enable(7);
+  active = null;
+  active = 8;
+  gate.resume();
+  assert.equal(await enabling, false);
+  assert.equal(store.value, null);
+  assert.equal(await preference.load(), false);
+});
+
+test('preferencia: si B apaga mientras se guarda la activación de A, queda apagada', async () => {
+  const { store, storage, pauseWrite } = fakeStorage(null);
+  const preference = createReminderPreference(storage, () => active);
+  const gate = pauseWrite();
+  const enabling = preference.enable(7);
+  active = 8;
+  const disabling = preference.disable();
+  gate.resume();
+  await Promise.all([enabling, disabling]);
+  assert.equal(store.value, null);
+});
+
+test('preferencia: si B activa mientras se guarda la de A, queda encendida por B', async () => {
+  const { store, storage, pauseWrite } = fakeStorage(null);
+  const preference = createReminderPreference(storage, () => active);
+  const gate = pauseWrite();
+  const enablingA = preference.enable(7);
+  active = 8;
+  const enablingB = preference.enable(8);
+  gate.resume();
+  assert.equal(await enablingA, false);
+  assert.equal(await enablingB, true);
+  assert.equal(store.value, '1');
+});
+
+test('preferencia: una activación vieja no apaga los avisos que ya estaban encendidos', async () => {
+  const { store, storage, pauseWrite } = fakeStorage('1');
+  const preference = createReminderPreference(storage, () => active);
+  const gate = pauseWrite();
+  const enabling = preference.enable(7);
+  active = 8;
+  gate.resume();
+  assert.equal(await enabling, false);
+  assert.equal(store.value, '1');
 });
 
 test('statusToSend: con la pantalla abierta al pasar las 8:30, «Tomada» se envía como tarde', () => {

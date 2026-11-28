@@ -359,3 +359,48 @@ export function createReminderSync(
 
   return { sync, stop, snooze };
 }
+
+/** Lo que la preferencia necesita del almacenamiento seguro del celular (expo-secure-store en la app). */
+export type ReminderPreferenceStorage = { read: () => Promise<string | null>; write: () => Promise<void>; remove: () => Promise<void> };
+
+/**
+ * Preferencia "Avisarme en este celular" (es del celular, no de la cuenta). Activar y apagar se guardan
+ * de a uno, en orden, así un apagado no corre en paralelo con una activación. Una activación de una
+ * cuenta que salió mientras se guardaba se deshace, salvo que los avisos ya estuvieran encendidos antes.
+ */
+export function createReminderPreference(storage: ReminderPreferenceStorage, activeUser: () => number | null) {
+  let lock: Promise<unknown> = Promise.resolve();
+  const exclusive = <T>(task: () => Promise<T>): Promise<T> => {
+    const run = lock.then(task, task);
+    lock = run.catch(() => undefined);
+    return run;
+  };
+
+  /** Si los avisos están encendidos en este celular. Si no se puede leer, se toman como apagados. */
+  const load = () =>
+    exclusive(async () => {
+      try {
+        return (await storage.read()) === '1';
+      } catch {
+        return false;
+      }
+    });
+
+  /** true si quedó encendida; false si la cuenta ya no es la vigente (y no se deja encendida por ella). */
+  const enable = (userId: number) =>
+    exclusive(async () => {
+      if (activeUser() !== userId) return false;
+      const before = (await storage.read().catch(() => null)) === '1';
+      await storage.write();
+      if (activeUser() !== userId) {
+        // La cuenta salió mientras se guardaba: se deshace, salvo que ya estuviera encendida antes
+        if (!before) await storage.remove().catch(() => undefined);
+        return false;
+      }
+      return true;
+    });
+
+  const disable = () => exclusive(async () => storage.remove().catch(() => undefined));
+
+  return { load, enable, disable };
+}
