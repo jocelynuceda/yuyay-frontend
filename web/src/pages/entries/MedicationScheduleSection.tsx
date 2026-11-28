@@ -28,7 +28,9 @@ export function MedicationScheduleSection({ subjectId, entryId }: { subjectId: n
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const toast = useToast()
-  const schedule = saved !== undefined ? saved : data
+  // Lo guardado aquí manda; si no, solo lo que el servidor confirmó. Mientras carga o si falló, no se sabe
+  // si existe un horario: no se ofrece crear uno (podría reemplazar uno existente).
+  const schedule: MedicationSchedule | null | undefined = saved !== undefined ? saved : loading || error ? undefined : data
 
   return (
     <section aria-labelledby="schedule-title" className="grid gap-4 rounded-3xl bg-card p-6 sm:p-8">
@@ -47,14 +49,14 @@ export function MedicationScheduleSection({ subjectId, entryId }: { subjectId: n
         ) : null}
       </div>
 
-      {error && data === undefined && saved === undefined ? (
+      {schedule === undefined && error && !loading ? (
         <LoadError message={error} onRetry={reload} />
-      ) : loading && schedule === undefined ? (
+      ) : schedule === undefined ? (
         <Skeleton lines={2} />
       ) : editing || !schedule ? (
         editing ? (
           <ScheduleForm
-            initial={schedule ?? null}
+            initial={schedule}
             onCancel={() => setEditing(false)}
             onSubmit={async (request) => {
               const result = await saveMedicationSchedule(subjectId, entryId, request)

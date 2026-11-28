@@ -106,6 +106,14 @@ export function useDoseRemindersEnabled() {
   );
 }
 
+/** La cuenta con sesión en este celular. Los avisos solo se programan a su nombre. */
+let activeUserId: number | null = null;
+
+/** Lo llama la sesión al entrar (o al perderla, con null). */
+export function setDoseReminderUser(userId: number | null) {
+  activeUserId = userId;
+}
+
 // La sincronización (la más reciente manda, de a una) vive en utils y se prueba sin el celular
 const reminders = createReminderSync(
   {
@@ -123,6 +131,7 @@ const reminders = createReminderSync(
   },
   // La preferencia vigente en el momento de actuar, no la de cuando empezó
   () => (doseRemindersSupported ? loadEnabled() : Promise.resolve(false)),
+  () => activeUserId,
 );
 
 /**
@@ -149,12 +158,16 @@ export async function syncDoseReminders(userId: number) {
   }
 }
 
-export type EnableResult = 'enabled' | 'denied';
+/** 'cancelled': mientras se pedía el permiso, la sesión cambió de cuenta; no se activó nada. */
+export type EnableResult = 'enabled' | 'denied' | 'cancelled';
 
 /** Pide permiso solo cuando la persona activa los avisos. */
 export async function enableDoseReminders(userId: number): Promise<EnableResult> {
+  if (activeUserId !== userId) return 'cancelled';
   let permission = await Notifications.getPermissionsAsync();
   if (!permission.granted && permission.canAskAgain) permission = await Notifications.requestPermissionsAsync();
+  // Mientras se esperaba el permiso, esta cuenta cerró sesión: no se activa nada a su nombre
+  if (activeUserId !== userId) return 'cancelled';
   if (!permission.granted) return 'denied';
   await SecureStore.setItemAsync(ENABLED_KEY, '1');
   loaded = Promise.resolve(true);
@@ -173,7 +186,8 @@ export async function disableDoseReminders() {
 
 /** Al cerrar sesión: los avisos son de esta cuenta y no deben sonar para la siguiente. */
 export async function cancelAllDoseReminders() {
-  // Una sincronización que todavía esperaba la agenda ya no programará nada
+  // Una sincronización o activación que todavía esperaba ya no programará nada
+  activeUserId = null;
   setUntil(null);
   if (!doseRemindersSupported) return;
   await reminders.stop().catch(() => undefined);

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import * as api from '../services/api';
-import { cancelAllDoseReminders, syncDoseReminders } from '../services/doseReminders';
+import { cancelAllDoseReminders, setDoseReminderUser, syncDoseReminders } from '../services/doseReminders';
 import { cancelAllReminders, reconcileAllReminders } from '../services/reminders';
 import { API_URL, NoSessionError, refreshSession, session, setSessionHandlers, vault } from '../services/http';
 import { clearPendingPeople } from '../services/pendingPersonDraft';
@@ -56,8 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status === 'authenticated' && userId !== undefined) {
       void reconcileAllReminders(userId);
-      // Y los de las tomas, con lo que se marcó en otros celulares
+      // Y los de las tomas, con lo que se marcó en otros celulares, solo a nombre de esta cuenta
+      setDoseReminderUser(userId);
       void syncDoseReminders(userId);
+    } else {
+      setDoseReminderUser(null);
     }
   }, [status, userId]);
 

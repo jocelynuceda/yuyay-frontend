@@ -260,8 +260,14 @@ export const snoozedReminderId = (data: DoseReminderData) =>
  *   deja todo en orden.
  * - Cerrar sesión o apagar los avisos (`stop`) supera a todas las que estén en curso.
  * - «Posponer» solo programa un aviso si los avisos siguen activos en este celular.
+ * - Todo se liga a la cuenta: una operación de una cuenta que ya salió no toca los avisos de la siguiente.
  */
-export function createReminderSync(scheduler: ReminderScheduler, isEnabled: () => Promise<boolean>) {
+export function createReminderSync(
+  scheduler: ReminderScheduler,
+  isEnabled: () => Promise<boolean>,
+  /** La cuenta con sesión en el celular ahora mismo; los avisos de otra cuenta no se programan. */
+  activeUser: () => number | null,
+) {
   let requested = 0;
   let applied = 0;
   let lock: Promise<unknown> = Promise.resolve();
@@ -288,10 +294,10 @@ export function createReminderSync(scheduler: ReminderScheduler, isEnabled: () =
   async function run(ticket: number, userId: number, loadAgenda: () => Promise<AgendaDose[] | null>, now: () => Date) {
     const doses = await loadAgenda();
     // Ya se aplicó una agenda pedida después (o se cerró sesión): esta respuesta es vieja
-    if (doses === null || ticket < applied) return undefined;
+    if (doses === null || ticket < applied || activeUser() !== userId) return undefined;
     applied = ticket;
     return exclusive(async (): Promise<Date | null | undefined> => {
-      const current = () => applied === ticket;
+      const current = () => applied === ticket && activeUser() === userId;
       if (!current() || !(await isEnabled())) return undefined;
       const scheduled = await doseReminders();
       const snoozed = scheduled
@@ -322,7 +328,7 @@ export function createReminderSync(scheduler: ReminderScheduler, isEnabled: () =
   /** «Posponer»: vuelve a avisar en unos minutos, solo si los avisos siguen activos. */
   function snooze(data: DoseReminderData, now: Date = new Date()) {
     return exclusive(async () => {
-      if (!(await isEnabled())) return false;
+      if (activeUser() !== data.userId || !(await isEnabled())) return false;
       await scheduler.schedule({
         identifier: snoozedReminderId(data),
         fire: new Date(now.getTime() + SNOOZE_MINUTES * 60_000),

@@ -324,14 +324,17 @@ function Where() {
 
 type Db = ReturnType<typeof backend>['db']
 
-async function mountApp(path: string, { loggedIn, seed }: { loggedIn: boolean; seed?: (db: Db) => void }) {
+type Adapter = ReturnType<typeof backend>['adapter']
+
+async function mountApp(path: string, { loggedIn, seed, wrap }: { loggedIn: boolean; seed?: (db: Db) => void; wrap?: (adapter: Adapter) => Adapter }) {
   const storage = new MemoryStorage()
   ;(globalThis as any).sessionStorage = storage
   http.clearTokens()
   const b = backend()
   seed?.(b.db)
-  http.api.defaults.adapter = b.adapter
-  http.publicApi.defaults.adapter = b.adapter
+  const adapter = wrap ? wrap(b.adapter) : b.adapter
+  http.api.defaults.adapter = adapter
+  http.publicApi.defaults.adapter = adapter
   if (loggedIn) {
     storage.setItem('yuyay.refreshToken', 'R0')
     http.setTokens({ refreshToken: 'R0', accessToken: '' })
@@ -953,6 +956,29 @@ test('Inicio: agenda de medicamentos; se marca desde 2 h antes hasta 30 min desp
   const otherDay = [...agenda().querySelectorAll<HTMLButtonElement>('ol button')].find((el) => el.getAttribute('aria-pressed') === 'false')!
   await click(otherDay, 'otro día')
   await waitFor(() => /No hay tomas de Rosa este día/.test(agenda().textContent ?? ''), 'día vacío con el filtro de Rosa')
+})
+
+test('Medicamento: si el horario no carga, no ofrece crear uno encima; con «Reintentar» lo muestra', async (t) => {
+  let failing = true
+  const { b, unmount } = await mountApp('/people/1/entries/12', { loggedIn: true, seed: (db) => {
+    db.schedule = { id: 4, healthEntryId: 12, careSubjectId: 1, times: ['08:00:00', '20:00:00'], daysOfWeek: [], startDate: '2026-11-01', endDate: null, updatedAt: '2026-11-27T00:00:00Z' }
+  }, wrap: (adapter) => async (config: any) => {
+    if (failing && (config.method ?? 'get').toLowerCase() === 'get' && String(config.url).endsWith('/care-subjects/1/health-entries/12/schedule')) {
+      throw Object.assign(new Error('HTTP 503'), { isAxiosError: true, config,
+        response: { status: 503, data: { message: 'Servicio no disponible' }, headers: {}, config } })
+    }
+    return adapter(config)
+  } })
+  t.after(unmount)
+  const section = () => document.getElementById('schedule-title')!.closest('section')!
+  await waitFor(() => byText('button', 'Reintentar') !== null, 'error con Reintentar')
+  assert.equal(byText('button', 'Agregar horario'), null, 'no ofrece crear un horario que podría existir')
+  assert.equal(b.calls.filter((c) => c.startsWith('PUT')).length, 0)
+  failing = false
+  await click(byText('button', 'Reintentar'), 'Reintentar')
+  await waitFor(() => /8:00 a\. m\..*8:00 p\. m\./.test(section().textContent ?? ''), 'horario existente')
+  assert.ok(byText('button', 'Cambiar horario'))
+  assert.equal(byText('button', 'Agregar horario'), null)
 })
 
 test('Medicamento: agregar horario con una frecuencia propuesta y días elegidos', async (t) => {

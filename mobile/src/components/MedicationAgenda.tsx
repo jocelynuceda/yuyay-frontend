@@ -112,10 +112,11 @@ export function MedicationAgenda({
       if (remindersOn) {
         await disableDoseReminders();
         toast('Ya no te avisaremos de las tomas en este celular.');
-      } else if ((await enableDoseReminders(user.id)) === 'enabled') {
-        toast('Te avisaremos a la hora de cada toma en este celular.');
       } else {
-        toast('Sin permiso de notificaciones no podemos avisarte.');
+        const result = await enableDoseReminders(user.id);
+        if (result === 'enabled') toast('Te avisaremos a la hora de cada toma en este celular.');
+        else if (result === 'denied') toast('Sin permiso de notificaciones no podemos avisarte.');
+        // 'cancelled': la sesión cambió mientras se pedía el permiso; no hay nada que avisar
       }
     } finally {
       setTogglingReminders(false);
