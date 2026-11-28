@@ -9,6 +9,8 @@ export type BiometricSupport =
   /** iPhone con Face ID dentro de Expo Go: Expo Go no tiene el permiso de Face ID de Yuyay, solo la app instalada. */
   | { status: 'needs-app'; label: string; kind: BiometricKind }
   | { status: 'not-enrolled'; label: string; kind: BiometricKind }
+  /** Android: hay huella o rostro registrado, pero el sistema lo considera de seguridad débil. */
+  | { status: 'weak'; label: string; kind: BiometricKind }
   | { status: 'available'; label: string; kind: BiometricKind };
 
 export interface BiometricFacts {
@@ -18,6 +20,8 @@ export interface BiometricFacts {
   fingerprint: boolean;
   /** Hay huella o rostro registrado con seguridad fuerte y el almacenamiento protegido se puede usar. */
   strong: boolean;
+  /** Hay alguna huella o rostro registrado, aunque sea de seguridad débil. */
+  enrolled?: boolean;
   expoGo: boolean;
 }
 
@@ -28,7 +32,8 @@ export function describeBiometrics(facts: BiometricFacts): BiometricSupport {
   const kind: BiometricKind = ios ? (facts.face ? 'face' : 'fingerprint') : facts.fingerprint || !facts.face ? 'fingerprint' : 'face';
   const label = ios ? (kind === 'face' ? 'Face ID' : 'Touch ID') : kind === 'face' ? 'tu rostro' : 'tu huella';
   if (ios && kind === 'face' && facts.expoGo) return { status: 'needs-app', label, kind };
-  return facts.strong ? { status: 'available', label, kind } : { status: 'not-enrolled', label, kind };
+  if (facts.strong) return { status: 'available', label, kind };
+  return !ios && facts.enrolled ? { status: 'weak', label, kind } : { status: 'not-enrolled', label, kind };
 }
 
 /** Texto bajo el interruptor «Desbloquear con …». */
@@ -36,6 +41,9 @@ export function biometricHint(support: BiometricSupport, enabled: boolean): stri
   if (support.status === 'unsupported') return 'Este teléfono ya no ofrece desbloqueo biométrico.';
   if (support.status === 'needs-app') {
     return 'En Expo Go el iPhone no deja usar Face ID. Funciona en la app de Yuyay instalada en el celular.';
+  }
+  if (support.status === 'weak' && !enabled) {
+    return 'Tu teléfono tiene huella o rostro registrado, pero Android no lo considera seguro para proteger tus datos de salud, así que esta opción no está disponible.';
   }
   if (support.status === 'available' || enabled) {
     return `Al abrir Yuyay o volver después de un minuto se pedirá ${support.label}. No reemplaza tu contraseña: si cierras sesión, se desactiva.`;

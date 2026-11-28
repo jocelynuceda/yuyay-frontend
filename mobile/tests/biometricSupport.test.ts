@@ -60,3 +60,12 @@ test('sin sensor o en la web no hay desbloqueo biométrico', () => {
   assert.equal(describeBiometrics(facts({ hasHardware: false })).status, 'unsupported');
   assert.equal(describeBiometrics(facts({ platform: 'web' })).status, 'unsupported');
 });
+
+test('Android con huella o rostro de seguridad débil: lo dice en vez de pedir registrar una huella', () => {
+  const weak = describeBiometrics(facts({ platform: 'android', face: true, strong: false, enrolled: true }));
+  assert.deepEqual(weak, { status: 'weak', label: 'tu rostro', kind: 'face' });
+  assert.match(biometricHint(weak, false), /Android no lo considera seguro/);
+  assert.doesNotMatch(biometricHint(weak, false), /no hay ninguna huella registrada/);
+  // Sin nada registrado sigue pidiendo registrarlo
+  assert.equal(describeBiometrics(facts({ platform: 'android', fingerprint: true, strong: false, enrolled: false })).status, 'not-enrolled');
+});

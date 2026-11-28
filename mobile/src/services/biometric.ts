@@ -24,6 +24,7 @@ export async function getBiometricSupport(): Promise<BiometricSupport> {
       face: types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION),
       fingerprint: types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT),
       strong: level >= LocalAuthentication.SecurityLevel.BIOMETRIC_STRONG && SecureStore.canUseBiometricAuthentication(),
+      enrolled: level >= LocalAuthentication.SecurityLevel.BIOMETRIC_WEAK,
       expoGo: isRunningInExpoGo(),
     });
   } catch {
