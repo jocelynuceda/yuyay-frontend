@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
+import { isActivationKey } from '../utils/keyboard';
 import { LionAvatar, type AvatarChoice } from './LionAvatar';
 import { Sparkle } from './Sparkle';
 
@@ -119,6 +120,15 @@ export function PillAction({
   const [progress] = useState(() => new Animated.Value(0));
   const done = useRef(false);
 
+  // Abre sin esperar a que se llene la barra (teclado y lector de pantalla)
+  function openNow() {
+    done.current = true;
+    progress.stopAnimation();
+    progress.setValue(0);
+    onHoldChange?.(false);
+    onPress();
+  }
+
   return (
     <Pressable
       onPressIn={() => {
@@ -156,6 +166,12 @@ export function PillAction({
       // Con lector de pantalla, el doble toque abre directo sin mantener
       onAccessibilityAction={(e) => {
         if (e.nativeEvent.actionName === 'activate') onPress();
+      }}
+      // En la web, Enter o Espacio abren directo, como el doble toque del lector de pantalla
+      onKeyDown={(e: { nativeEvent: { key?: string; repeat?: boolean }; preventDefault?: () => void }) => {
+        if (!isActivationKey(e.nativeEvent)) return;
+        e.preventDefault?.();
+        openNow();
       }}
     >
       <LinearGradient
