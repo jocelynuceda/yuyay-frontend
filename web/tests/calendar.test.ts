@@ -4,19 +4,18 @@ import { googleCalendarUrl } from '../src/utils/calendar'
 
 process.env.TZ = 'America/New_York'
 
-const consultation = { date: '2026-12-31', reason: 'Control & presión', notes: 'Notas clínicas privadas' }
+const consultation = { date: '2026-12-31', reason: 'Control & presión', notes: 'Llevar análisis & receta' }
 const calendar = (time: string | null, date = consultation.date) =>
   new URL(googleCalendarUrl({ ...consultation, date, time }, 'María José'))
 
-test('Calendar usa la hora local guardada, conserva el título y omite las notas clínicas', () => {
+test('Calendar usa la hora local guardada, conserva el título y lleva los detalles', () => {
   const url = calendar('15:30:00')
   assert.equal(`${url.origin}${url.pathname}`, 'https://calendar.google.com/calendar/render')
   assert.equal(url.searchParams.get('action'), 'TEMPLATE')
   assert.equal(url.searchParams.get('text'), 'Cita de María José: Control & presión')
   assert.equal(url.searchParams.get('dates'), '20261231T203000Z/20261231T213000Z')
   assert.equal(url.searchParams.get('ctz'), 'America/New_York')
-  assert.equal(url.searchParams.has('details'), false)
-  assert.doesNotMatch(url.href, /privadas/)
+  assert.equal(url.searchParams.get('details'), 'Persona: María José\nMotivo: Control & presión\nNotas: Llevar análisis & receta')
 })
 
 test('Calendar conserva 60 minutos al cruzar medianoche o un cambio de horario', () => {

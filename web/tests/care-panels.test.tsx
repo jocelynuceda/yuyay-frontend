@@ -250,7 +250,7 @@ test('Las próximas consultas de un cuidador ofrecen Calendar con hora guardada 
   const today = todayIso()
   const consultation = { id: 1, careSubjectId: 4, createdByUserId: 8, date: today, createdAt: `${today}T00:00:00Z` }
   mockApi(t, async (config) => ok(config, config.url?.endsWith('/changes') ? [] : [
-    { ...consultation, reason: 'Con hora', time: '10:30:00', notes: 'No compartir' },
+    { ...consultation, reason: 'Con hora', time: '10:30:00', notes: 'Llevar receta' },
     { ...consultation, id: 2, reason: 'Sin hora', time: null, notes: null },
     { ...consultation, id: 3, reason: 'Consulta pasada', date: '2000-01-01', time: null, notes: null },
   ]))
@@ -262,7 +262,7 @@ test('Las próximas consultas de un cuidador ofrecen Calendar con hora guardada 
   assert.ok(link)
   assert.equal(link.rel, 'noopener noreferrer')
   assert.equal(new URL(link.href).searchParams.get('text'), 'Cita de Rosa: Con hora')
-  assert.doesNotMatch(link.href, /details|compartir/)
+  assert.equal(new URL(link.href).searchParams.get('details'), 'Persona: Rosa\nMotivo: Con hora\nNotas: Llevar receta')
   assert.doesNotMatch([...container.querySelectorAll('li')].find((item) => item.textContent?.includes('Consulta pasada'))?.textContent ?? '', /Google Calendar/)
   assert.deepEqual(urls, [])
 

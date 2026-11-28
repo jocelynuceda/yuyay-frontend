@@ -36,3 +36,10 @@ test('la hora guardada vuelve igual al formulario y al backend', () => {
   assert.deepEqual(timePartsOf('12:00:00'), { hour: '12', minute: '00', period: 'pm' });
   assert.equal(toApiTime(savedTime('09:05:00')), '09:05');
 });
+
+test('el recordatorio lleva los detalles de la cita', () => {
+  const details = (notes: string | null) =>
+    new URL(googleCalendarUrl({ ...cita, notes }, 'Rosa')).searchParams.get('details');
+  assert.equal(details('Llevar receta'), 'Persona: Rosa\nMotivo: Control & presión\nNotas: Llevar receta');
+  assert.equal(details(null), 'Persona: Rosa\nMotivo: Control & presión');
+});
