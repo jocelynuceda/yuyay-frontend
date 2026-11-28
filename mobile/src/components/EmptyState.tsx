@@ -12,13 +12,13 @@ export function EmptyState({
   title: string;
   description?: string;
   action?: ReactNode;
-  /** Ilustración que reemplaza a la estrella. */
+  /** Ilustración que reemplaza a la estrella y a su recuadro punteado. */
   image?: ImageSourcePropType;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <View style={styles.box}>
+    <View style={image ? styles.plain : styles.box}>
       {image ? (
         <Image source={image} style={styles.image} resizeMode="contain" accessible={false} />
       ) : (
@@ -52,7 +52,8 @@ const useStyles = makeStyles(({ colors }) => ({
     justifyContent: 'center',
     marginBottom: 12,
   },
-  image: { width: 96, height: 96, marginBottom: 12 },
+  plain: { alignItems: 'center', paddingHorizontal: 28, paddingTop: 56 },
+  image: { width: 168, height: 168, marginBottom: 20 },
   title: { fontFamily: fonts.display, fontSize: 18, color: colors.ink, textAlign: 'center' },
   description: {
     fontFamily: fonts.regular,
