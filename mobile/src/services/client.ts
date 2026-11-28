@@ -29,6 +29,7 @@ export function toApiError(error: unknown): ApiError {
   }
   const { status, data } = error.response as { status: number; data?: ApiErrorBody };
   const fieldErrors = Object.fromEntries((data?.fieldErrors ?? []).map((f) => [f.field, f.message]));
+  if (data?.code === 'DNI_LOOKUP_UNAVAILABLE' && data.message) return new ApiError(status, data.message, {}, data.code);
   if (status >= 500) return new ApiError(status, 'El servidor tuvo un problema. Inténtalo de nuevo.', {}, data?.code);
   if (status === 403) return new ApiError(status, 'No tienes permiso para hacer esto.', {}, data?.code);
   return new ApiError(status, data?.message || 'Algo salió mal. Inténtalo de nuevo.', fieldErrors, data?.code);

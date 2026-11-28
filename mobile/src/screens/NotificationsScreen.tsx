@@ -79,6 +79,7 @@ export function NotificationsScreen() {
       ListEmptyComponent={
         notifications.error ? undefined : (
           <EmptyState
+            image={require('../../assets/notifications-bell.png')}
             title={filter === 'unread' ? 'Todo al día' : 'Sin notificaciones'}
             description={
               filter === 'unread'
