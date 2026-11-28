@@ -23,5 +23,14 @@ export async function registerTestAccount(prefix: string): Promise<AuthResponse>
   const { data: session } = await publicApi.post<AuthResponse>('/auth/login', { email: body.email, password: body.password })
   assert.equal(session.user.id, registered.data.user.id)
   assert.equal(session.user.fullName, body.fullName)
+  const ownProfile = await publicApi.get('/care-subjects', { headers: { Authorization: 'Bearer ' + session.accessToken } })
+  assert.equal(ownProfile.data.length, 1, 'El registro crea exactamente un perfil propio')
+  const self = ownProfile.data[0]
+  assert.equal(self.name, body.name)
+  assert.equal(self.myRole, 'PRINCIPAL')
+  assert.equal(self.birthDate, null)
+  assert.equal(self.notes, null)
+  const firstSessionProfile = await publicApi.get('/care-subjects', { headers: { Authorization: 'Bearer ' + registered.data.accessToken } })
+  assert.equal(firstSessionProfile.data[0].id, self.id, 'Iniciar sesión no duplica el perfil')
   return session
 }

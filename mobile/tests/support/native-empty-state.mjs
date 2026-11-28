@@ -1,0 +1,10 @@
+import React from 'react';
+export const View = ({ children, style }) => React.createElement('div', { 'data-layout': JSON.stringify(style) }, children);
+export const Text = ({ children }) => React.createElement('span', null, children);
+export const Image = () => React.createElement('img', { alt: '', 'data-illustration': 'true' });
+export const Sparkle = () => React.createElement('span', { 'data-decoration': 'sparkle' });
+const colors = new Proxy({}, { get: (_, key) => String(key) });
+export const fonts = { display: 'display', regular: 'regular' };
+export const radius = { lg: 24 };
+export const makeStyles = (factory) => () => factory({ colors });
+export const useTheme = () => ({ colors });
