@@ -92,3 +92,23 @@ test('web distingue errores y una lista vacía real sin insertar al usuario arti
   assert.match(container.textContent!, /0 personas/)
   assert.equal(container.querySelectorAll('li').length, 0)
 })
+
+test('una lista vacía anterior no se presenta como resultado durante una recarga ni un error', async (t) => {
+  let calls = 0
+  let fail!: () => void
+  api.defaults.adapter = async (config) => {
+    if (++calls === 1) return ok(config, [])
+    return new Promise((_resolve, reject) => {
+      fail = () => reject(new AxiosError('Error técnico', 'ERR_BAD_RESPONSE', config, undefined,
+        { ...ok(config, {}), status: 500 }))
+    })
+  }
+  const { container } = await mount(t, screen())
+  await until(() => !!container.textContent?.includes('Aún no cuidas'))
+  await act(async () => window.dispatchEvent(new window.Event('focus')))
+  await until(() => !!fail)
+  assert.doesNotMatch(container.textContent!, /Aún no cuidas/)
+  await act(async () => fail())
+  await until(() => !!container.querySelector('[role=alert]'))
+  assert.doesNotMatch(container.textContent!, /Aún no cuidas/)
+})

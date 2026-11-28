@@ -31,8 +31,16 @@ Google real y dispositivos Android/iOS requieren comprobación manual aparte.
 - mobile/src/screens/HomeScreen.tsx
 - mobile/src/hooks/useSubjectAccess.ts
 - mobile/src/utils/careNetworkState.ts
+- mobile/tests/client.test.ts
 - mobile/tests/peopleEmptyState.test.ts
 - mobile/tests/support/native-empty-state.mjs
+- web/src/pages/people/PeopleGrid.tsx
+- web/tests/profile-claim.test.tsx
 - web/tests/self-care-network.test.tsx
 - web/tests/integration/support/auth.ts
 - docs/self-caregiver.md
+
+## Revisión final focalizada
+Se incorporó origin/main 22066aa mediante integración local. El backend de referencia incluye c0cd5ce: el perfil debe copiar la fecha del DNI recibida en el registro, sin inventarla. El helper HTTP verifica esa igualdad.
+Web oculta el vacío anterior durante una recarga o un error y conserva su mensaje de incompatibilidad 409. Mobile conserva ese mensaje sin reintentar ni cerrar la sesión; actualmente el canje de entrega tiene interfaz en Web, no una pantalla nativa equivalente.
+Tras la integración pasaron 32 pruebas web y 23 móviles seleccionadas, lint, tipos móviles, build web y la integración HTTP local. No se repitieron las suites completas.
