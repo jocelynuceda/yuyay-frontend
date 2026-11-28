@@ -97,7 +97,7 @@ export function ProfileCard({
   );
 }
 
-/** Botón ancho tipo píldora: se desliza el círculo blanco hasta el final para confirmar. */
+/** Botón ancho tipo píldora: se desliza el círculo blanco (en ambos temas) hasta el final para confirmar; el arrastre empieza en cualquier punto de la píldora. */
 export function PillAction({
   label,
   icon = 'arrow-forward',
@@ -111,18 +111,24 @@ export function PillAction({
   onDragChange?: (dragging: boolean) => void;
 }) {
   const styles = useStyles();
-  const { gradients, colors } = useTheme();
+  const { gradients } = useTheme();
   const [x] = useState(() => new Animated.Value(0));
   const max = useRef(0);
   const startX = useRef(0);
 
-  function finish(dx: number) {
+  function finish(dx: number, tap = false) {
     onDragChange?.(false);
     if (dx >= max.current * 0.8) {
       Animated.timing(x, { toValue: max.current, duration: 120, useNativeDriver: false }).start(() => {
         onPress();
         setTimeout(() => x.setValue(0), 400);
       });
+    } else if (tap) {
+      // Un toque no confirma: el círculo avanza un poco y regresa como pista de que hay que deslizar
+      Animated.sequence([
+        Animated.timing(x, { toValue: 28, duration: 160, useNativeDriver: false }),
+        Animated.spring(x, { toValue: 0, useNativeDriver: false, bounciness: 12 }),
+      ]).start();
     } else {
       Animated.spring(x, { toValue: 0, useNativeDriver: false, bounciness: 8 }).start();
     }
@@ -149,6 +155,24 @@ export function PillAction({
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 0.5 }}
         style={styles.pill}
+        // La zona de arrastre es toda la píldora, no solo el círculo, para que un pulgar no caiga fuera y el gesto se lo lleve el carrusel de personas
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        // Que el scroll vertical no le quite el gesto a mitad del arrastre
+        onResponderTerminationRequest={() => false}
+        onResponderGrant={(e) => {
+          startX.current = e.nativeEvent.pageX;
+          onDragChange?.(true);
+        }}
+        onResponderMove={(e) => {
+          const dx = e.nativeEvent.pageX - startX.current;
+          x.setValue(Math.min(Math.max(dx, 0), max.current));
+        }}
+        onResponderRelease={(e) => {
+          const dx = e.nativeEvent.pageX - startX.current;
+          finish(dx, Math.abs(dx) < 6);
+        }}
+        onResponderTerminate={() => finish(0)}
       >
         <Animated.Text style={[styles.pillLabel, { opacity: labelOpacity }]}>{label}</Animated.Text>
         <Animated.View style={[styles.pillHint, { opacity: labelOpacity }]}>
@@ -157,22 +181,8 @@ export function PillAction({
         </Animated.View>
         <Animated.View
           style={[styles.pillIcon, { transform: [{ translateX: x }] }]}
-          onStartShouldSetResponder={() => true}
-          onMoveShouldSetResponder={() => true}
-          // Que el scroll vertical no le quite el gesto a mitad del arrastre
-          onResponderTerminationRequest={() => false}
-          onResponderGrant={(e) => {
-            startX.current = e.nativeEvent.pageX;
-            onDragChange?.(true);
-          }}
-          onResponderMove={(e) => {
-            const dx = e.nativeEvent.pageX - startX.current;
-            x.setValue(Math.min(Math.max(dx, 0), max.current));
-          }}
-          onResponderRelease={(e) => finish(e.nativeEvent.pageX - startX.current)}
-          onResponderTerminate={() => finish(0)}
         >
-          <Ionicons name={icon} size={22} color={colors.ink} />
+          <Ionicons name={icon} size={22} color={gradients.dark[0]} />
         </Animated.View>
       </LinearGradient>
     </View>
@@ -241,7 +251,7 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: colors.card,
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
