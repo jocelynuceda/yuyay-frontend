@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useRef, useState } from 'react';
-import { Animated, Pressable, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
+import { isActivationKey } from '../utils/keyboard';
 import { LionAvatar, type AvatarChoice } from './LionAvatar';
 import { Sparkle } from './Sparkle';
 
@@ -97,51 +98,81 @@ export function ProfileCard({
   );
 }
 
-/** Botón ancho tipo píldora: se desliza el círculo blanco hasta el final para confirmar. */
+// Tiempo para llenar la barra
+const HOLD_MS = 700;
+const RELEASE_MS = 200;
+
+/** Botón ancho tipo píldora: se mantiene presionado y una barra lo llena de izquierda a derecha; al completarse, confirma. */
 export function PillAction({
   label,
-  icon = 'arrow-forward',
+  icon = 'add',
   onPress,
-  onDragChange,
+  onHoldChange,
 }: {
   label: string;
   icon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
-  /** Avisa mientras se arrastra, para que un contenedor deslizable no le quite el gesto. */
-  onDragChange?: (dragging: boolean) => void;
+  /** Avisa mientras se mantiene presionado, para que un contenedor deslizable no cambie de página. */
+  onHoldChange?: (holding: boolean) => void;
 }) {
   const styles = useStyles();
   const { gradients, colors } = useTheme();
-  const [x] = useState(() => new Animated.Value(0));
-  const max = useRef(0);
-  const startX = useRef(0);
+  const [progress] = useState(() => new Animated.Value(0));
+  const done = useRef(false);
 
-  function finish(dx: number) {
-    onDragChange?.(false);
-    if (dx >= max.current * 0.8) {
-      Animated.timing(x, { toValue: max.current, duration: 120, useNativeDriver: false }).start(() => {
-        onPress();
-        setTimeout(() => x.setValue(0), 400);
-      });
-    } else {
-      Animated.spring(x, { toValue: 0, useNativeDriver: false, bounciness: 8 }).start();
-    }
+  // Abre sin esperar a que se llene la barra (teclado y lector de pantalla)
+  function openNow() {
+    done.current = true;
+    progress.stopAnimation();
+    progress.setValue(0);
+    onHoldChange?.(false);
+    onPress();
   }
 
-  const labelOpacity = x.interpolate({ inputRange: [0, 120], outputRange: [1, 0], extrapolate: 'clamp' });
-
   return (
-    <View
-      onLayout={(e) => {
-        // Recorrido: ancho total menos el círculo (46) y el margen interno (8 a cada lado)
-        max.current = Math.max(e.nativeEvent.layout.width - 46 - 16, 0);
+    <Pressable
+      onPressIn={() => {
+        done.current = false;
+        onHoldChange?.(true);
+        // Retoma desde donde quedó si se vuelve a presionar
+        progress.stopAnimation((value) => {
+          Animated.timing(progress, {
+            toValue: 1,
+            duration: HOLD_MS * (1 - value),
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }).start(({ finished }) => {
+            if (finished && !done.current) {
+              done.current = true;
+              onHoldChange?.(false);
+              onPress();
+              setTimeout(() => progress.setValue(0), 400);
+            }
+          });
+        });
       }}
-      accessible
+      // Soltar antes de llenarse cancela. Pressable también llama onPressOut si el dedo sale
+      // del botón o si un ScrollView toma el gesto, así que esos casos también cancelan
+      onPressOut={() => {
+        if (done.current) return;
+        onHoldChange?.(false);
+        progress.stopAnimation();
+        Animated.timing(progress, { toValue: 0, duration: RELEASE_MS, useNativeDriver: false }).start();
+      }}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint="Desliza hacia la derecha para continuar"
+      accessibilityHint="Mantén presionado para continuar"
       accessibilityActions={[{ name: 'activate' }]}
-      onAccessibilityAction={() => onPress()}
+      // Con lector de pantalla, el doble toque abre directo sin mantener
+      onAccessibilityAction={(e) => {
+        if (e.nativeEvent.actionName === 'activate') onPress();
+      }}
+      // En la web, Enter o Espacio abren directo, como el doble toque del lector de pantalla
+      onKeyDown={(e: { nativeEvent: { key?: string; repeat?: boolean }; preventDefault?: () => void }) => {
+        if (!isActivationKey(e.nativeEvent)) return;
+        e.preventDefault?.();
+        openNow();
+      }}
     >
       <LinearGradient
         colors={gradients.dark}
@@ -150,32 +181,17 @@ export function PillAction({
         end={{ x: 1, y: 0.5 }}
         style={styles.pill}
       >
-        <Animated.Text style={[styles.pillLabel, { opacity: labelOpacity }]}>{label}</Animated.Text>
-        <Animated.View style={[styles.pillHint, { opacity: labelOpacity }]}>
-          <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.35)" />
-          <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.6)" />
-        </Animated.View>
         <Animated.View
-          style={[styles.pillIcon, { transform: [{ translateX: x }] }]}
-          onStartShouldSetResponder={() => true}
-          onMoveShouldSetResponder={() => true}
-          // Que el scroll vertical no le quite el gesto a mitad del arrastre
-          onResponderTerminationRequest={() => false}
-          onResponderGrant={(e) => {
-            startX.current = e.nativeEvent.pageX;
-            onDragChange?.(true);
-          }}
-          onResponderMove={(e) => {
-            const dx = e.nativeEvent.pageX - startX.current;
-            x.setValue(Math.min(Math.max(dx, 0), max.current));
-          }}
-          onResponderRelease={(e) => finish(e.nativeEvent.pageX - startX.current)}
-          onResponderTerminate={() => finish(0)}
-        >
-          <Ionicons name={icon} size={22} color={colors.ink} />
-        </Animated.View>
+          pointerEvents="none"
+          style={[styles.pillFill, { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}
+        />
+        <View style={styles.pillRow}>
+          <Ionicons name={icon} size={20} color={colors.white} />
+          <Text style={styles.pillLabel}>{label}</Text>
+        </View>
+        <Text style={styles.pillHint}>Mantén presionado</Text>
       </LinearGradient>
-    </View>
+    </Pressable>
   );
 }
 
@@ -231,20 +247,13 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   pill: {
     height: 62,
     borderRadius: radius.pill,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  pillIcon: {
-    position: 'absolute',
-    left: 8,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: colors.card,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pillLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.semibold, fontSize: 17, color: colors.white },
-  pillHint: { position: 'absolute', right: 20, flexDirection: 'row' },
+  pillFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.22)' },
+  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pillLabel: { fontFamily: fonts.semibold, fontSize: 17, color: colors.white },
+  // Legible también sobre la barra llena (contraste AA)
+  pillHint: { fontFamily: fonts.regular, fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
 }));
