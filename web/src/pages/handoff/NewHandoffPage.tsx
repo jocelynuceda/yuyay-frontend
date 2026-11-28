@@ -12,6 +12,7 @@ import { createAttemptKey } from '../../utils/attemptKey'
 import { categoryLabels, confidenceLabels, formatDate } from '../../utils/format'
 import { collectPages } from '../../utils/pagination'
 import { focusRing } from '../../utils/styles'
+import { ConfidenceBadge } from '../entries/EntriesPanel'
 import { a11yProps } from '../forms/fieldProps'
 import { Field, ServerError } from '../forms/fields'
 import { HandoffLinkStep } from './HandoffLinkStep'
@@ -292,8 +293,9 @@ function EntryPicker({
                       />
                       <span>
                         {v.title}
-                        <span className="block text-sm text-muted">
-                          {[facts, confidenceLabels[v.confidenceLevel]].filter(Boolean).join(' · ')}
+                        {facts ? <span className="block text-sm text-muted">{facts}</span> : null}
+                        <span className="mt-1 block">
+                          <ConfidenceBadge level={v.confidenceLevel} />
                         </span>
                       </span>
                     </label>
