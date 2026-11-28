@@ -5,6 +5,7 @@ import { useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 import {
   addDays,
+  createReminderPreference,
   createReminderSync,
   doseReminderContent,
   isDoseReminderData,
@@ -72,14 +73,22 @@ const setUntil = (value: Date | null) => {
   notifyAll();
 };
 
+// La preferencia se guarda en cola (ver utils); `activeUserId` se lee al momento de usarla, ya declarada
+const preference = createReminderPreference(
+  {
+    read: () => SecureStore.getItemAsync(ENABLED_KEY),
+    write: () => SecureStore.setItemAsync(ENABLED_KEY, '1'),
+    remove: () => SecureStore.deleteItemAsync(ENABLED_KEY),
+  },
+  () => activeUserId,
+);
+
 let loaded: Promise<boolean> | null = null;
 function loadEnabled() {
-  loaded ??= SecureStore.getItemAsync(ENABLED_KEY)
-    .then((value) => {
-      setEnabled(value === '1');
-      return value === '1';
-    })
-    .catch(() => false);
+  loaded ??= preference.load().then((value) => {
+    setEnabled(value);
+    return value;
+  });
   return loaded;
 }
 
@@ -169,7 +178,8 @@ export async function enableDoseReminders(userId: number): Promise<EnableResult>
   // Mientras se esperaba el permiso, esta cuenta cerró sesión: no se activa nada a su nombre
   if (activeUserId !== userId) return 'cancelled';
   if (!permission.granted) return 'denied';
-  await SecureStore.setItemAsync(ENABLED_KEY, '1');
+  // Se guarda en la cola de la preferencia: si la cuenta salió mientras se guardaba, no queda encendido
+  if (!(await preference.enable(userId))) return 'cancelled';
   loaded = Promise.resolve(true);
   setEnabled(true);
   await syncDoseReminders(userId);
@@ -177,7 +187,7 @@ export async function enableDoseReminders(userId: number): Promise<EnableResult>
 }
 
 export async function disableDoseReminders() {
-  await SecureStore.deleteItemAsync(ENABLED_KEY).catch(() => undefined);
+  await preference.disable();
   loaded = Promise.resolve(false);
   setEnabled(false);
   setUntil(null);
