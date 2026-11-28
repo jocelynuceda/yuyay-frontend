@@ -49,12 +49,14 @@ export function FormActions({
   submitting,
   submitDisabled = false,
   submitLabel,
+  cancelLabel = 'Cancelar',
   submittingLabel = 'Guardando…',
   onCancel,
 }: {
   submitting: boolean
   submitDisabled?: boolean
   submitLabel: string
+  cancelLabel?: string
   submittingLabel?: string
   onCancel?: () => void
 }) {
@@ -67,7 +69,7 @@ export function FormActions({
           disabled={submitting}
           className={`control-interactive rounded-full border border-line px-6 py-2.5 font-semibold ${focusRing}`}
         >
-          Cancelar
+          {cancelLabel}
         </button>
       ) : null}
       <button

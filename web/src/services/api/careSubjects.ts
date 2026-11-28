@@ -1,6 +1,6 @@
 import { api } from '../http'
 import type { AccessLog, CareSubject, CareSubjectRequest, Page, PageParams } from '../../types'
-import type { CareAuthorizationDeclaration, CareAuthorizationPolicy, CareSubjectCreation } from '../../types/careAuthorization'
+import type { CareAuthorizationDeclaration, CareAuthorizationInput, CareAuthorizationPolicy, CareSubjectCreation } from '../../types/careAuthorization'
 
 export async function listCareSubjects(signal?: AbortSignal) {
   const { data } = await api.get<CareSubject[]>('/care-subjects', { signal })
@@ -25,6 +25,10 @@ export async function getCareAuthorizationHistory(id: number, signal?: AbortSign
 export async function createCareSubject({ data: fields, declaration, requestId }: CareSubjectCreation<CareSubjectRequest>) {
   const { data } = await api.post<CareSubject>('/care-subjects', { ...fields, requestId, declaration })
   return data
+}
+
+export async function registerFirstDeclaration(id: number, declaration: CareAuthorizationInput) {
+  await api.post(`/care-subjects/${id}/authorization-declarations`, { ...declaration, previousDeclarationId: null })
 }
 
 export async function updateCareSubject(id: number, request: CareSubjectRequest) {

@@ -2,7 +2,9 @@ import { createContext, useCallback, useEffect, useRef, useState, type ReactNode
 import { AppState } from 'react-native';
 import * as api from '../services/api';
 import { cancelAllReminders, reconcileAllReminders } from '../services/reminders';
-import { NoSessionError, refreshSession, session, setSessionHandlers, vault } from '../services/http';
+import { API_URL, NoSessionError, refreshSession, session, setSessionHandlers, vault } from '../services/http';
+import { clearPendingPeople } from '../services/pendingPersonDraft';
+import { pendingPersonKey } from '../services/pendingPersonStorage';
 import type { AuthResponse, RegisterInput, RegistrationIdentity, User } from '../types';
 import type { TermsAcceptance } from '../types/terms';
 
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [biometricEnabled, setBiometricState] = useState(false);
   const [resumeLocked, setResumeLocked] = useState(false);
   const statusRef = useRef(status);
+  const signingOutDraftKey = useRef<string | undefined>(undefined);
   const biometricRef = useRef(biometricEnabled);
   useEffect(() => {
     statusRef.current = status;
@@ -168,14 +171,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Los avisos de citas son de esta cuenta: no deben sonar después de cerrar sesión
       void cancelAllReminders();
       const removal = session.logout();
+      if (user) signingOutDraftKey.current = pendingPersonKey(API_URL, user.id);
+      const draftRemoval = clearPendingPeople(signingOutDraftKey.current);
       const expected = session.generation;
       setBiometricState(false);
       setResumeLocked(false);
       setUser(null);
-      setStatus('anonymous');
+      setStatus('loading');
       setRecoveryError(null);
       try {
-        await removal;
+        await Promise.all([removal, draftRemoval]);
+        if (expected !== session.generation) return;
+        signingOutDraftKey.current = undefined;
+        setStatus('anonymous');
       } catch {
         if (expected !== session.generation) return;
         setRecoveryError('No pudimos borrar la sesión guardada. Reintenta el cierre de sesión.');
