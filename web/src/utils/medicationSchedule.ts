@@ -81,6 +81,26 @@ export function describeSchedule(schedule: Pick<MedicationSchedule, 'times' | 'd
 }
 
 /** Una toma se marca desde 2 h antes de su hora y, a tiempo, hasta 30 min después (la regla del backend). */
+/**
+ * Las horas de las tomas son hora de Lima, la misma zona con la que el servidor calcula los plazos
+ * (app.reminders.zone). Perú no usa horario de verano: es UTC−5 todo el año. Así una computadora en
+ * otra zona horaria muestra los mismos plazos que el servidor.
+ */
+export const LIMA_OFFSET_MINUTES = -5 * 60
+
+/** Instante (ms) de una fecha 'YYYY-MM-DD' y una hora 'HH:mm' de Lima. */
+export function limaInstant(date: string, time: string): number {
+  const [y, m, d] = date.split('-').map(Number)
+  return Date.UTC(y, m - 1, d, Number(time.slice(0, 2)), Number(time.slice(3, 5))) - LIMA_OFFSET_MINUTES * 60_000
+}
+
+/** Fecha de hoy en Lima, sea cual sea la zona de la computadora. */
+export function todayInLima(now: Date = new Date()): string {
+  const lima = new Date(now.getTime() + LIMA_OFFSET_MINUTES * 60_000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${lima.getUTCFullYear()}-${pad(lima.getUTCMonth() + 1)}-${pad(lima.getUTCDate())}`
+}
+
 export const MARK_BEFORE_MINUTES = 120
 export const MARK_AFTER_MINUTES = 30
 
@@ -93,13 +113,12 @@ export const MARK_AFTER_MINUTES = 30
  */
 export type DoseState = 'marked' | 'upcoming' | 'due' | 'missed'
 
-export function doseState(dose: Pick<AgendaDose, 'date' | 'time' | 'status'>, today: string, nowTime: string): DoseState {
+export function doseState(dose: Pick<AgendaDose, 'date' | 'time' | 'status'>, now: Date = new Date()): DoseState {
   if (dose.status) return 'marked'
-  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
-  const dayDiff = Math.round((Date.parse(`${dose.date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000)
-  const untilDose = dayDiff * 24 * 60 + minutes(dose.time) - minutes(nowTime)
-  if (untilDose > MARK_BEFORE_MINUTES) return 'upcoming'
-  return untilDose >= -MARK_AFTER_MINUTES ? 'due' : 'missed'
+  // Al milisegundo, como el servidor: a las 8:30:01 una toma de las 8:00 ya es «se tomó tarde»
+  const untilDose = limaInstant(dose.date, dose.time) - now.getTime()
+  if (untilDose > MARK_BEFORE_MINUTES * 60_000) return 'upcoming'
+  return -untilDose > MARK_AFTER_MINUTES * 60_000 ? 'missed' : 'due'
 }
 
 /** ¿Se tomó? A tiempo o tarde. Sin marcar y pasado el plazo, cuenta como no tomada. */

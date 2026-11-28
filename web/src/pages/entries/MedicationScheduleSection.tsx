@@ -6,12 +6,12 @@ import { Icon } from '../../components/ui/Icon'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useFetch } from '../../hooks/useFetch'
 import { useToast } from '../../hooks/useToast'
-import { maxYear, MIN_YEAR, todayIso } from '../../schemas/common'
+import { maxYear, MIN_YEAR } from '../../schemas/common'
 import { deleteMedicationSchedule, getMedicationSchedule, saveMedicationSchedule } from '../../services/api/medication'
 import type { DayOfWeek, MedicationSchedule } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDate, formatTime } from '../../utils/format'
-import { describeDays, FREQUENCY_PRESETS, shortTime, WEEK_DAYS } from '../../utils/medicationSchedule'
+import { describeDays, FREQUENCY_PRESETS, shortTime, todayInLima, WEEK_DAYS } from '../../utils/medicationSchedule'
 import { focusRing } from '../../utils/styles'
 import { inputClass } from '../forms/fieldProps'
 import { ChoiceOption, Field } from '../forms/fields'
@@ -145,7 +145,7 @@ function ScheduleForm({
   const [preset, setPreset] = useState<string>(presetFor(times))
   const [someDays, setSomeDays] = useState((initial?.daysOfWeek.length ?? 0) > 0)
   const [days, setDays] = useState<DayOfWeek[]>(initial?.daysOfWeek ?? [])
-  const [startDate, setStartDate] = useState(initial?.startDate ?? todayIso())
+  const [startDate, setStartDate] = useState(initial?.startDate ?? todayInLima())
   const [endDate, setEndDate] = useState(initial?.endDate ?? '')
   const [problem, setProblem] = useState<string | null>(null)
   const [sending, setSending] = useState(false)

@@ -10,6 +10,7 @@ import {
   enableDoseReminders,
   syncDoseReminders,
   useDoseRemindersEnabled,
+  useDoseRemindersUntil,
 } from '../services/doseReminders';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
@@ -19,7 +20,7 @@ import {
   addDays,
   doseState,
   groupByPartOfDay,
-  isoDate,
+  todayInLima,
   isTaken,
   matchesWho,
   PART_OF_DAY_LABELS,
@@ -35,6 +36,8 @@ import { StatusMessage } from './StatusMessage';
 import { useFetch } from '../hooks/useFetch';
 
 const weekdayDate = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
+// La hora de las tomas es de Lima (ver utils/medicationSchedule)
+const untilFormat = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Lima' });
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const doseKey = (dose: Pick<AgendaDose, 'scheduleId' | 'date' | 'time'>) => `${dose.scheduleId}|${dose.date}|${dose.time}`;
 
@@ -57,7 +60,7 @@ export function MedicationAgenda({
   const { colors } = useTheme();
   const { user } = useAuth();
   const toast = useToast();
-  const today = isoDate(new Date());
+  const today = todayInLima();
   const [selected, setSelected] = useState(today);
   const weekStart = startOfWeek(selected);
   const agenda = useFetch(() => getMedicationAgenda(weekStart, addDays(weekStart, 6)), [weekStart, refreshKey]);
@@ -67,6 +70,7 @@ export function MedicationAgenda({
   const [busy, setBusy] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Who>('all');
   const remindersOn = useDoseRemindersEnabled();
+  const remindersUntil = useDoseRemindersUntil();
   const [togglingReminders, setTogglingReminders] = useState(false);
 
   const allDoses = accessible
@@ -236,7 +240,9 @@ export function MedicationAgenda({
             <Text style={styles.remindersTitle}>{remindersOn ? 'Te avisamos de cada toma' : 'Avisarme de cada toma'}</Text>
             <Text style={styles.remindersText}>
               {remindersOn
-                ? 'En este celular, con los botones «Tomada» y «Posponer». Toca para desactivar.'
+                ? remindersUntil
+                  ? `Programados hasta el ${untilFormat.format(remindersUntil)}. Abre Yuyay antes de esa fecha para renovarlos. Toca para desactivar.`
+                  : 'En este celular, con los botones «Tomada» y «Posponer». Toca para desactivar.'
                 : 'Una notificación en este celular a la hora de cada toma.'}
             </Text>
           </View>

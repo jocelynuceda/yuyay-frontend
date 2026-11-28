@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LoadError } from '../../components/layout/LoadError'
 import { Button } from '../../components/ui/Button'
@@ -8,7 +8,6 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import { useFetch } from '../../hooks/useFetch'
 import { useRefreshOnReturn } from '../../hooks/useRefreshOnReturn'
 import { useToast } from '../../hooks/useToast'
-import { todayIso } from '../../schemas/common'
 import { getMedicationAgenda, markDose, unmarkDose } from '../../services/api/medication'
 import type { AgendaDose, DoseStatus } from '../../types'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -22,16 +21,13 @@ import {
   PART_OF_DAY_LABELS,
   shortTime,
   startOfWeek,
+  todayInLima,
   WEEK_DAYS,
 } from '../../utils/medicationSchedule'
 import { focusRing, linkClass } from '../../utils/styles'
 
 const doseKey = (dose: Pick<AgendaDose, 'scheduleId' | 'date' | 'time'>) => `${dose.scheduleId}|${dose.date}|${dose.time}`
 
-function nowTime() {
-  const now = new Date()
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-}
 
 /**
  * Agenda de tomas en el inicio: la semana arriba con un punto por día que tiene tomas, y debajo la
@@ -42,7 +38,8 @@ function nowTime() {
  * acceso a alguien, sus tomas desaparecen sin esperar a recargar la agenda; null mientras carga.
  */
 export function TodayAgenda({ accessible }: { accessible: ReadonlySet<number> | null }) {
-  const today = todayIso()
+  // «Hoy» y los plazos de las tomas, en hora de Lima como el servidor
+  const today = todayInLima()
   const [selected, setSelected] = useState(today)
   const weekStart = startOfWeek(selected)
   const weekEnd = addDays(weekStart, 6)
@@ -68,7 +65,7 @@ export function TodayAgenda({ accessible }: { accessible: ReadonlySet<number> | 
   const doses = allDoses.filter((dose) => matches(dose, who))
   const ofDay = doses.filter((dose) => dose.date === selected)
   const taken = ofDay.filter(isTaken).length
-  const now = nowTime()
+  const now = useNow()
 
   async function setStatus(dose: AgendaDose, status: DoseStatus | null) {
     const key = doseKey(dose)
@@ -162,7 +159,7 @@ export function TodayAgenda({ accessible }: { accessible: ReadonlySet<number> | 
                   <DoseRow
                     key={doseKey(dose)}
                     dose={dose}
-                    state={doseState(dose, today, now)}
+                    state={doseState(dose, now)}
                     busy={busy === doseKey(dose)}
                     onStatus={(status) => void setStatus(dose, status)}
                   />
@@ -174,6 +171,16 @@ export function TodayAgenda({ accessible }: { accessible: ReadonlySet<number> | 
       )}
     </Card>
   )
+}
+
+/** La hora actual, renovada cada 30 s: una toma pasa sola de «Es hora» a «No tomada» sin recargar. */
+function useNow() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  return now
 }
 
 type Who = 'all' | 'me' | number

@@ -29,6 +29,7 @@ const http = await import('../src/services/http')
 const { getPostLoginTarget } = await import('../src/utils/redirect')
 const { getNotificationLink } = await import('../src/pages/notifications/notificationLink')
 const { validateDocumentFile, documentsOnly } = await import('../src/utils/attachments')
+const { limaInstant, todayInLima } = await import('../src/utils/medicationSchedule')
 const { RECETA_UNICA_MINSA } = await import('./fixtures/ocr-recetas')
 
 class MemoryStorage {
@@ -62,15 +63,15 @@ function backend() {
     // Tomas de hoy: Bruno ya marcó la de las 8; la de la 1 está pendiente
     agenda: [
       { scheduleId: 4, healthEntryId: 12, careSubjectId: 1, careSubjectName: 'Rosa', mine: false, medication: 'Losartán', dose: '50 mg',
-        date: day(0), time: '08:00:00', status: 'TAKEN' as string | null, markedByName: 'Bruno Díaz' as string | null, markedAt: '2026-11-27T13:05:00Z' as string | null },
+        date: todayInLima(), time: '08:00:00', status: 'TAKEN' as string | null, markedByName: 'Bruno Díaz' as string | null, markedAt: '2026-11-27T13:05:00Z' as string | null },
       { scheduleId: 5, healthEntryId: 13, careSubjectId: 1, careSubjectName: 'Rosa', mine: false, medication: 'Metformina', dose: '850 mg',
-        date: day(0), time: '13:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
+        date: todayInLima(), time: '13:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
       { scheduleId: 7, healthEntryId: 15, careSubjectId: 1, careSubjectName: 'Rosa', mine: false, medication: 'Paracetamol', dose: '500 mg',
-        date: day(0), time: '16:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
+        date: todayInLima(), time: '16:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
       { scheduleId: 4, healthEntryId: 12, careSubjectId: 1, careSubjectName: 'Rosa', mine: false, medication: 'Losartán', dose: '50 mg',
-        date: day(0), time: '20:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
+        date: todayInLima(), time: '20:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
       { scheduleId: 6, healthEntryId: 14, careSubjectId: 9, careSubjectName: 'Ana Torres', mine: true, medication: 'Vitamina D', dose: '1000 UI',
-        date: day(0), time: '09:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
+        date: todayInLima(), time: '09:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
     ],
     schedule: null as null | Record<string, unknown>,
     registers: [] as Record<string, unknown>[],
@@ -890,8 +891,8 @@ test('Dashboard: saludo, próxima cita más cercana entre todas las personas e i
 
 test('Inicio: agenda de medicamentos; se marca desde 2 h antes hasta 30 min después, luego solo «se tomó tarde»', async (t) => {
   // Son las 3:00 p. m.: lo de la mañana y la 1 ya pasó, lo de las 4 está por tocar y lo de las 8 aún no
-  const now = new Date()
-  t.mock.timers.enable({ apis: ['Date'], now: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0).getTime() })
+  // En hora de Lima, como el servidor (las tomas no dependen de la zona de la computadora)
+  t.mock.timers.enable({ apis: ['Date'], now: limaInstant(todayInLima(), '15:00') })
   // Ana tiene su perfil propio (id 9): sus tomas salen como «Yo»
   const { b, unmount } = await mountApp('/', { loggedIn: true, seed: (db) => {
     db.subjects.push({ id: 9, name: 'Ana Torres', birthDate: '1981-01-01', notes: null, createdAt: '2026-10-01T00:00:00Z', myRole: 'PRINCIPAL' })

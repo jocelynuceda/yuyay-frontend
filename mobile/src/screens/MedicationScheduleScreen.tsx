@@ -21,7 +21,7 @@ import { parseTime, TIME_ERROR, timePartsOf, toApiTime, type TimeParts } from '.
 import { confirmAction } from '../utils/confirm';
 import { datePartsOf, parseDateParts, type DateParts } from '../utils/dates';
 import { formatDate, formatTime } from '../utils/format';
-import { describeDays, FREQUENCY_PRESETS, isoDate, WEEK_DAYS } from '../utils/medicationSchedule';
+import { describeDays, FREQUENCY_PRESETS, todayInLima, WEEK_DAYS } from '../utils/medicationSchedule';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'MedicationSchedule'>;
 
@@ -155,7 +155,7 @@ function ScheduleForm({
   const [preset, setPreset] = useState<string>(presetFor(times));
   const [someDays, setSomeDays] = useState((initial?.daysOfWeek.length ?? 0) > 0);
   const [days, setDays] = useState<DayOfWeek[]>(initial?.daysOfWeek ?? []);
-  const startInitial = datePartsOf(initial?.startDate ?? isoDate(new Date()));
+  const startInitial = datePartsOf(initial?.startDate ?? todayInLima());
   const [start, setStart] = useState<DateParts>(startInitial);
   const endInitial = initial?.endDate ? datePartsOf(initial.endDate) : undefined;
   const [end, setEnd] = useState<DateParts>(endInitial ?? EMPTY_DATE);
