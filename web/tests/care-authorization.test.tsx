@@ -38,6 +38,7 @@ const checkbox = () => document.querySelector<HTMLInputElement>('input[type="che
 const name = () => document.querySelector<HTMLInputElement>('#subject-name')!
 const submit = () => document.querySelector<HTMLButtonElement>('button[type="submit"]')!
 const button = (label: string) => [...document.querySelectorAll('button')].find((entry) => entry.textContent?.trim() === label)!
+const account = { id: 11, name: 'Ana', birthDate: '1980-01-15', gender: 'FEMALE' as const }
 const click = (element: HTMLElement | null) => act(async () => {
   assert.ok(element)
   element.click()
@@ -174,4 +175,161 @@ test('la fecha elegida en el calendario se envía al crear la persona', async (t
   await click(day)
   await click(submit())
   assert.match(posts[0].birthDate ?? '', /^1954-\d{2}-01$/)
+})
+
+test('retoma un borrador pendiente en la misma cuenta, sin crearlo ni confirmar el permiso', async () => {
+  const posts: Record<string, unknown>[] = []
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'get') return ok(config, policy)
+    posts.push(JSON.parse(config.data))
+    return ok(config, { id: 51, name: 'Alex' })
+  }
+  const open = (id: number) => mount(<CareSubjectForm account={{ ...account, id }} onSaved={() => {}} />)
+  let close = await open(11)
+  await click(radio('THIRD_PARTY'))
+  await click(radio('PENDING'))
+  await enterName('Alex')
+  await act(async () => {
+    const notes = document.querySelector('textarea')!
+    Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set!.call(notes, 'Nota de ejemplo')
+    notes.dispatchEvent(new window.Event('input', { bubbles: true }))
+  })
+  await click(radio('MALE'))
+  await close()
+  close = await open(12)
+  assert.equal(name().value, '')
+  assert.equal(radio('PENDING'), null)
+  await close()
+  close = await open(11)
+  assert.ok(radio('PENDING').checked)
+  assert.equal(name().value, 'Alex')
+  assert.equal(document.querySelector('textarea')!.value, 'Nota de ejemplo')
+  assert.ok(radio('MALE').checked)
+  assert.ok(submit().disabled)
+  assert.equal(posts.length, 0)
+  await click(radio('HOLDER_PERMISSION'))
+  assert.ok(submit().disabled)
+  await click(checkbox())
+  await click(submit())
+  assert.equal(posts.length, 1)
+  assert.equal(posts[0].birthDate, null)
+  assert.equal(posts[0].notes, 'Nota de ejemplo')
+  await close()
+  close = await open(11)
+  assert.equal(name().value, '')
+  await close()
+})
+
+test('descartar desde una copia antigua conserva la edición guardada por otra pestaña', async (t) => {
+  const key = 'yuyay.pendingPerson.v1.91'
+  const original = { requestId: 'mismo-intento', name: 'Alex', birthDate: '', notes: '', gender: '' }
+  window.localStorage.setItem(key, JSON.stringify(original))
+  t.after(() => window.localStorage.removeItem(key))
+  api.defaults.adapter = async (config) => {
+    assert.equal(config.method, 'get')
+    return ok(config, policy)
+  }
+  const open = () => mount(<CareSubjectForm account={{ ...account, id: 91 }} onSaved={() => {}} />)
+  let close = await open()
+  assert.equal(name().value, 'Alex')
+  const updated = JSON.stringify({ ...original, name: 'Alex actualizado' })
+  window.localStorage.setItem(key, updated)
+  await click(button('Descartar borrador'))
+  assert.equal(window.localStorage.getItem(key), updated)
+  assert.match(document.body.textContent ?? '', /cambió en otra pestaña/)
+  await enterName('Cambio desde la copia antigua')
+  assert.equal(window.localStorage.getItem(key), updated)
+  await close()
+  close = await open()
+  assert.equal(name().value, 'Alex actualizado')
+  await click(button('Descartar borrador'))
+  assert.equal(window.localStorage.getItem(key), null)
+  await close()
+})
+
+test('confirmar el alta conserva una edición del borrador llegada mientras respondía el servidor', async (t) => {
+  const key = 'yuyay.pendingPerson.v1.92'
+  const draft = { requestId: 'intento-92', name: 'Alex', birthDate: '', gender: '', notes: '' }
+  const updated = JSON.stringify({ ...draft, notes: 'Nota guardada en la otra pestaña' })
+  window.localStorage.setItem(key, JSON.stringify(draft))
+  t.after(() => window.localStorage.removeItem(key))
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'get') return ok(config, policy)
+    window.localStorage.setItem(key, updated)
+    return ok(config, { id: 92, name: 'Alex' })
+  }
+  const savedIds: number[] = []
+  t.after(await mount(<CareSubjectForm account={{ ...account, id: 92 }} onSaved={p => savedIds.push(p.id)} />))
+  await click(radio('HOLDER_PERMISSION'))
+  await click(checkbox())
+  await click(submit())
+  assert.deepEqual(savedIds, [92])
+  assert.equal(window.localStorage.getItem(key), updated)
+})
+
+test('el perfil propio muestra Yo y usa el nombre, la fecha y el género de la cuenta', async (t) => {
+  let sent: Record<string, unknown> | undefined
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'get') return ok(config, policy)
+    sent = JSON.parse(config.data)
+    return ok(config, { id: 51, name: account.name })
+  }
+  t.after(await mount(<CareSubjectForm account={account} onSaved={() => {}} />))
+  await click(radio('SELF'))
+  assert.ok(name().readOnly)
+  assert.equal(name().value, 'Yo · Ana')
+  assert.ok(radio('FEMALE').checked)
+  assert.ok(!document.querySelector('textarea')!.disabled)
+  await click(checkbox())
+  await click(submit())
+  assert.equal(sent?.name, account.name)
+  assert.equal(sent?.birthDate, account.birthDate)
+  assert.equal(sent?.gender, account.gender)
+})
+
+test('un borrador reabierto conserva el identificador del alta si se perdió la respuesta', async () => {
+  const attempts: string[] = []
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'get') return ok(config, policy)
+    attempts.push(JSON.parse(config.data).requestId)
+    if (attempts.length === 1) throw Object.assign(new Error('Sin conexión'), { isAxiosError: true })
+    return ok(config, { id: 77, name: 'Alex' })
+  }
+  const open = () => mount(<CareSubjectForm account={{ ...account, id: 13 }} onSaved={() => {}} />)
+  let close = await open()
+  await click(radio('THIRD_PARTY'))
+  await click(radio('PENDING'))
+  await enterName('Alex')
+  await click(radio('HOLDER_PERMISSION'))
+  await click(checkbox())
+  await click(submit())
+  assert.ok(button('Comprobar guardado'))
+  await close()
+  close = await open()
+  assert.ok(submit().disabled)
+  await click(radio('HOLDER_PERMISSION'))
+  await click(checkbox())
+  await click(submit())
+  assert.equal(attempts.length, 2)
+  assert.equal(attempts[0], attempts[1])
+  await close()
+})
+
+test('registra la primera declaración de un perfil existente solo tras confirmarla', async (t) => {
+  let payload: Record<string, unknown> | undefined
+  api.defaults.adapter = async (config) => {
+    if (config.url?.endsWith('/authorization-policy')) return ok(config, policy)
+    assert.equal(config.url, '/care-subjects/88/authorization-declarations')
+    if (config.method === 'post') payload = JSON.parse(config.data)
+    return ok(config, payload ? [{ ...payload, id: 1, declaredAt: '2026-11-20T00:00:00Z', text: 'Declaración confirmada' }] : [])
+  }
+  t.after(await mount(<CareAuthorizationStatus subjectId={88} />))
+  await click(button('Registrar declaración'))
+  await click(radio('THIRD_PARTY'))
+  await click(radio('LEGAL_REPRESENTATION'))
+  assert.ok(button('Guardar declaración').disabled)
+  await click(checkbox())
+  await click(button('Guardar declaración'))
+  assert.deepEqual(payload, { type: 'LEGAL_REPRESENTATION', textVersion: '1', confirmed: true, previousDeclarationId: null })
+  assert.match(document.body.textContent ?? '', /Declaración registrada/)
 })
