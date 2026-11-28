@@ -8,7 +8,7 @@ export type ConfidenceLevel = 'CONFIRMED' | 'UNCERTAIN';
 export type ChangeType = 'CREATED' | 'UPDATED' | 'DELETED';
 export type OcrStatus = 'PENDING' | 'DONE' | 'FAILED';
 export type AccessAction = 'VIEW' | 'CREATE' | 'UPDATE' | 'DELETE' | 'OPEN_HANDOFF_LINK' | 'EXCHANGE_DELEGATION';
-export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION' | 'CAREGIVER_JOINED' | 'APPOINTMENT_REMINDER';
+export type NotificationType = 'ENTRY_CHANGED' | 'INVITATION' | 'DELEGATION' | 'CAREGIVER_JOINED' | 'APPOINTMENT_REMINDER' | 'PROFILE_CLAIMED';
 
 /** Género (opcional). Decide si el avatar automático es león o leona. */
 export type Gender = 'FEMALE' | 'MALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
