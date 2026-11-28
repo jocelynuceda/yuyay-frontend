@@ -65,14 +65,17 @@ export function NotificationsScreen() {
       contentContainerStyle={styles.list}
       ListHeaderComponent={
         <View style={styles.header}>
-          <View style={styles.segment} accessibilityRole="tablist">
-            <SegmentItem label="Todas" active={filter === 'all'} onPress={() => setFilter('all')} />
-            <SegmentItem
-              label={unreadCount ? `Sin leer · ${unreadCount}` : 'Sin leer'}
-              active={filter === 'unread'}
-              onPress={() => setFilter('unread')}
-            />
-          </View>
+          {/* Sin avisos no hay nada que filtrar; si el filtro está puesto, se mantiene para poder salir. */}
+          {all.length > 0 || filter === 'unread' ? (
+            <View style={styles.segment} accessibilityRole="tablist">
+              <SegmentItem label="Todas" active={filter === 'all'} onPress={() => setFilter('all')} />
+              <SegmentItem
+                label={unreadCount ? `Sin leer · ${unreadCount}` : 'Sin leer'}
+                active={filter === 'unread'}
+                onPress={() => setFilter('unread')}
+              />
+            </View>
+          ) : null}
           <StatusMessage message={notifications.error} />
         </View>
       }

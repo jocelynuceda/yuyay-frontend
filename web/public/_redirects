@@ -1,0 +1,7 @@
+/api/*             https://api.34-193-16-240.sslip.io/api/:splat                  200
+/actuator/health   https://api.34-193-16-240.sslip.io/actuator/health             200
+/swagger-ui.html   https://api.34-193-16-240.sslip.io/swagger-ui/index.html       200
+/swagger-ui/*      https://api.34-193-16-240.sslip.io/swagger-ui/:splat           200
+/v3/api-docs       https://api.34-193-16-240.sslip.io/v3/api-docs                 200
+/v3/api-docs/*     https://api.34-193-16-240.sslip.io/v3/api-docs/:splat          200
+/*                 /index.html                                                    200
