@@ -142,3 +142,13 @@ test('only a denied or missing resource counts as lost access, not a network or 
   for (const status of [0, 401, 500, 503]) assert.equal(isAccessLost(new ApiError(status, 'x')), false);
   assert.equal(isAccessLost(new Error('x')), false);
 });
+
+test('muestra el mensaje del servidor cuando falla la consulta del DNI', async () => {
+  const { toApiError } = await import('../src/services/client.ts');
+  const { AxiosError } = await import('axios');
+  const fail = (code?: string) => toApiError(new AxiosError('x', undefined, undefined, undefined,
+    { status: 503, data: { code, message: 'No se pudo consultar el DNI.' } } as never));
+
+  assert.equal(fail('DNI_LOOKUP_UNAVAILABLE').message, 'No se pudo consultar el DNI.');
+  assert.equal(fail().message, 'El servidor tuvo un problema. Inténtalo de nuevo.');
+});
