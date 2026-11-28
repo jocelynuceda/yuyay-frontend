@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useController, useForm } from 'react-hook-form'
-import { openPendingPerson } from '../../utils/pendingPersonDraft'
+import { openPendingPerson, pendingPersonPrefix } from '../../utils/pendingPersonDraft'
 import type { z } from 'zod'
 import {
   careSubjectFields,
@@ -44,7 +44,7 @@ export function CareSubjectForm({
   onCreationLockChange?: (locked: boolean) => void
 }) {
   const [serverError, setServerError] = useState<string | null>(null)
-  const draftKey = !subject && account ? `yuyay.pendingPerson.v1.${account.id}` : undefined
+  const draftKey = !subject && account ? `${pendingPersonPrefix}${account.id}` : undefined
   const [draftStore] = useState(() => openPendingPerson(draftKey))
   const savedDraft = draftStore?.draft
   const draftRequestId = useRef(savedDraft?.requestId)
@@ -217,7 +217,7 @@ export function CareSubjectForm({
 
       {savingDraft && draftKey && <div className="grid justify-items-start gap-2">
         <p role="status" className={draftError ? 'text-sm text-danger' : 'text-sm text-muted'}>
-          {draftError ?? 'Borrador guardado en este navegador. Puedes cerrar y retomarlo desde Agregar persona.'}
+          {draftError ?? 'Borrador guardado en este navegador. Puedes retomarlo desde Agregar persona. Se borra al cerrar sesión.'}
         </p>
         {!mustCheck && <Button type="button" variant="secondary" disabled={checking} onClick={discardDraft}>Descartar borrador</Button>}
       </div>}

@@ -13,6 +13,7 @@ import type { AuthResponse, User } from '../types'
 import type { RegisterRequest, RegistrationIdentity, TermsAcceptance } from '../types/auth'
 import { AuthContext } from './auth-context'
 import type { AuthContextValue } from './auth-context'
+import { clearPendingPeople } from '../utils/pendingPersonDraft'
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -113,11 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setRestoreError(null)
     setIsLoading(false)
-    try {
-      await authService.logout(refreshToken)
-    } catch {
-      // El cierre local ya está completo aunque falle la revocación en el servidor.
-    }
+    await Promise.all([clearPendingPeople(), authService.logout(refreshToken).catch(() => undefined)])
   }, [])
 
   const updateUser = useCallback((changes: Partial<User>) => {

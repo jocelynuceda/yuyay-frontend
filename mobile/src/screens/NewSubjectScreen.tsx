@@ -16,8 +16,9 @@ import { StatusMessage } from '../components/StatusMessage';
 import { createCareSubject, type CareSubjectCreationFields } from '../services/api';
 import { useCareAuthorization } from '../hooks/useCareAuthorization';
 import { useToast } from '../hooks/useToast';
-import { API_URL, ApiError } from '../services/http';
-import { readPendingPerson, writePendingPerson, type PersonDraft } from '../services/pendingPersonDraft';
+import { API_URL, ApiError, session } from '../services/http';
+import { readPendingPerson, removePendingPerson, writePendingPerson, type PersonDraft } from '../services/pendingPersonDraft';
+import { pendingPersonKey } from '../services/pendingPersonStorage';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareSubject, Gender, HomeStackParamList, User } from '../types';
 import type { CareSubjectCreation } from '../types/careAuthorization';
@@ -44,7 +45,8 @@ export function NewSubjectScreen({ navigation }: Props) {
 function NewSubjectForm({ navigation, user }: { navigation: Props['navigation']; user: User }) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const draftKey = `yuyay.pendingPerson.v1.${API_URL.replace(/[^a-zA-Z0-9.-]/g, '_')}.${user.id}`;
+  const draftKey = pendingPersonKey(API_URL, user.id);
+  const [openedInSession] = useState(() => session.generation);
   const [savedDraft] = useState(() => readPendingPerson(draftKey));
   const draftRequestId = useRef(savedDraft?.requestId);
   const [name, setName] = useState(savedDraft?.name ?? '');
@@ -64,6 +66,7 @@ function NewSubjectForm({ navigation, user }: { navigation: Props['navigation'];
   const [dateRevision, setDateRevision] = useState(0);
   const savingDraft = trackDraft && authorization.profileKind === 'THIRD_PARTY';
   function persistDraft(values: PersonDraft) {
+    if (session.generation !== openedInSession) return;
     try {
       draftRequestId.current ??= newRequestId();
       writePendingPerson(draftKey, { ...values, requestId: draftRequestId.current });
@@ -82,8 +85,10 @@ function NewSubjectForm({ navigation, user }: { navigation: Props['navigation'];
     authorization.chooseThirdPartyType(next);
   }
 
-  function discardDraft() {
-    try { writePendingPerson(draftKey, null); } catch { setDraftError(true); return; }
+  async function discardDraft() {
+    if (session.generation !== openedInSession) return;
+    setSaving(true);
+    try { await removePendingPerson(draftKey); } catch { setDraftError(true); return; } finally { setSaving(false); }
     setTrackDraft(false);
     setDraftError(false);
     delete drafts.current.THIRD_PARTY;
@@ -158,9 +163,9 @@ function NewSubjectForm({ navigation, user }: { navigation: Props['navigation'];
     setFieldErrors({});
     try {
       const subject = await createCareSubject(request);
-      if (savingDraft) {
+      if (savingDraft && session.generation === openedInSession) {
         setTrackDraft(false);
-        try { writePendingPerson(draftKey, null); } catch { /* El alta ya se confirmó. */ }
+        try { await removePendingPerson(draftKey); } catch { /* El alta ya se confirmó. */ }
       }
       attempt.current = null;
       setMustCheck(false);
@@ -255,7 +260,7 @@ function NewSubjectForm({ navigation, user }: { navigation: Props['navigation'];
         <Text style={styles.counter}>{notes.length}/500</Text>
       </View>
       {savingDraft && <View>
-        <StatusMessage tone={draftError ? 'error' : 'info'} message={draftError ? 'No pudimos guardar el borrador en este dispositivo.' : 'Borrador guardado en este dispositivo. Puedes cerrar y retomarlo desde Agregar persona.'} />
+        <StatusMessage tone={draftError ? 'error' : 'info'} message={draftError ? 'No pudimos actualizar el borrador en este dispositivo.' : 'Borrador guardado en este dispositivo. Puedes retomarlo desde Agregar persona. Se borra al cerrar sesión.'} />
         {!mustCheck && <Button disabled={saving} onPress={discardDraft}>Descartar borrador</Button>}
       </View>}
 
