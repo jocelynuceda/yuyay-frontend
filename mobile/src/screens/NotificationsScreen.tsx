@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useState } from 'react';
-import { FlatList, Image, Pressable, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { EmptyState } from '../components/EmptyState';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
@@ -65,12 +65,6 @@ export function NotificationsScreen() {
       contentContainerStyle={styles.list}
       ListHeaderComponent={
         <View style={styles.header}>
-          <Image
-            source={require('../../assets/notifications-bell.png')}
-            style={styles.bell}
-            resizeMode="contain"
-            accessible={false}
-          />
           <View style={styles.segment} accessibilityRole="tablist">
             <SegmentItem label="Todas" active={filter === 'all'} onPress={() => setFilter('all')} />
             <SegmentItem
@@ -85,6 +79,7 @@ export function NotificationsScreen() {
       ListEmptyComponent={
         notifications.error ? undefined : (
           <EmptyState
+            image={require('../../assets/notifications-bell.png')}
             title={filter === 'unread' ? 'Todo al día' : 'Sin notificaciones'}
             description={
               filter === 'unread'
@@ -143,7 +138,6 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
   list: { paddingHorizontal: 20, paddingBottom: 24, gap: 10 },
   header: { gap: 12, marginBottom: 6 },
-  bell: { width: 112, height: 112, alignSelf: 'center' },
   segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.pill, padding: 4 },
   segmentItem: { flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center' },
   segmentActive: { backgroundColor: colors.primary },
