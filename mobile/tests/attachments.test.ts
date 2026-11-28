@@ -3,6 +3,7 @@ import test from 'node:test';
 import { AxiosError, type AxiosResponse } from 'axios';
 import { appendAttachment, attachmentMimeType, attachmentUploadOptions, MAX_ATTACHMENT_BYTES, validateAttachment } from '../src/services/attachmentUpload.ts';
 import { ApiError, createApiClient } from '../src/services/client.ts';
+import { splitFilename } from '../src/utils/attachments.ts';
 
 const source = { uri: 'file:///cache/documento.jpg', name: 'documento.jpg', mimeType: 'image/jpeg', size: 20 };
 
@@ -115,4 +116,11 @@ test('multipart permissions and referenced-file conflicts remain actionable erro
     };
     await assert.rejects(client.delete('/attachments/1'), (e: ApiError) => e.status === status && !!e.message);
   }
+});
+
+test('splitFilename separates the stem from the extension at the last dot', () => {
+  assert.deepEqual(splitFilename('nota.m4a'), { stem: 'nota', extension: '.m4a' });
+  assert.deepEqual(splitFilename('nota.de.voz.m4a'), { stem: 'nota.de.voz', extension: '.m4a' });
+  assert.deepEqual(splitFilename('.m4a'), { stem: '', extension: '.m4a' });
+  assert.deepEqual(splitFilename('nota'), { stem: 'nota', extension: '' });
 });

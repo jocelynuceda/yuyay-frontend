@@ -6,13 +6,15 @@ import { FormCard, SubmitButton } from '../components/FormKit';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { VoiceNotePlayer } from '../components/VoiceNotePlayer';
+import { useAuth } from '../hooks/useAuth';
 import { useConfirmedAction } from '../hooks/useConfirmedAction';
 import { useFetch } from '../hooks/useFetch';
 import { useToast } from '../hooks/useToast';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
+import { useCareSubjects } from '../hooks/useSubjectAccess';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
-import { deleteAttachment, getAttachments, uploadAttachment } from '../services/api';
-import { audioFormData } from '../services/attachmentFiles';
+import { deleteAttachment, getAttachments, renameAttachment, uploadAttachment } from '../services/api';
+import { audioFormData, openAttachmentFile } from '../services/attachmentFiles';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, useTheme } from '../theme';
 import type { HomeStackParamList } from '../types';
@@ -20,7 +22,7 @@ import { deleteErrorMessage, formatDuration, isAudio } from '../utils/attachment
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'VoiceNotes'>;
 
-export function VoiceNotesScreen({ route, navigation }: Props) {
+export function VoiceNotesScreen({ route }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { subjectId } = route.params;
@@ -29,6 +31,10 @@ export function VoiceNotesScreen({ route, navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const runAction = useConfirmedAction(setError);
   const toast = useToast();
+  const { user } = useAuth();
+  const subjects = useCareSubjects();
+  // Mientras la lista no carga se asume que no es principal
+  const isPrincipal = subjects.data?.find((subject) => subject.id === subjectId)?.myRole === 'PRINCIPAL';
   const attachments = useFetch(() => getAttachments(subjectId), [subjectId]);
   useRefreshOnFocus(attachments.reload);
 
@@ -92,16 +98,23 @@ export function VoiceNotesScreen({ route, navigation }: Props) {
       {notes.length === 0 ? (
         <EmptyState title="Aún no hay notas de voz" description="Las notas que grabes aparecerán aquí." />
       ) : (
-        notes.map((note) => (
-          <VoiceNotePlayer
-            key={note.id}
-            note={note}
-            onCreateEntry={() =>
-              navigation.navigate('NewEntry', { subjectId, sourceAttachmentId: note.id, returnToSource: true })
-            }
-            onDelete={() => void remove(note.id)}
-          />
-        ))
+        notes.map((note) => {
+          const canManage = isPrincipal || note.uploadedById === user?.id;
+          return (
+            <VoiceNotePlayer
+              key={note.id}
+              note={note}
+              canManage={canManage}
+              onRename={async (filename) => {
+                await renameAttachment(subjectId, note.id, filename);
+                toast('Nombre guardado.');
+                attachments.reload();
+              }}
+              onDownload={() => openAttachmentFile(subjectId, note.id)}
+              onDelete={canManage ? () => void remove(note.id) : undefined}
+            />
+          );
+        })
       )}
     </ScrollView>
   );
