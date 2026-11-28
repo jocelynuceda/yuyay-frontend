@@ -293,6 +293,7 @@ export function HomeScreen({ navigation }: Props) {
       ListEmptyComponent={
         subjects.error ? undefined : (
           <EmptyState
+            showIcon={false}
             title="Aún no registras a nadie"
             description="Agrega a la persona que cuidas para anotar su medicación, alergias y consultas."
             action={
