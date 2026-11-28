@@ -5,10 +5,11 @@ import { profileKinds, thirdPartyTypes } from '../../utils/careAuthorization'
 import { ChoiceOption, ServerError } from './fields'
 
 export function CareAuthorizationFields({
-  authorization, disabled,
+  authorization, disabled, existing = false,
 }: {
   authorization: ReturnType<typeof useCareAuthorization>
   disabled: boolean
+  existing?: boolean
 }) {
   const profileGroup = useId()
   const thirdPartyGroup = useId()
@@ -61,7 +62,7 @@ export function CareAuthorizationFields({
       )}
       {option?.type === 'PENDING' && (
         <p role="status" className="rounded-xl bg-primary-tint p-3 text-sm">
-          Puedes volver o dejar el formulario abierto. La persona se agregará cuando puedas confirmar su autorización.
+          {existing ? 'Podrás registrar la declaración cuando cuentes con autorización.' : 'Para agregar a esta persona, primero debes contar con su autorización.'}
         </p>
       )}
       {option?.confirmationText && (

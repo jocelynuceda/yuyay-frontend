@@ -1,7 +1,11 @@
+import { useRef, useState } from 'react'
+import { useCareAuthorization } from '../../hooks/useCareAuthorization'
+import { CareAuthorizationFields } from '../forms/CareAuthorizationFields'
+import { getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { useFetch } from '../../hooks/useFetch'
-import { getCareAuthorizationHistory } from '../../services/api/careSubjects'
+import { getCareAuthorizationHistory, registerFirstDeclaration } from '../../services/api/careSubjects'
 import { declarationLabels, scopeLabels } from '../../utils/careAuthorization'
 import { formatDateTime } from '../../utils/format'
 
@@ -42,8 +46,44 @@ export function CareAuthorizationStatus({ subjectId }: { subjectId: number }) {
           </details>
         </>
       ) : (
-        <p className="text-sm text-muted">Sin declaración registrada</p>
+        <FirstDeclaration key={subjectId} subjectId={subjectId} reload={reload} />
       )}
     </Card>
   )
+}
+function FirstDeclaration({ subjectId, reload }: { subjectId: number; reload: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const posting = useRef(false)
+  const authorization = useCareAuthorization(editing)
+
+  async function save() {
+    if (!authorization.declaration || posting.current) return
+    posting.current = true
+    setSaving(true)
+    setError('')
+    try {
+      await registerFirstDeclaration(subjectId, authorization.declaration)
+      reload()
+    } catch (e) {
+      if ([403, 409].includes(getErrorStatus(e) ?? 0)) reload()
+      else setError(getErrorMessage(e))
+    } finally {
+      posting.current = false
+      setSaving(false)
+    }
+  }
+
+  return <div className="grid justify-items-start gap-3">
+    <p className="text-sm text-muted">Sin declaración registrada</p>
+    {editing ? <>
+      <CareAuthorizationFields authorization={authorization} disabled={saving} existing />
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={!authorization.declaration || saving} onClick={save}>Guardar declaración</Button>
+        <Button variant="secondary" disabled={saving} onClick={() => { setEditing(false); authorization.confirm(false); setError('') }}>Cancelar</Button>
+      </div>
+    </> : <Button variant="secondary" onClick={() => setEditing(true)}>Registrar declaración</Button>}
+  </div>
 }

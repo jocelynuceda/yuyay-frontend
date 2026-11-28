@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useController, useForm } from 'react-hook-form'
+import { readPendingPerson } from '../../utils/pendingPersonDraft'
 import type { z } from 'zod'
 import {
   careSubjectFields,
@@ -14,24 +15,28 @@ import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { DatePicker } from '../../components/ui/DatePicker'
 import { useCareAuthorization } from '../../hooks/useCareAuthorization'
-import type { CareSubject, CareSubjectRequest } from '../../types'
+import type { CareSubject, CareSubjectRequest, User } from '../../types'
 import type { CareSubjectCreation } from '../../types/careAuthorization'
 import { applyServerErrors, getErrorStatus } from '../../utils/apiErrors'
-import { creationOutcomeUncertain, prepareCareSubjectCreation, type CreationAttempt } from '../../utils/careAuthorization'
+import { creationOutcomeUncertain, prepareCareSubjectCreation, type CreationAttempt, type ProfileKind } from '../../utils/careAuthorization'
 import { yesterdayIso, MIN_YEAR } from '../../schemas/common'
 import { a11yProps } from './fieldProps'
 import { Field, FormActions, FormShell, GenderField, ServerError } from './fields'
 import { CareAuthorizationFields } from './CareAuthorizationFields'
 
+const newRequestId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join('')
+
 /** Nueva persona (sin `subject`) o editar persona (con `subject`). Pensado para ir dentro de un modal. */
 export function CareSubjectForm({
   subject,
+  account,
   inModal = false,
   onSaved,
   onCancel,
   onCreationLockChange,
 }: {
   subject?: CareSubject
+  account?: Pick<User, 'id' | 'name' | 'birthDate' | 'gender'> | null
   /** Dentro de un modal: sin tarjeta ni título propios, y el foco empieza en el nombre. */
   inModal?: boolean
   onSaved: (subject: CareSubject) => void
@@ -39,7 +44,12 @@ export function CareSubjectForm({
   onCreationLockChange?: (locked: boolean) => void
 }) {
   const [serverError, setServerError] = useState<string | null>(null)
-  const authorization = useCareAuthorization(!subject)
+  const draftKey = !subject && account ? `yuyay.pendingPerson.v1.${account.id}` : undefined
+  const [savedDraft] = useState(() => readPendingPerson(draftKey))
+  const draftRequestId = useRef(savedDraft?.requestId)
+  const authorization = useCareAuthorization(!subject, Boolean(savedDraft))
+  const [trackDraft, setTrackDraft] = useState(Boolean(savedDraft))
+  const [draftError, setDraftError] = useState(false)
   const attempt = useRef<CreationAttempt<CareSubjectRequest> | null>(null)
   const posting = useRef(false)
   const [checking, setChecking] = useState(false)
@@ -51,14 +61,64 @@ export function CareSubjectForm({
     handleSubmit,
     setError,
     setFocus,
+    getValues,
+    subscribe,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<CareSubjectFormValues, unknown, z.output<typeof careSubjectSchema>>({
     resolver: zodResolver(careSubjectSchema),
-    defaultValues: subject ? careSubjectToForm(subject) : emptyCareSubject,
+    defaultValues: subject ? careSubjectToForm(subject) : savedDraft ?? emptyCareSubject,
     mode: 'onChange',
   })
 
   const { field: birthDate } = useController({ control, name: 'birthDate' })
+  const savingDraft = trackDraft && authorization.profileKind === 'THIRD_PARTY'
+  const persistDraft = useCallback(() => {
+    if (!draftKey) return
+    try {
+      const values = getValues()
+      draftRequestId.current ??= newRequestId()
+      window.localStorage.setItem(draftKey, JSON.stringify({ ...values, requestId: draftRequestId.current, gender: values.gender || '', birthDate: values.birthDate || '' }))
+      setDraftError(false)
+    } catch { setDraftError(true) }
+  }, [draftKey, getValues])
+  useEffect(() => {
+    if (!savingDraft) return
+    return subscribe({ formState: { values: true }, callback: (change) => { if (change.name) persistDraft() } })
+  }, [savingDraft, persistDraft, subscribe])
+
+  function chooseThirdPartyType(next: Parameters<typeof authorization.chooseThirdPartyType>[0]) {
+    if (next === 'PENDING') {
+      persistDraft()
+      setTrackDraft(true)
+    }
+    authorization.chooseThirdPartyType(next)
+  }
+
+  function discardDraft() {
+    if (!draftKey) return
+    try { window.localStorage.removeItem(draftKey) } catch { setDraftError(true); return }
+    setTrackDraft(false)
+    setDraftError(false)
+    delete drafts.current.THIRD_PARTY
+    draftRequestId.current = undefined
+    attempt.current = null
+    reset(emptyCareSubject)
+    authorization.chooseThirdPartyType(null)
+  }
+  const self = !subject && authorization.profileKind === 'SELF'
+  const drafts = useRef<Partial<Record<ProfileKind, CareSubjectFormValues>>>({})
+
+  function chooseProfileKind(next: Parameters<typeof authorization.chooseProfileKind>[0]) {
+    const previous = authorization.profileKind
+    if (previous !== next && (previous || next === 'SELF')) {
+      drafts.current[previous ?? 'THIRD_PARTY'] = getValues()
+      reset(drafts.current[next] ?? (next === 'SELF' ? {
+        name: account?.name ?? '', birthDate: account?.birthDate ?? '', gender: account?.gender ?? '', notes: '',
+      } : emptyCareSubject))
+    }
+    authorization.chooseProfileKind(next)
+  }
 
   useEffect(() => {
     if (!inModal) return
@@ -75,6 +135,10 @@ export function CareSubjectForm({
     setChecking(true)
     try {
       const saved = await createCareSubject(request)
+      if (draftKey && savingDraft) {
+        setTrackDraft(false)
+        try { window.localStorage.removeItem(draftKey) } catch { /* El alta ya se confirmó. */ }
+      }
       attempt.current = null
       onCreationLockChange?.(false)
       setMustCheck(false)
@@ -97,8 +161,8 @@ export function CareSubjectForm({
   async function saveForm(values: z.output<typeof careSubjectSchema>) {
     if (!subject) {
       if (mustCheck || !authorization.declaration) return
-      const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join('')
-      await submitCreation(prepareCareSubjectCreation(attempt.current, authorization.declaration, values, newId))
+      const requestId = savingDraft ? draftRequestId.current : undefined
+      await submitCreation(prepareCareSubjectCreation(attempt.current, authorization.declaration, values, () => requestId ?? newRequestId()))
       return
     }
 
@@ -118,11 +182,14 @@ export function CareSubjectForm({
       onSubmit={(event) => void handleSubmit(saveForm)(event)}
     >
       <ServerError message={serverError} />
-      {!subject && <CareAuthorizationFields authorization={authorization} disabled={checking || mustCheck} />}
+      {!subject && <CareAuthorizationFields authorization={{ ...authorization, chooseProfileKind, chooseThirdPartyType }} disabled={checking || mustCheck} />}
 
       <fieldset disabled={checking || mustCheck} className="grid gap-5">
         <Field id="subject-name" label="Nombre" error={errors.name}>
-          <input autoComplete="off" maxLength={120} {...a11yProps('subject-name', errors.name)} {...register('name')} />
+          {self ? <>
+            <input {...a11yProps('subject-name', errors.name)} readOnly value={`Yo · ${account?.name ?? ''}`} />
+            <input type="hidden" {...register('name')} />
+          </> : <input autoComplete="off" maxLength={120} {...a11yProps('subject-name', errors.name)} {...register('name')} />}
         </Field>
 
         <Field id="subject-birthDate" label="Fecha de nacimiento (opcional)" error={errors.birthDate}>
@@ -141,6 +208,13 @@ export function CareSubjectForm({
         </Field>
       </fieldset>
 
+      {savingDraft && draftKey && <div className="grid justify-items-start gap-2">
+        <p role="status" className={draftError ? 'text-sm text-danger' : 'text-sm text-muted'}>
+          {draftError ? 'No pudimos guardar el borrador en este navegador.' : 'Borrador guardado en este navegador. Puedes cerrar y retomarlo desde Agregar persona.'}
+        </p>
+        {!mustCheck && <Button type="button" variant="secondary" disabled={checking} onClick={discardDraft}>Descartar borrador</Button>}
+      </div>}
+
       {mustCheck ? (
         <div className="flex flex-wrap justify-end gap-3">
           {onCancel && (
@@ -155,6 +229,7 @@ export function CareSubjectForm({
           submitting={isSubmitting || checking}
           submitDisabled={!subject && !authorization.declaration}
           submitLabel={subject ? 'Guardar cambios' : 'Agregar persona'}
+          cancelLabel={savingDraft && !draftError ? 'Cerrar' : 'Cancelar'}
           onCancel={onCancel}
         />
       )}
