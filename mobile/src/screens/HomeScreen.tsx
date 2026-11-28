@@ -11,6 +11,7 @@ import { CareSubjectCard } from '../components/CareSubjectCard';
 import { EmptyState } from '../components/EmptyState';
 import { MyAvatar, SubjectAvatar } from '../components/PersonAvatar';
 import { LoadingView } from '../components/LoadingView';
+import { MedicationAgenda } from '../components/MedicationAgenda';
 import { Isotipo } from '../components/Isotipo';
 import { Logo } from '../components/Logo';
 import { FadeIn, Floating, PressableScale } from '../components/Motion';
@@ -22,6 +23,7 @@ import { useCareSubjects, useSubjectAccess, useSubjectNotifications } from '../h
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import {
   acceptInvitation,
+  declineInvitation,
   getConsultations,
   getPendingInvitations,
   subjectAccess,
@@ -30,6 +32,7 @@ import { ApiError } from '../services/http';
 import { subjectDataIsCurrent } from '../services/subjectAccess';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
+import { confirmAction } from '../utils/confirm';
 import { appointmentOrder, careRoleLabel, formatTime, todayIso } from '../utils/format';
 import { loadBySubject } from '../utils/loadBySubject';
 
@@ -79,7 +82,10 @@ export function HomeScreen({ navigation }: Props) {
     },
     [subjectIds],
   );
+  // Cambia al volver a la pantalla o al deslizar para recargar: la agenda vuelve a leer las tomas
+  const [agendaKey, setAgendaKey] = useState(0);
   useRefreshOnFocus(() => {
+    setAgendaKey((key) => key + 1);
     subjects.reload();
     invitations.reload();
     notifications.reload();
@@ -141,6 +147,17 @@ export function HomeScreen({ navigation }: Props) {
           </Floating>
         </View>
       </LinearGradient>
+
+      {/* Invitaciones pendientes, arriba para que no se pasen por alto */}
+      {invitations.data && invitations.data.length > 0 ? (
+        <Invitations
+          items={invitations.data}
+          onChanged={() => {
+            invitations.reload();
+            subjects.reload();
+          }}
+        />
+      ) : null}
 
       {/* Bento: tarjetas de distintos tamaños que aparecen escalonadas */}
       <View style={styles.bento}>
@@ -249,15 +266,19 @@ export function HomeScreen({ navigation }: Props) {
         </PressableScale>
       </FadeIn>
 
-      {invitations.data && invitations.data.length > 0 ? (
-        <Invitations
-          items={invitations.data}
-          onAccepted={() => {
-            invitations.reload();
-            subjects.reload();
-          }}
+      <FadeIn delay={360}>
+        <MedicationAgenda
+          refreshKey={agendaKey}
+          accessible={subjects.data ? new Set(subjectIds) : null}
+          onOpen={(dose) =>
+            navigation.navigate('MedicationSchedule', {
+              subjectId: dose.careSubjectId,
+              entryId: dose.healthEntryId,
+              medication: dose.medication,
+            })
+          }
         />
-      ) : null}
+      </FadeIn>
 
       <StatusMessage message={subjects.error} />
       <View style={styles.sectionRow}>
@@ -308,6 +329,7 @@ export function HomeScreen({ navigation }: Props) {
         <RefreshControl
           refreshing={subjects.refreshing}
           onRefresh={() => {
+            setAgendaKey((key) => key + 1);
             subjects.refresh();
             invitations.reload();
             notifications.reload();
@@ -320,23 +342,51 @@ export function HomeScreen({ navigation }: Props) {
   );
 }
 
-function Invitations({ items, onAccepted }: { items: CareRelationship[]; onAccepted: () => void }) {
+/** Máximo de invitaciones visibles antes de "Ver más". */
+const VISIBLE_INVITATIONS = 2;
+
+function Invitations({ items, onChanged }: { items: CareRelationship[]; onChanged: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? items : items.slice(0, VISIBLE_INVITATIONS);
 
   async function accept(id: number) {
     setBusyId(id);
     setError(null);
     try {
       await acceptInvitation(id);
-      onAccepted();
+      onChanged();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo aceptar.');
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function decline(id: number) {
+    setBusyId(id);
+    setError(null);
+    try {
+      await declineInvitation(id);
+      onChanged();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo rechazar.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function confirmDecline(r: CareRelationship) {
+    // confirmAction ya resuelve la web (Alert no tiene botones ahí)
+    const ok = await confirmAction(
+      'Rechazar invitación',
+      `¿Rechazar la invitación para cuidar a ${r.careSubjectName}? Podrán volver a invitarte más adelante.`,
+      'Rechazar',
+    );
+    if (ok) void decline(r.id);
   }
 
   return (
@@ -346,26 +396,51 @@ function Invitations({ items, onAccepted }: { items: CareRelationship[]; onAccep
         <Text style={styles.invitationsTitle}>Te invitaron a cuidar</Text>
       </View>
       <StatusMessage message={error} />
-      {items.map((r) => (
+      {visible.map((r) => (
         <View key={r.id} style={styles.invitation}>
-          <View style={styles.flex}>
+          <View style={styles.invitationInfo}>
             <Text style={styles.invitationName}>{r.careSubjectName}</Text>
             <Text style={styles.invitationMeta}>
               Como {careRoleLabel[r.role].toLowerCase()}
               {r.relationshipLabel ? ` · ${r.relationshipLabel}` : ''}
             </Text>
           </View>
-          <Button
-            mode="contained"
-            compact
-            loading={busyId === r.id}
-            onPress={() => accept(r.id)}
-            style={styles.acceptButton}
-          >
-            Aceptar
-          </Button>
+          <View style={styles.invitationActions}>
+            <Button
+              mode="contained"
+              compact
+              loading={busyId === r.id}
+              disabled={busyId !== null}
+              onPress={() => accept(r.id)}
+              style={styles.acceptButton}
+              accessibilityLabel={`Aceptar invitación para cuidar a ${r.careSubjectName}`}
+            >
+              Aceptar
+            </Button>
+            <Button
+              mode="text"
+              compact
+              textColor={colors.danger}
+              disabled={busyId !== null}
+              onPress={() => confirmDecline(r)}
+              accessibilityLabel={`Rechazar invitación para cuidar a ${r.careSubjectName}`}
+            >
+              Rechazar
+            </Button>
+          </View>
         </View>
       ))}
+      {items.length > VISIBLE_INVITATIONS ? (
+        <Pressable
+          onPress={() => setExpanded((v) => !v)}
+          accessibilityRole="button"
+          style={styles.moreLink}
+        >
+          <Text style={styles.moreText}>
+            {expanded ? 'Ver menos' : `Ver ${items.length - VISIBLE_INVITATIONS} más`}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -481,7 +556,7 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 16,
-    marginTop: 16,
+    marginTop: 18,
     gap: 10,
     ...shadow,
     shadowOpacity: 0.06,
@@ -492,6 +567,10 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
     fontSize: 18,
     color: colors.ink,
   },
+  invitationInfo: { flex: 1, minWidth: 0 },
+  invitationActions: { alignItems: 'center' },
+  moreLink: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 8 },
+  moreText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary },
   invitation: {
     flexDirection: 'row',
     alignItems: 'center',

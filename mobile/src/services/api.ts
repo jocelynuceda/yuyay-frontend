@@ -35,6 +35,10 @@ import type {
   InviteCaregiverInput,
   Notification,
   User,
+  AgendaDose,
+  DoseStatus,
+  MedicationSchedule,
+  MedicationScheduleInput,
 } from '../types';
 import type { CareAuthorizationDeclaration, CareAuthorizationInput, CareAuthorizationPolicy, CareSubjectCreation } from '../types/careAuthorization';
 
@@ -144,6 +148,9 @@ export const getPendingInvitations = () =>
 
 export const acceptInvitation = (relationshipId: number) =>
   http.post<CareRelationship>(`/me/relationships/${relationshipId}/accept`).then((r) => r.data);
+
+export const declineInvitation = (relationshipId: number) =>
+  http.post<void>(`/me/relationships/${relationshipId}/decline`).then(() => undefined);
 
 export const getHealthCategories = () => http.get<HealthCategory[]>('/health-categories').then((r) => r.data);
 
@@ -297,3 +304,36 @@ export const prepareConsultation = (subjectId: number, consultationId: number) =
 export const confirmConsultation = (subjectId: number, consultationId: number, body: ConfirmPreparation) =>
   restrictedSubject(subjectId, () => http.post<HandoffDetail>(`/consultations/${consultationId}/preparation/confirm`, body)
     .then((response) => response.data));
+
+// ---- Horario de medicamentos ----
+
+const scheduleUrl = (subjectId: number, entryId: number) =>
+  `/care-subjects/${subjectId}/health-entries/${entryId}/schedule`;
+
+/** Horario del medicamento, o null si todavía no tiene. */
+export const getMedicationSchedule = (subjectId: number, entryId: number) =>
+  readSubject(subjectId, () =>
+    http
+      .get<MedicationSchedule>(scheduleUrl(subjectId, entryId))
+      .then((r) => r.data)
+      .catch((e: unknown) => {
+        if ((e as { status?: number }).status === 404) return null;
+        throw e;
+      }),
+  );
+
+export const saveMedicationSchedule = (subjectId: number, entryId: number, input: MedicationScheduleInput) =>
+  restrictedSubject(subjectId, () => http.put<MedicationSchedule>(scheduleUrl(subjectId, entryId), input).then((r) => r.data));
+
+export const deleteMedicationSchedule = (subjectId: number, entryId: number) =>
+  restrictedSubject(subjectId, () => http.delete(scheduleUrl(subjectId, entryId)));
+
+/** Tomas de todas las personas que cuido entre dos fechas (máximo 42 días). */
+export const getMedicationAgenda = (from: string, to: string) =>
+  http.get<AgendaDose[]>('/me/medication-agenda', { params: { from, to } }).then((r) => r.data);
+
+export const markDose = (scheduleId: number, body: { date: string; time: string; status: DoseStatus }) =>
+  http.put<AgendaDose>(`/medication-schedules/${scheduleId}/doses`, body).then((r) => r.data);
+
+export const unmarkDose = (scheduleId: number, date: string, time: string) =>
+  http.delete(`/medication-schedules/${scheduleId}/doses`, { params: { date, time } });

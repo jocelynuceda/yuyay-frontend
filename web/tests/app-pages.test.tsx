@@ -29,6 +29,7 @@ const http = await import('../src/services/http')
 const { getPostLoginTarget } = await import('../src/utils/redirect')
 const { getNotificationLink } = await import('../src/pages/notifications/notificationLink')
 const { validateDocumentFile, documentsOnly } = await import('../src/utils/attachments')
+const { limaInstant, todayInLima } = await import('../src/utils/medicationSchedule')
 const { RECETA_UNICA_MINSA } = await import('./fixtures/ocr-recetas')
 
 class MemoryStorage {
@@ -59,6 +60,20 @@ function backend() {
       { ...attachmentBase, id: 32, originalFilename: 'examen.png', contentType: 'image/png', ocrStatus: 'FAILED', ocrError: 'No se pudo extraer el texto.' },
     ],
     consultationUpdates: [] as Record<string, unknown>[],
+    // Tomas de hoy: Bruno ya marcó la de las 8; la de la 1 está pendiente
+    agenda: [
+      { scheduleId: 4, healthEntryId: 12, careSubjectId: 1, careSubjectName: 'Rosa', mine: false, medication: 'Losartán', dose: '50 mg',
+        date: todayInLima(), time: '08:00:00', status: 'TAKEN' as string | null, markedByName: 'Bruno Díaz' as string | null, markedAt: '2026-11-27T13:05:00Z' as string | null },
+      { scheduleId: 5, healthEntryId: 13, careSubjectId: 1, careSubjectName: 'Rosa', mine: false, medication: 'Metformina', dose: '850 mg',
+        date: todayInLima(), time: '13:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
+      { scheduleId: 7, healthEntryId: 15, careSubjectId: 1, careSubjectName: 'Rosa', mine: false, medication: 'Paracetamol', dose: '500 mg',
+        date: todayInLima(), time: '16:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
+      { scheduleId: 4, healthEntryId: 12, careSubjectId: 1, careSubjectName: 'Rosa', mine: false, medication: 'Losartán', dose: '50 mg',
+        date: todayInLima(), time: '20:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
+      { scheduleId: 6, healthEntryId: 14, careSubjectId: 9, careSubjectName: 'Ana Torres', mine: true, medication: 'Vitamina D', dose: '1000 UI',
+        date: todayInLima(), time: '09:00:00', status: null as string | null, markedByName: null as string | null, markedAt: null as string | null },
+    ],
+    schedule: null as null | Record<string, unknown>,
     registers: [] as Record<string, unknown>[],
     termsVersion: '1.0',
     nextTermsVersion: null as string | null,
@@ -170,6 +185,33 @@ function backend() {
       return ok(config, [{ id: 81, careSubjectId: 1, createdByUserId: 1, reason: 'Resumen de control anual',
         questions: 'Preguntas de prueba', createdAt: '2026-11-07T00:00:00Z' }])
     }
+    if (url === '/me/medication-agenda') return ok(config, db.agenda.filter((d) => d.date >= params.from && d.date <= params.to))
+    const doses = url.match(/^\/medication-schedules\/(\d+)\/doses$/)
+    if (doses) {
+      const time = method === 'PUT' ? body.time : params.time
+      const date = method === 'PUT' ? body.date : params.date
+      const dose = db.agenda.find((d) => d.scheduleId === Number(doses[1]) && d.date === date && d.time.startsWith(time))
+      if (!dose) throw fail(config, 409)
+      Object.assign(dose, method === 'PUT'
+        ? { status: body.status, markedByName: 'Ana Torres', markedAt: '2026-11-27T18:00:00Z' }
+        : { status: null, markedByName: null, markedAt: null })
+      return method === 'PUT' ? ok(config, { ...dose }) : ok(config, '', 204)
+    }
+    if (url === '/care-subjects/1/health-entries/12' || url === '/care-subjects/1/health-entries/12/versions') {
+      const version = { id: 120, versionNumber: 1, changeType: 'CREATED', title: 'Losartán', details: null, dose: '50 mg',
+        frequency: 'Cada 12 h', occurredOn: null, confidenceLevel: 'CONFIRMED', notes: null, declaredBy: { id: 1, name: 'Ana Torres' },
+        declaredAt: '2026-11-01T00:00:00Z', sourceAttachmentId: null }
+      return ok(config, url.endsWith('versions') ? [version] : { id: 12, careSubjectId: 1, categoryCode: 'MEDICATION',
+        categoryName: 'Medicamento', createdBy: { id: 1, name: 'Ana Torres' }, createdAt: '2026-11-01T00:00:00Z', deletedAt: null, latestVersion: version })
+    }
+    if (url === '/care-subjects/1/health-entries/12/schedule') {
+      if (method === 'PUT') {
+        db.schedule = { id: 4, healthEntryId: 12, careSubjectId: 1, ...body, times: body.times.map((t: string) => `${t}:00`), updatedAt: '2026-11-27T00:00:00Z' }
+        return ok(config, db.schedule)
+      }
+      if (!db.schedule) throw fail(config, 404)
+      return ok(config, db.schedule)
+    }
     if (/^\/care-subjects\/\d+\/health-entries$/.test(url) && method === 'POST') {
       db.createdEntries.push(body)
       return ok(config, { id: 99 }, 201)
@@ -228,6 +270,13 @@ function backend() {
       db.pending = db.pending.filter((r) => r !== rel)
       return ok(config, { ...rel, status: 'ACTIVE' })
     }
+    const decline = url.match(/^\/me\/relationships\/(\d+)\/decline$/)
+    if (decline && method === 'POST') {
+      const rel = db.pending.find((r) => r.id === Number(decline[1]))
+      if (!rel) throw fail(config, 404)
+      db.pending = db.pending.filter((r) => r !== rel)
+      return { config, data: undefined, headers: {}, status: 204, statusText: 'No Content' }
+    }
     if (url === '/notifications/unread-count') return ok(config, { unreadCount: db.notifications.filter((n) => !n.read).length })
     if (url === '/notifications') {
       const all = params.unread === true ? db.notifications.filter((n) => !n.read) : db.notifications
@@ -250,6 +299,7 @@ function backend() {
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 async function waitFor(condition: () => boolean, message: string, timeoutMs = 3000) {
+  // performance.now: sigue avanzando aunque una prueba fije la hora de Date
   const start = performance.now()
   while (!condition()) {
     if (performance.now() - start > timeoutMs) throw new Error(`No se cumplió a tiempo: ${message} (ruta: ${pathname()}${search()})`)
@@ -281,14 +331,17 @@ function Where() {
 
 type Db = ReturnType<typeof backend>['db']
 
-async function mountApp(path: string, { loggedIn, seed }: { loggedIn: boolean; seed?: (db: Db) => void }) {
+type Adapter = ReturnType<typeof backend>['adapter']
+
+async function mountApp(path: string, { loggedIn, seed, wrap }: { loggedIn: boolean; seed?: (db: Db) => void; wrap?: (adapter: Adapter) => Adapter }) {
   const storage = new MemoryStorage()
   ;(globalThis as any).sessionStorage = storage
   http.clearTokens()
   const b = backend()
   seed?.(b.db)
-  http.api.defaults.adapter = b.adapter
-  http.publicApi.defaults.adapter = b.adapter
+  const adapter = wrap ? wrap(b.adapter) : b.adapter
+  http.api.defaults.adapter = adapter
+  http.publicApi.defaults.adapter = adapter
   if (loggedIn) {
     storage.setItem('yuyay.refreshToken', 'R0')
     http.setTokens({ refreshToken: 'R0', accessToken: '' })
@@ -823,6 +876,33 @@ test('Enlace del correo sin sesión: login y vuelve a la invitación; aceptar ll
   assert.ok(b.calls.includes('POST /me/relationships/7/accept'))
 })
 
+test('Invitación: Rechazar pide confirmación y Cancelar restaura los botones', async (t) => {
+  const { b, unmount } = await mountApp('/invitations/7', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Lucía/.test(text()), 'mostrar la invitación')
+  await click(byText('button', 'Rechazar'), 'el botón Rechazar')
+  assert.match(text(), /¿Rechazar la invitación para cuidar a Lucía\? Podrán volver a invitarte más adelante\./)
+  assert.equal(byText('button', /Aceptar invitación/), null, 'los botones se reemplazan por la confirmación')
+  assert.ok(byText('button', 'Sí, rechazar'))
+  assert.equal(document.activeElement?.getAttribute('role'), 'alert', 'el foco va al texto de confirmación')
+  await click(byText('button', 'Cancelar'), 'el botón Cancelar')
+  assert.ok(byText('button', /Aceptar invitación/), 'vuelven los botones')
+  assert.equal(byText('button', 'Sí, rechazar'), null)
+  assert.equal(document.activeElement, byText('button', 'Rechazar'), 'el foco vuelve a Rechazar')
+  assert.ok(!b.calls.some((c) => c.includes('/decline')), 'cancelar no rechaza')
+})
+
+test('Invitación: Sí, rechazar llama al backend y vuelve al inicio', async (t) => {
+  const { b, unmount } = await mountApp('/invitations/7', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Lucía/.test(text()), 'mostrar la invitación')
+  await click(byText('button', 'Rechazar'), 'el botón Rechazar')
+  await click(byText('button', 'Sí, rechazar'), 'el botón Sí, rechazar')
+  await waitFor(() => pathname() === '/', 'volver al inicio')
+  assert.ok(b.calls.includes('POST /me/relationships/7/decline'))
+  assert.deepEqual(b.db.pending, [])
+})
+
 test('Invitación que ya no está pendiente: estado vacío, sin botón de aceptar', async (t) => {
   const { unmount } = await mountApp('/invitations/99', { loggedIn: true })
   t.after(unmount)
@@ -844,6 +924,139 @@ test('Dashboard: saludo, próxima cita más cercana entre todas las personas e i
   const list = document.getElementById('upcoming-title')!.closest('section')!.textContent ?? ''
   assert.ok(list.indexOf('Control con urología') < list.indexOf('Control con cardiología'), 'ordenadas por fecha')
   assert.ok(document.querySelector('a[href="/invitations/7"]'), 'enlace a la invitación pendiente')
+})
+
+test('Inicio: si la agenda quedó abierta y pasó el plazo, «Tomada» se envía como «se tomó tarde»', async (t) => {
+  // 4:20 p. m.: el Paracetamol de las 4 todavía está a tiempo
+  t.mock.timers.enable({ apis: ['Date'], now: limaInstant(todayInLima(), '16:20') })
+  const { b, unmount } = await mountApp('/', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Paracetamol/.test(text()), 'tomas del día')
+  const agenda = () => document.getElementById('agenda-title')!.closest('section')!
+  const take = agenda().querySelector('button[aria-label^="Marcar Paracetamol de las 4:00 p. m. como tomada"]')
+  assert.ok(take, 'a tiempo: botón «Tomada»')
+  // La pantalla sigue abierta y el reloj pasa las 4:30 antes de que la agenda se refresque
+  t.mock.timers.setTime(limaInstant(todayInLima(), '16:30') + 1000)
+  await click(take, 'Tomada pasado el plazo')
+  await waitFor(() => b.db.agenda[2].status !== null, 'toma marcada')
+  assert.equal(b.db.agenda[2].status, 'LATE', 'se recalcula al tocar, como lo exige el servidor')
+})
+
+test('Inicio: agenda de medicamentos; se marca desde 2 h antes hasta 30 min después, luego solo «se tomó tarde»', async (t) => {
+  // Son las 3:00 p. m.: lo de la mañana y la 1 ya pasó, lo de las 4 está por tocar y lo de las 8 aún no
+  // En hora de Lima, como el servidor (las tomas no dependen de la zona de la computadora)
+  t.mock.timers.enable({ apis: ['Date'], now: limaInstant(todayInLima(), '15:00') })
+  // Ana tiene su perfil propio (id 9): sus tomas salen como «Yo»
+  const { b, unmount } = await mountApp('/', { loggedIn: true, seed: (db) => {
+    db.subjects.push({ id: 9, name: 'Ana Torres', birthDate: '1981-01-01', notes: null, createdAt: '2026-10-01T00:00:00Z', myRole: 'PRINCIPAL' })
+  } })
+  t.after(unmount)
+  await waitFor(() => /Metformina/.test(text()), 'tomas del día')
+  const agenda = () => document.getElementById('agenda-title')!.closest('section')!
+  const row = (name: string, time: string) => [...agenda().querySelectorAll('li')]
+    .find((li) => li.textContent?.includes(name) && li.textContent.includes(time))!.textContent ?? ''
+  assert.match(agenda().textContent ?? '', /Mañana.*Losartán.*Vitamina D.*Tarde.*Metformina.*Paracetamol.*Noche.*Losartán/, 'agrupadas y en orden')
+  assert.match(row('Losartán', '8:00 a. m.'), /Tomada · Bruno/, 'quién marcó la toma')
+  assert.match(row('Metformina', '1:00 p. m.'), /No tomada.*Se tomó tarde/, 'pasaron más de 30 min: no tomada por defecto')
+  assert.match(row('Paracetamol', '4:00 p. m.'), /Es hora/, 'dentro de las 2 h: se puede marcar')
+  assert.match(row('Losartán', '8:00 p. m.'), /Aún no es hora/)
+  assert.equal(agenda().querySelector('button[aria-label^="Marcar Losartán de las 8:00 p. m."]'), null, 'sin botón antes de tiempo')
+  assert.equal(byText('button', 'No tomada'), null, 'no hay botón «No tomada»: es el valor por defecto')
+  assert.match(agenda().textContent ?? '', /1 de 5 tomadas/)
+
+  // Filtro por persona: «Yo» son mis tomas; «Rosa», las de ella
+  const chips = () => [...agenda().querySelectorAll<HTMLButtonElement>('[role="group"] button')].map((el) => el.textContent)
+  assert.deepEqual(chips(), ['Todas', 'Yo', 'Rosa'])
+  await click(byText('button', 'Yo'), 'filtro Yo')
+  assert.match(agenda().textContent ?? '', /Vitamina D.*Para mí/)
+  assert.doesNotMatch(agenda().textContent ?? '', /Losartán|Metformina/)
+  assert.match(agenda().textContent ?? '', /0 de 1 tomada/)
+  await click(byText('button', 'Rosa'), 'filtro Rosa')
+  assert.doesNotMatch(agenda().textContent ?? '', /Vitamina D/)
+  assert.match(agenda().textContent ?? '', /1 de 4 tomadas/)
+
+  // Se olvidaron de marcar la de la 1: se puede marcar que se tomó tarde
+  await click(agenda().querySelector('button[aria-label^="Marcar que Metformina"]'), 'Metformina se tomó tarde')
+  await waitFor(() => /2 de 4 tomadas/.test(agenda().textContent ?? ''), 'contador actualizado')
+  assert.equal(b.db.agenda[1].status, 'LATE')
+  assert.match(row('Metformina', '1:00 p. m.'), /Tomada tarde · Ana/)
+  assert.equal(b.calls.filter((c) => c.startsWith('GET /me/medication-agenda')).length, 1, 'no recarga la semana')
+
+  await click(agenda().querySelector('button[aria-label^="Deshacer la marca de Metformina"]'), 'deshacer')
+  await waitFor(() => /1 de 4 tomadas/.test(agenda().textContent ?? ''), 'marca deshecha')
+  assert.equal(b.db.agenda[1].status, null)
+
+  // Otro día de la semana sin tomas
+  const otherDay = [...agenda().querySelectorAll<HTMLButtonElement>('ol button')].find((el) => el.getAttribute('aria-pressed') === 'false')!
+  await click(otherDay, 'otro día')
+  await waitFor(() => /No hay tomas de Rosa este día/.test(agenda().textContent ?? ''), 'día vacío con el filtro de Rosa')
+})
+
+test('Inicio: al cambiar de semana no se muestran las tomas de la semana anterior mientras carga', async (t) => {
+  let release!: () => void
+  let nextWeek = false
+  const { unmount } = await mountApp('/', { loggedIn: true, wrap: (adapter) => async (config: any) => {
+    if (nextWeek && String(config.url).endsWith('/me/medication-agenda')) await new Promise<void>((resolve) => { release = resolve })
+    return adapter(config)
+  } })
+  t.after(unmount)
+  await waitFor(() => /Metformina/.test(text()), 'tomas de esta semana')
+  const agenda = () => document.getElementById('agenda-title')!.closest('section')!
+  nextWeek = true
+  await click(agenda().querySelector('button[aria-label="Semana siguiente"]'), 'semana siguiente')
+  await waitFor(() => !!release, 'pide la semana siguiente')
+  assert.doesNotMatch(agenda().textContent ?? '', /No hay tomas|Metformina/, 'no muestra la semana anterior como si fuera la nueva')
+  release()
+  await waitFor(() => /No hay tomas para este día/.test(agenda().textContent ?? ''), 'semana siguiente cargada')
+})
+
+test('Medicamento: si el horario no carga, no ofrece crear uno encima; con «Reintentar» lo muestra', async (t) => {
+  let failing = true
+  const { b, unmount } = await mountApp('/people/1/entries/12', { loggedIn: true, seed: (db) => {
+    db.schedule = { id: 4, healthEntryId: 12, careSubjectId: 1, times: ['08:00:00', '20:00:00'], daysOfWeek: [], startDate: '2026-11-01', endDate: null, updatedAt: '2026-11-27T00:00:00Z' }
+  }, wrap: (adapter) => async (config: any) => {
+    if (failing && (config.method ?? 'get').toLowerCase() === 'get' && String(config.url).endsWith('/care-subjects/1/health-entries/12/schedule')) {
+      throw Object.assign(new Error('HTTP 503'), { isAxiosError: true, config,
+        response: { status: 503, data: { message: 'Servicio no disponible' }, headers: {}, config } })
+    }
+    return adapter(config)
+  } })
+  t.after(unmount)
+  const section = () => document.getElementById('schedule-title')!.closest('section')!
+  await waitFor(() => byText('button', 'Reintentar') !== null, 'error con Reintentar')
+  assert.equal(byText('button', 'Agregar horario'), null, 'no ofrece crear un horario que podría existir')
+  assert.equal(b.calls.filter((c) => c.startsWith('PUT')).length, 0)
+  failing = false
+  await click(byText('button', 'Reintentar'), 'Reintentar')
+  await waitFor(() => /8:00 a\. m\..*8:00 p\. m\./.test(section().textContent ?? ''), 'horario existente')
+  assert.ok(byText('button', 'Cambiar horario'))
+  assert.equal(byText('button', 'Agregar horario'), null)
+})
+
+test('Medicamento: agregar horario con una frecuencia propuesta y días elegidos', async (t) => {
+  const { b, unmount } = await mountApp('/people/1/entries/12', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => byText('button', 'Agregar horario') !== null, 'botón Agregar horario')
+  await click(byText('button', 'Agregar horario'), 'Agregar horario')
+  await click(byText('label', 'Cada 12 h')!.querySelector('input'), 'Cada 12 h')
+  const times = () => [...document.querySelectorAll<HTMLInputElement>('input[type="time"]')].map((el) => el.value)
+  assert.deepEqual(times(), ['08:00', '20:00'], 'propone las horas')
+  await type(document.querySelector<HTMLInputElement>('input[aria-label="Toma 1"]')!, '07:30')
+  assert.ok((byText('label', 'Otro horario')!.querySelector('input') as HTMLInputElement).checked, 'al cambiar una hora pasa a otro horario')
+
+  await click(byText('label', 'Algunos días')!.querySelector('input'), 'Algunos días')
+  await click(byText('button', 'Guardar horario'), 'guardar sin días')
+  assert.match(text(), /Elige al menos un día/)
+  await click(document.querySelector('button[aria-label="lunes"]'), 'lunes')
+  await click(document.querySelector('button[aria-label="jueves"]'), 'jueves')
+  await click(byText('button', 'Guardar horario'), 'guardar')
+
+  await waitFor(() => b.db.schedule !== null, 'PUT del horario')
+  assert.deepEqual(b.db.schedule!.times, ['07:30:00', '20:00:00'])
+  assert.deepEqual(b.db.schedule!.daysOfWeek, ['MONDAY', 'THURSDAY'])
+  assert.equal(b.db.schedule!.endDate, null)
+  await waitFor(() => /Lunes y jueves/.test(text()), 'resumen del horario')
+  assert.ok(byText('button', 'Cambiar horario'))
 })
 
 test('Inicio sin sesión: muestra la landing con accesos a crear cuenta e iniciar sesión', async (t) => {

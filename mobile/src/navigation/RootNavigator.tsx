@@ -1,10 +1,13 @@
 import { getStateFromPath, type LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Platform, View } from 'react-native';
+import { useEffect } from 'react';
+import { AppState, Platform, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
+import { listenDoseReminderResponses, syncDoseReminders } from '../services/doseReminders';
 import { DelegateScreen } from '../screens/DelegateScreen';
 import { fonts, useTheme } from '../theme';
 import type { RootStackParamList } from '../types';
@@ -44,7 +47,14 @@ function MainScreen() {
       {status === 'recoverable' ? <Button onPress={() => { void logout(); }}>Usar otra cuenta</Button> : null}
     </View>
   );
-  return status === 'authenticated' ? <TabNavigator /> : <AuthStackNavigator />;
+  return status === 'authenticated' ? (
+    <>
+      <DoseReminderListener />
+      <TabNavigator />
+    </>
+  ) : (
+    <AuthStackNavigator />
+  );
 }
 
 /** El acceso delegado queda fuera de la sesión: quien lo abre normalmente no tiene cuenta. */
@@ -67,4 +77,21 @@ export function RootNavigator() {
       />
     </Stack.Navigator>
   );
+}
+
+/** Responde a «Tomada» y «Posponer» de los avisos de tomas mientras hay sesión. */
+function DoseReminderListener() {
+  const { user } = useAuth();
+  const toast = useToast();
+  const userId = user?.id;
+  useEffect(() => (userId === undefined ? undefined : listenDoseReminderResponses(userId, toast)), [userId, toast]);
+  // Al volver a la app se renuevan los avisos de los próximos 14 días
+  useEffect(() => {
+    if (userId === undefined) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void syncDoseReminders(userId);
+    });
+    return () => subscription.remove();
+  }, [userId]);
+  return null;
 }

@@ -18,11 +18,14 @@ import { useCareSubjects, useSubjectNotifications } from '../hooks/useSubjectAcc
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
 import { useToast } from '../hooks/useToast';
 import { updateMe } from '../services/api';
+import { getBiometricSupport } from '../services/biometric';
 import { saveProfileEdit } from '../services/profileEdit';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { Gender, RootStackParamList, TabNavigatorParamList } from '../types';
 import { ageFrom, formatDate } from '../utils/format';
+import { biometricLogoutMessage } from '../utils/biometricSupport';
+import { confirmAction } from '../utils/confirm';
 import { datePartsOf, parseDateParts, type DateParts } from '../utils/dates';
 
 type Props = BottomTabScreenProps<TabNavigatorParamList, 'Profile'>;
@@ -33,10 +36,19 @@ const BIRTH_RULES = { strictPast: true };
 export function ProfileScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, biometricEnabled } = useAuth();
   const terms = useAccountTerms();
   const toast = useToast();
   const [editingName, setEditingName] = useState(false);
+
+  // Con biometría activada, cerrar sesión la desactiva: se avisa antes para que no se espere entrar con huella
+  async function signOut() {
+    if (biometricEnabled) {
+      const support = await getBiometricSupport();
+      if (!(await confirmAction('¿Cerrar sesión?', biometricLogoutMessage(support), 'Cerrar sesión'))) return;
+    }
+    await logout();
+  }
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender | null>(null);
   const [birthParts, setBirthParts] = useState<DateParts>({ day: '', month: '', year: '' });
@@ -234,7 +246,7 @@ export function ProfileScreen({ navigation }: Props) {
         <Text style={[styles.logoutText, { color: colors.primary }]}>Tengo un código de acceso</Text>
       </Pressable>
       <AccountTerms terms={terms} />
-      <Pressable onPress={logout} hitSlop={8} accessibilityRole="button" style={styles.logout}>
+      <Pressable onPress={() => { void signOut(); }} hitSlop={8} accessibilityRole="button" style={styles.logout}>
         <Ionicons name="log-out-outline" size={20} color={colors.danger} />
         <Text style={styles.logoutText}>Cerrar sesión</Text>
       </Pressable>

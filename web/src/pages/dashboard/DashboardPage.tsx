@@ -23,6 +23,7 @@ import {
 } from '../../utils/format'
 import { linkClass } from '../../utils/styles'
 import { getErrorStatus, isAccessLost } from '../../utils/apiErrors'
+import { TodayAgenda } from './TodayAgenda'
 
 interface NextAppointment {
   subject: CareSubject
@@ -231,6 +232,8 @@ export default function DashboardPage() {
           )}
         </StatCard>
       </div>
+
+      <TodayAgenda accessible={people.data ? accessible : null} />
 
       {upcoming.length > 1 ? (
         <Card as="section" aria-labelledby="upcoming-title" className={`${cardAnimation} grid gap-3`}>

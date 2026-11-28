@@ -358,4 +358,48 @@ export type HomeStackParamList = {
   VoiceNotes: { subjectId: number };
   UpcomingConsultations: undefined;
   NearbyClinics: undefined;
+  MedicationSchedule: { subjectId: number; entryId: number; medication: string };
 };
+
+// ---- Horario de medicamentos (docs/medication-schedule.md del backend) ----
+
+export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+export interface MedicationSchedule {
+  id: number;
+  healthEntryId: number;
+  careSubjectId: number;
+  /** 'HH:mm:ss', ordenadas. */
+  times: string[];
+  /** Vacío: todos los días. */
+  daysOfWeek: DayOfWeek[];
+  startDate: string;
+  endDate: string | null;
+  updatedAt: string;
+}
+
+export interface MedicationScheduleInput {
+  times: string[];
+  daysOfWeek: DayOfWeek[];
+  startDate: string;
+  endDate: string | null;
+}
+
+/** LATE: «se tomó tarde», marcada más de 30 min después de su hora. */
+export type DoseStatus = 'TAKEN' | 'SKIPPED' | 'LATE';
+
+export interface AgendaDose {
+  scheduleId: number;
+  healthEntryId: number;
+  careSubjectId: number;
+  careSubjectName: string;
+  /** La toma es mía (mi perfil propio), no de alguien a quien cuido. */
+  mine: boolean;
+  medication: string;
+  dose: string | null;
+  date: string;
+  time: string;
+  status: DoseStatus | null;
+  markedByName: string | null;
+  markedAt: string | null;
+}

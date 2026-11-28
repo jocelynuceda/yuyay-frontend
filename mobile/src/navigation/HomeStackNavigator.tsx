@@ -9,6 +9,7 @@ import { DocumentsScreen } from '../screens/DocumentsScreen';
 import { EditEntryScreen } from '../screens/EditEntryScreen';
 import { EditSubjectScreen } from '../screens/EditSubjectScreen';
 import { EntryHistoryScreen } from '../screens/EntryHistoryScreen';
+import { MedicationScheduleScreen } from '../screens/MedicationScheduleScreen';
 import { HandoffsScreen } from '../screens/HandoffsScreen';
 import { HandoffViewScreen } from '../screens/HandoffViewScreen';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -98,6 +99,7 @@ export function HomeStackNavigator() {
         options={{ title: 'Editar registro', presentation: 'modal' }}
       />
       <Stack.Screen name="EntryHistory" component={EntryHistoryScreen} options={{ title: 'Historial' }} />
+      <Stack.Screen name="MedicationSchedule" component={MedicationScheduleScreen} options={{ title: 'Horario de tomas' }} />
       <Stack.Screen name="AccessLog" component={AccessLogScreen} options={{ title: 'Bitácora' }} />
       <Stack.Screen name="AccessLogDetail" component={AccessLogDetailScreen} options={{ title: 'Detalle' }} />
       <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Documentos' }} />

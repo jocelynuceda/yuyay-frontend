@@ -5,6 +5,7 @@ import { Switch } from 'react-native-paper';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { getBiometricSupport, type BiometricSupport } from '../services/biometric';
+import { biometricHint, biometricToggleTitle } from '../utils/biometricSupport';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 /**
@@ -33,7 +34,7 @@ export function BiometricToggle() {
     setBusy(true);
     try {
       await setBiometricEnabled(next);
-      toast(next ? `Yuyay se desbloqueará con ${label} en este celular.` : 'Desbloqueo con biometría desactivado.');
+      toast(next ? `Listo: Yuyay pedirá ${label} cada vez que lo abras en este celular.` : 'Desbloqueo con biometría desactivado.');
     } catch {
       toast(next ? 'No se activó: la comprobación se canceló o falló.' : 'No pudimos desactivar el desbloqueo.');
     } finally {
@@ -44,20 +45,16 @@ export function BiometricToggle() {
   return (
     <View style={styles.card}>
       <View style={styles.row}>
-        <Ionicons name="finger-print" size={22} color={colors.primary} />
+        <Ionicons name={support.status !== 'unsupported' && support.kind === 'face' ? 'scan' : 'finger-print'} size={22} color={colors.primary} />
         <View style={styles.text}>
-          <Text style={styles.title}>Desbloquear con {label}</Text>
-          <Text style={styles.hint}>
-            {canEnable || biometricEnabled
-              ? 'Al abrir Yuyay o volver a la app se pedirá tu huella o rostro. Se guarda solo en este celular.'
-              : 'Tu teléfono tiene sensor, pero no hay huella ni rostro registrado. Regístralo en los ajustes del teléfono para activar esta opción.'}
-          </Text>
+          <Text style={styles.title}>{biometricToggleTitle(support)}</Text>
+          <Text style={styles.hint}>{biometricHint(support, biometricEnabled)}</Text>
         </View>
         <Switch
           value={biometricEnabled}
           onValueChange={(next) => { void toggle(next); }}
           disabled={busy || (!biometricEnabled && !canEnable)}
-          accessibilityLabel={`Desbloquear Yuyay con ${label}`}
+          accessibilityLabel={biometricToggleTitle(support)}
         />
       </View>
     </View>

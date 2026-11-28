@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { LoadError } from '../../components/layout/LoadError'
 import { Button } from '../../components/ui/Button'
@@ -9,7 +9,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { useFetch } from '../../hooks/useFetch'
 import { useToast } from '../../hooks/useToast'
-import { acceptInvitation, listMyPendingInvitations } from '../../services/api/caregivers'
+import { acceptInvitation, declineInvitation, listMyPendingInvitations } from '../../services/api/caregivers'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { careRoleLabels, formatDateTime } from '../../utils/format'
 import { linkButtonClass } from '../../utils/styles'
@@ -21,6 +21,11 @@ export default function InvitationPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const [accepting, setAccepting] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [declining, setDeclining] = useState(false)
+  const confirmRef = useRef<HTMLDivElement>(null)
+  const declineRef = useRef<HTMLButtonElement>(null)
+  const returnFocus = useRef(false)
   const { data, error, loading, reload } = useFetch(
     (signal) => (id === null ? Promise.resolve([]) : listMyPendingInvitations(signal)),
     [id],
@@ -39,6 +44,36 @@ export default function InvitationPage() {
       setAccepting(false)
     }
   }
+
+  async function decline() {
+    if (!invitation) return
+    setDeclining(true)
+    try {
+      await declineInvitation(invitation.id)
+      toast.success('Invitación rechazada.')
+      void navigate('/')
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+      setDeclining(false)
+    }
+  }
+
+  // El foco pasa al texto de confirmación (para que el lector de pantalla lo anuncie) y vuelve a Rechazar al cancelar
+  function askToDecline() {
+    setConfirming(true)
+    returnFocus.current = true
+  }
+
+  function cancelDecline() {
+    setConfirming(false)
+  }
+
+  useEffect(() => {
+    if (confirming) confirmRef.current?.focus()
+    else if (returnFocus.current) declineRef.current?.focus()
+  }, [confirming])
+
+  const busy = accepting || declining
 
   return (
     <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6">
@@ -68,14 +103,33 @@ export default function InvitationPage() {
             </p>
             <p className="text-sm text-muted">Invitación enviada el {formatDateTime(invitation.invitedAt)}.</p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Button loading={accepting} onClick={() => void accept()}>
-              Aceptar invitación
-            </Button>
-            <Button variant="secondary" disabled={accepting} onClick={() => void navigate('/')}>
-              Ahora no
-            </Button>
-          </div>
+          {confirming ? (
+            <div className="grid gap-3">
+              <div ref={confirmRef} tabIndex={-1} role="alert" className="text-ink outline-none">
+                ¿Rechazar la invitación para cuidar a {invitation.careSubjectName}? Podrán volver a invitarte más adelante.
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="danger" loading={declining} onClick={() => void decline()}>
+                  Sí, rechazar
+                </Button>
+                <Button variant="secondary" disabled={declining} onClick={cancelDecline}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              <Button loading={accepting} disabled={busy} onClick={() => void accept()}>
+                Aceptar invitación
+              </Button>
+              <Button ref={declineRef} variant="ghost" disabled={busy} onClick={askToDecline}>
+                Rechazar
+              </Button>
+              <Button variant="secondary" disabled={busy} onClick={() => void navigate('/')}>
+                Ahora no
+              </Button>
+            </div>
+          )}
         </Card>
       ) : (
         <EmptyState
