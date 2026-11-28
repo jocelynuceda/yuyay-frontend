@@ -232,6 +232,7 @@ export interface HealthEntryUpdate {
 export interface Attachment {
   id: number;
   careSubjectId: number;
+  uploadedById: number;
   uploadedByName: string;
   originalFilename: string;
   contentType: string;

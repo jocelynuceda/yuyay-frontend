@@ -255,6 +255,9 @@ export const uploadAttachment = (subjectId: number, form: FormData) =>
 export const getAttachmentAccess = (subjectId: number, attachmentId: number) =>
   readSubject(subjectId, () => http.get<AttachmentAccess>(`/care-subjects/${subjectId}/attachments/${attachmentId}/access`).then((r) => r.data));
 
+export const renameAttachment = (subjectId: number, attachmentId: number, filename: string) =>
+  restrictedSubject(subjectId, () => http.patch<Attachment>(`/care-subjects/${subjectId}/attachments/${attachmentId}`, { filename }).then((r) => r.data));
+
 export const deleteAttachment = (subjectId: number, attachmentId: number) =>
   restrictedSubject(subjectId, () => http.delete(`/care-subjects/${subjectId}/attachments/${attachmentId}`));
 
