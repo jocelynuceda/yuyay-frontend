@@ -28,7 +28,7 @@ export async function registerTestAccount(prefix: string): Promise<AuthResponse>
   const self = ownProfile.data[0]
   assert.equal(self.name, body.name)
   assert.equal(self.myRole, 'PRINCIPAL')
-  assert.equal(self.birthDate, null)
+  assert.equal(self.birthDate, session.user.birthDate ?? null, 'El perfil copia la fecha proporcionada por el registro')
   assert.equal(self.notes, null)
   const firstSessionProfile = await publicApi.get('/care-subjects', { headers: { Authorization: 'Bearer ' + registered.data.accessToken } })
   assert.equal(firstSessionProfile.data[0].id, self.id, 'Iniciar sesión no duplica el perfil')
