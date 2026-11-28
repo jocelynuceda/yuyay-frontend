@@ -38,9 +38,22 @@ export function biometricHint(support: BiometricSupport, enabled: boolean): stri
     return 'En Expo Go el iPhone no deja usar Face ID. Funciona en la app de Yuyay instalada en el celular.';
   }
   if (support.status === 'available' || enabled) {
-    return `Al abrir Yuyay o volver a la app se pedirá ${support.label}. Se guarda solo en este celular.`;
+    return `Al abrir Yuyay o volver después de un minuto se pedirá ${support.label}. No reemplaza tu contraseña: si cierras sesión, se desactiva.`;
   }
   return support.kind === 'face'
     ? `Tu teléfono tiene ${support.label === 'Face ID' ? 'Face ID' : 'reconocimiento facial'}, pero no está configurado. Configúralo en los ajustes del teléfono para activar esta opción.`
     : 'Tu teléfono tiene sensor de huella, pero no hay ninguna huella registrada. Regístrala en los ajustes del teléfono para activar esta opción.';
+}
+
+/** Título del interruptor: la biometría desbloquea la sesión abierta, no inicia sesión. */
+export function biometricToggleTitle(support: BiometricSupport): string {
+  return `Pedir ${support.status === 'unsupported' ? 'biometría' : support.label} al abrir Yuyay`;
+}
+
+/** Nombre de la biometría para avisos, o un genérico si el teléfono ya no la ofrece. */
+export const biometricName = (support: BiometricSupport) => (support.status === 'unsupported' ? 'la biometría' : support.label);
+
+/** Aviso al cerrar sesión con la biometría activada: cerrar sesión la desactiva y hay que volver a entrar con la cuenta. */
+export function biometricLogoutMessage(support: BiometricSupport): string {
+  return `Se desactivará el desbloqueo con ${biometricName(support)} en este celular. Para volver a entrar necesitarás tu cuenta (correo y contraseña o Google).`;
 }

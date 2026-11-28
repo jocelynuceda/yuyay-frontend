@@ -5,7 +5,7 @@ import { Switch } from 'react-native-paper';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { getBiometricSupport, type BiometricSupport } from '../services/biometric';
-import { biometricHint } from '../utils/biometricSupport';
+import { biometricHint, biometricToggleTitle } from '../utils/biometricSupport';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 /**
@@ -34,7 +34,7 @@ export function BiometricToggle() {
     setBusy(true);
     try {
       await setBiometricEnabled(next);
-      toast(next ? `Yuyay se desbloqueará con ${label} en este celular.` : 'Desbloqueo con biometría desactivado.');
+      toast(next ? `Listo: Yuyay pedirá ${label} cada vez que lo abras en este celular.` : 'Desbloqueo con biometría desactivado.');
     } catch {
       toast(next ? 'No se activó: la comprobación se canceló o falló.' : 'No pudimos desactivar el desbloqueo.');
     } finally {
@@ -47,14 +47,14 @@ export function BiometricToggle() {
       <View style={styles.row}>
         <Ionicons name={support.status !== 'unsupported' && support.kind === 'face' ? 'scan' : 'finger-print'} size={22} color={colors.primary} />
         <View style={styles.text}>
-          <Text style={styles.title}>Desbloquear con {label}</Text>
+          <Text style={styles.title}>{biometricToggleTitle(support)}</Text>
           <Text style={styles.hint}>{biometricHint(support, biometricEnabled)}</Text>
         </View>
         <Switch
           value={biometricEnabled}
           onValueChange={(next) => { void toggle(next); }}
           disabled={busy || (!biometricEnabled && !canEnable)}
-          accessibilityLabel={`Desbloquear Yuyay con ${label}`}
+          accessibilityLabel={biometricToggleTitle(support)}
         />
       </View>
     </View>

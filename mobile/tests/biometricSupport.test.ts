@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { biometricHint, describeBiometrics, type BiometricFacts } from '../src/utils/biometricSupport.ts';
+import { biometricHint, biometricLogoutMessage, biometricToggleTitle, describeBiometrics, type BiometricFacts } from '../src/utils/biometricSupport.ts';
 
 const facts = (extra: Partial<BiometricFacts>): BiometricFacts => ({
   platform: 'ios', hasHardware: true, face: false, fingerprint: false, strong: true, expoGo: false, ...extra,
@@ -38,8 +38,22 @@ test('sin huella ni rostro registrado, el texto dice qué configurar', () => {
   assert.match(biometricHint(android, false), /sensor de huella/);
 });
 
-test('activado, el texto nombra lo que se pedirá', () => {
-  assert.match(biometricHint(describeBiometrics(facts({ face: true })), true), /se pedirá Face ID/);
+test('activado, el texto nombra lo que se pedirá y aclara que no reemplaza la contraseña', () => {
+  const hint = biometricHint(describeBiometrics(facts({ face: true })), true);
+  assert.match(hint, /se pedirá Face ID/);
+  assert.match(hint, /si cierras sesión, se desactiva/);
+});
+
+test('el interruptor dice que la biometría se pide al abrir Yuyay, no que inicia sesión', () => {
+  assert.equal(biometricToggleTitle(describeBiometrics(facts({ platform: 'android', fingerprint: true }))), 'Pedir tu huella al abrir Yuyay');
+  assert.equal(biometricToggleTitle(describeBiometrics(facts({ face: true }))), 'Pedir Face ID al abrir Yuyay');
+  assert.equal(biometricToggleTitle({ status: 'unsupported' }), 'Pedir biometría al abrir Yuyay');
+});
+
+test('al cerrar sesión se avisa que se desactiva y que hará falta la cuenta', () => {
+  const message = biometricLogoutMessage(describeBiometrics(facts({ platform: 'android', fingerprint: true })));
+  assert.match(message, /desactivará el desbloqueo con tu huella/);
+  assert.match(message, /necesitarás tu cuenta/);
 });
 
 test('sin sensor o en la web no hay desbloqueo biométrico', () => {
