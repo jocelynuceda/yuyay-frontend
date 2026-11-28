@@ -1,5 +1,6 @@
 import { useFetch } from '../hooks/useFetch';
 import { getAttachment } from '../services/api';
+import { openAttachmentFile } from '../services/attachmentFiles';
 import { isAudio, isImage } from '../utils/attachments';
 import { AttachmentPreview } from './AttachmentPreview';
 import { VoiceNotePlayer } from './VoiceNotePlayer';
@@ -8,6 +9,6 @@ import { VoiceNotePlayer } from './VoiceNotePlayer';
 export function VersionAttachment({ subjectId, attachmentId }: { subjectId: number; attachmentId: number }) {
   const { data } = useFetch(() => getAttachment(subjectId, attachmentId), [subjectId, attachmentId]);
   if (!data) return null;
-  if (isAudio(data)) return <VoiceNotePlayer note={data} />;
+  if (isAudio(data)) return <VoiceNotePlayer note={data} canManage={false} onDownload={() => openAttachmentFile(subjectId, attachmentId)} />;
   return isImage(data) ? <AttachmentPreview subjectId={subjectId} attachmentId={attachmentId} /> : null;
 }

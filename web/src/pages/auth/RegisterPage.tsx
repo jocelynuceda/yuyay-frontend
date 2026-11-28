@@ -67,7 +67,7 @@ export default function RegisterPage() {
       footer={
         <>
           ¿Ya tienes cuenta?{' '}
-          <Link to="/login" className={linkClass}>
+          <Link to="/login" state={location.state} className={linkClass}>
             Inicia sesión
           </Link>
         </>

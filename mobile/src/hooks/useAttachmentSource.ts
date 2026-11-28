@@ -1,36 +1,44 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 import { Platform } from 'react-native';
-import { getAttachmentSource } from '../services/api';
+import { getAttachmentAccess, getPreviewImageSource } from '../services/api';
+import { attachmentPreviewState } from './attachmentPreviewState';
 
-type Source = Awaited<ReturnType<typeof getAttachmentSource>>;
-
-/** Carga la imagen de un adjunto privado y libera el blob al salir en la web. */
-export function useAttachmentSource(subjectId: number, attachmentId: number, enabled: boolean) {
-  const [source, setSource] = useState<Source | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!enabled) return;
-    let active = true;
-    let uri: string | null = null;
-    getAttachmentSource(subjectId, attachmentId)
-      .then((loaded) => {
-        uri = loaded.uri;
-        if (active) setSource(loaded);
-        else release(uri);
-      })
-      .catch(() => {
-        if (active) setFailed(true);
-      });
-    return () => {
-      active = false;
-      if (uri) release(uri);
-    };
-  }, [subjectId, attachmentId, enabled]);
-
-  return { source, failed };
+/** El enlace firmado es sensible y no debe quedar en los registros. */
+export function safeMessage(error: unknown) {
+  const text = error instanceof Error ? error.message : typeof error === 'string' ? error : 'error desconocido';
+  return text.replace(/https?:\/\/\S+/g, '[url]');
 }
 
-function release(uri: string) {
-  if (Platform.OS === 'web') URL.revokeObjectURL(uri);
+export function useAttachmentSource(subjectId: number, attachmentId: number) {
+  const [state, dispatch] = useReducer(attachmentPreviewState, {
+    status: 'loading', origin: Platform.OS === 'web' ? 'api' : 's3',
+  });
+  const { origin } = state;
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    let blobUri: string | undefined;
+    (async () => {
+      try {
+        const source = origin === 's3'
+          ? { uri: (await getAttachmentAccess(subjectId, attachmentId)).url }
+          : await getPreviewImageSource(subjectId, attachmentId, controller.signal);
+        if (Platform.OS === 'web') blobUri = source.uri;
+        if (active) dispatch({ type: 'loaded', origin, source });
+        else if (blobUri) URL.revokeObjectURL(blobUri);
+      } catch (error) {
+        if (!active) return;
+        console.warn('[AttachmentPreview]', origin, safeMessage(error));
+        dispatch({ type: 'error', origin });
+      }
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+      if (blobUri) URL.revokeObjectURL(blobUri);
+    };
+  }, [subjectId, attachmentId, origin]);
+
+  return { state, onImageError: () => dispatch({ type: 'error', origin }) };
 }

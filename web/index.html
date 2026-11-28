@@ -2,6 +2,17 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
+    <meta name="referrer" content="no-referrer" />
+    <script>
+      // El enlace de entrega solo permanece en memoria, antes de solicitar fuentes u otros recursos.
+      (() => {
+        const claimMatch = location.pathname.match(/^\/entrega\/([^/]+)\/?$/)
+        if (claimMatch) {
+          try { window.__yuyayClaimToken = decodeURIComponent(claimMatch[1]) } catch (e) {}
+          history.replaceState(null, '', '/entrega')
+        }
+      })()
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script>
