@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { CareAuthorizationFields } from '../components/CareAuthorizationFields';
-import { DateField, parseDateParts } from '../components/DateField';
+import { DateField, datePartsOf, parseDateParts } from '../components/DateField';
+import { useAuth } from '../hooks/useAuth';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { GenderChips } from '../components/FormKit';
@@ -15,11 +16,13 @@ import { StatusMessage } from '../components/StatusMessage';
 import { createCareSubject, type CareSubjectCreationFields } from '../services/api';
 import { useCareAuthorization } from '../hooks/useCareAuthorization';
 import { useToast } from '../hooks/useToast';
-import { ApiError } from '../services/http';
+import { API_URL, ApiError, session } from '../services/http';
+import { readPendingPerson, removePendingPerson, writePendingPerson, type PersonDraft } from '../services/pendingPersonDraft';
+import { pendingPersonKey } from '../services/pendingPersonStorage';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { CareSubject, Gender, HomeStackParamList } from '../types';
+import type { CareSubject, Gender, HomeStackParamList, User } from '../types';
 import type { CareSubjectCreation } from '../types/careAuthorization';
-import { creationOutcomeUncertain, prepareCareSubjectCreation, type CreationAttempt } from '../utils/careAuthorization';
+import { creationOutcomeUncertain, prepareCareSubjectCreation, type CreationAttempt, type ProfileKind } from '../utils/careAuthorization';
 import { ageFrom } from '../utils/format';
 import { confirmAction } from '../utils/confirm';
 
@@ -34,12 +37,22 @@ function newRequestId() {
 }
 
 export function NewSubjectScreen({ navigation }: Props) {
+  const { user } = useAuth();
+  if (!user) return null;
+  return <NewSubjectForm key={user.id} navigation={navigation} user={user} />;
+}
+
+function NewSubjectForm({ navigation, user }: { navigation: Props['navigation']; user: User }) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const [name, setName] = useState('');
-  const [dateParts, setDateParts] = useState({ day: '', month: '', year: '' });
-  const [gender, setGender] = useState<Gender | null>(null);
-  const [notes, setNotes] = useState('');
+  const draftKey = pendingPersonKey(API_URL, user.id);
+  const [openedInSession] = useState(() => session.generation);
+  const [savedDraft] = useState(() => readPendingPerson(draftKey));
+  const draftRequestId = useRef(savedDraft?.requestId);
+  const [name, setName] = useState(savedDraft?.name ?? '');
+  const [dateParts, setDateParts] = useState(savedDraft?.dateParts ?? { day: '', month: '', year: '' });
+  const [gender, setGender] = useState<Gender | null>(savedDraft?.gender ?? null);
+  const [notes, setNotes] = useState(savedDraft?.notes ?? '');
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -47,7 +60,68 @@ export function NewSubjectScreen({ navigation }: Props) {
   const attempt = useRef<CreationAttempt<CareSubjectCreationFields> | null>(null);
   const [mustCheck, setMustCheck] = useState(false);
   const [created, setCreated] = useState<CareSubject | null>(null);
-  const authorization = useCareAuthorization();
+  const authorization = useCareAuthorization(true, Boolean(savedDraft));
+  const [trackDraft, setTrackDraft] = useState(Boolean(savedDraft));
+  const [draftError, setDraftError] = useState(false);
+  const [dateRevision, setDateRevision] = useState(0);
+  const savingDraft = trackDraft && authorization.profileKind === 'THIRD_PARTY';
+  function persistDraft(values: PersonDraft) {
+    if (session.generation !== openedInSession) return;
+    try {
+      draftRequestId.current ??= newRequestId();
+      writePendingPerson(draftKey, { ...values, requestId: draftRequestId.current });
+      setDraftError(false);
+    } catch { setDraftError(true); }
+  }
+  function editDraft(changes: Partial<PersonDraft>) {
+    if (savingDraft) persistDraft({ ...draft, ...changes });
+  }
+
+  function chooseThirdPartyType(next: Parameters<typeof authorization.chooseThirdPartyType>[0]) {
+    if (next === 'PENDING') {
+      persistDraft(draft);
+      setTrackDraft(true);
+    }
+    authorization.chooseThirdPartyType(next);
+  }
+
+  async function discardDraft() {
+    if (session.generation !== openedInSession) return;
+    setSaving(true);
+    try { await removePendingPerson(draftKey); } catch { setDraftError(true); return; } finally { setSaving(false); }
+    setTrackDraft(false);
+    setDraftError(false);
+    delete drafts.current.THIRD_PARTY;
+    draftRequestId.current = undefined;
+    attempt.current = null;
+    setName('');
+    setDateParts({ day: '', month: '', year: '' });
+    setDateRevision(value => value + 1);
+    setGender(null);
+    setNotes('');
+    setSubmitted(false);
+    setFieldErrors({});
+    authorization.chooseThirdPartyType(null);
+  }
+  const self = authorization.profileKind === 'SELF';
+  const draft = { name, dateParts, gender, notes };
+  const drafts = useRef<Partial<Record<ProfileKind, typeof draft>>>({});
+  function chooseProfileKind(next: Parameters<typeof authorization.chooseProfileKind>[0]) {
+    const previous = authorization.profileKind;
+    if (previous !== next && (previous || next === 'SELF')) {
+      drafts.current[previous ?? 'THIRD_PARTY'] = draft;
+      const nextDraft = drafts.current[next];
+      setDateRevision(value => value + 1);
+      setName(nextDraft?.name ?? (next === 'SELF' ? user?.name ?? '' : ''));
+      setDateParts(nextDraft?.dateParts ?? (next === 'SELF' && user?.birthDate
+        ? datePartsOf(user.birthDate) : { day: '', month: '', year: '' }));
+      setGender(nextDraft ? nextDraft.gender : next === 'SELF' ? user?.gender ?? null : null);
+      setNotes(nextDraft?.notes ?? '');
+      setFieldErrors({});
+      setSubmitted(false);
+    }
+    authorization.chooseProfileKind(next);
+  }
   const toast = useToast();
   const [submitted, setSubmitted] = useState(false);
 
@@ -77,7 +151,8 @@ export function NewSubjectScreen({ navigation }: Props) {
     setSubmitted(true);
     if (!authorization.declaration || !name.trim() || date.error) return;
     const data = { name: name.trim(), birthDate: date.iso, gender, notes: notes.trim() };
-    void submitCreation(prepareCareSubjectCreation(attempt.current, authorization.declaration, data, newRequestId));
+    const requestId = savingDraft ? draftRequestId.current : undefined;
+    void submitCreation(prepareCareSubjectCreation(attempt.current, authorization.declaration, data, () => requestId ?? newRequestId()));
   }
 
   async function submitCreation(request: CareSubjectCreation<CareSubjectCreationFields>) {
@@ -88,6 +163,10 @@ export function NewSubjectScreen({ navigation }: Props) {
     setFieldErrors({});
     try {
       const subject = await createCareSubject(request);
+      if (savingDraft && session.generation === openedInSession) {
+        setTrackDraft(false);
+        try { await removePendingPerson(draftKey); } catch { /* El alta ya se confirmó. */ }
+      }
       attempt.current = null;
       setMustCheck(false);
       toast(`Se agregó a ${subject.name}.`);
@@ -132,25 +211,29 @@ export function NewSubjectScreen({ navigation }: Props) {
       </View>
 
       <StatusMessage message={error} />
-      <CareAuthorizationFields authorization={authorization} disabled={saving || mustCheck} />
+      <CareAuthorizationFields authorization={{ ...authorization, chooseProfileKind, chooseThirdPartyType }} disabled={saving || mustCheck} />
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Datos básicos</Text>
         <FormField
           label="Nombre"
           icon="account-outline"
-          value={name}
-          onChangeText={setName}
+          value={self ? `Yo · ${name}` : name}
+          onChangeText={(value) => { setName(value); editDraft({ name: value }); }}
+          editable={!self && !saving && !mustCheck}
           disabled={saving || mustCheck}
           maxLength={120}
           error={(submitted && !name.trim() ? 'Ingresa su nombre.' : undefined) ?? fieldErrors.name}
         />
         <DateField
+          key={`${self}-${dateRevision}`}
+          initial={dateParts}
           label="Fecha de nacimiento (opcional)"
           disabled={saving || mustCheck}
           rules={DATE_RULES}
           onChange={(p) => {
             setDateParts(p);
+            editDraft({ dateParts: p });
             setFieldErrors(({ birthDate: _birthDate, ...rest }) => rest);
           }}
           error={(submitted ? date.error : undefined) ?? fieldErrors.birthDate}
@@ -159,7 +242,7 @@ export function NewSubjectScreen({ navigation }: Props) {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Género (opcional)</Text>
-        <GenderChips value={gender} onChange={setGender} disabled={saving || mustCheck} />
+        <GenderChips value={gender} onChange={(value) => { setGender(value); editDraft({ gender: value }); }} disabled={saving || mustCheck} />
       </View>
 
       <View style={styles.card}>
@@ -167,7 +250,7 @@ export function NewSubjectScreen({ navigation }: Props) {
         <TextInput
           value={notes}
           editable={!saving && !mustCheck}
-          onChangeText={setNotes}
+          onChangeText={(value) => { setNotes(value); editDraft({ notes: value }); }}
           placeholder="Algo que todos los cuidadores deban saber: cómo prefiere que le hablen, a quién llamar…"
           placeholderTextColor={colors.placeholder}
           multiline
@@ -176,6 +259,10 @@ export function NewSubjectScreen({ navigation }: Props) {
         />
         <Text style={styles.counter}>{notes.length}/500</Text>
       </View>
+      {savingDraft && <View>
+        <StatusMessage tone={draftError ? 'error' : 'info'} message={draftError ? 'No pudimos actualizar el borrador en este dispositivo.' : 'Borrador guardado en este dispositivo. Puedes retomarlo desde Agregar persona. Se borra al cerrar sesión.'} />
+        {!mustCheck && <Button disabled={saving} onPress={discardDraft}>Descartar borrador</Button>}
+      </View>}
 
       {authorization.declaration && <View style={styles.info}>
         <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />

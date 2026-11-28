@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useFetch } from '../hooks/useFetch';
 import { useRefreshOnFocus } from '../hooks/useRefreshOnFocus';
-import { getCareAuthorizationHistory } from '../services/api';
+import { getCareAuthorizationHistory, registerFirstDeclaration } from '../services/api';
+import { useCareAuthorization } from '../hooks/useCareAuthorization';
+import { CareAuthorizationFields } from './CareAuthorizationFields';
 import { ApiError } from '../services/http';
 import { fonts, makeStyles, radius } from '../theme';
 import { declarationLabels, scopeLabels } from '../utils/careAuthorization';
@@ -57,10 +59,46 @@ export function CareAuthorizationStatus({ subjectId }: { subjectId: number }) {
           ))}
         </>
       ) : (
-        <Text style={styles.meta}>Sin declaración registrada</Text>
+        <FirstDeclaration key={subjectId} subjectId={subjectId} reload={reload} />
       )}
     </FormCard>
   );
+}
+
+function FirstDeclaration({ subjectId, reload }: { subjectId: number; reload: () => void }) {
+  const styles = useStyles();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const posting = useRef(false);
+  const authorization = useCareAuthorization(editing);
+
+  async function save() {
+    if (!authorization.declaration || posting.current) return;
+    posting.current = true;
+    setSaving(true);
+    setError('');
+    try {
+      await registerFirstDeclaration(subjectId, authorization.declaration);
+      reload();
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 403 || e.status === 409)) reload();
+      else setError(e instanceof ApiError ? e.message : 'No pudimos guardar la declaración.');
+    } finally {
+      posting.current = false;
+      setSaving(false);
+    }
+  }
+
+  return <>
+    <Text style={styles.meta}>Sin declaración registrada</Text>
+    {editing ? <>
+      <CareAuthorizationFields authorization={authorization} disabled={saving} existing />
+      <StatusMessage message={error} />
+      <Button mode="contained" disabled={!authorization.declaration || saving} onPress={save}>Guardar declaración</Button>
+      <Button disabled={saving} onPress={() => { setEditing(false); authorization.confirm(false); setError(''); }}>Cancelar</Button>
+    </> : <Button onPress={() => setEditing(true)}>Registrar declaración</Button>}
+  </>;
 }
 
 const useStyles = makeStyles(({ colors }) => ({

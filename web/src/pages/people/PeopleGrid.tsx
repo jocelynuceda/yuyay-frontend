@@ -5,6 +5,7 @@ import { Icon } from '../../components/ui/Icon'
 import { Modal } from '../../components/ui/Modal'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { useAccessiblePeople } from '../../hooks/useAccessiblePeople'
+import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
 import type { CareSubject } from '../../types'
 import { ageFrom } from '../../utils/format'
@@ -44,6 +45,7 @@ export function PeopleGrid({
   onOpen: (subject: CareSubject) => void
 }) {
   const { data, error, errorStatus, loading, reload } = useAccessiblePeople()
+  const { user } = useAuth()
   const [adding, setAdding] = useState(false)
   const [creationLocked, setCreationLocked] = useState(false)
   const toast = useToast()
@@ -71,6 +73,8 @@ export function PeopleGrid({
       <Modal open={adding} onClose={() => setAdding(false)} title="Agregar persona" dismissible={!creationLocked}>
         {adding ? (
           <CareSubjectForm
+            key={user?.id}
+            account={user}
             inModal
             onCreationLockChange={setCreationLocked}
             onCancel={() => {

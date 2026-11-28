@@ -41,9 +41,10 @@ function Choice({
 }
 
 export function CareAuthorizationFields({
-  authorization, disabled,
+  authorization, disabled, existing = false,
 }: {
   authorization: ReturnType<typeof useCareAuthorization>;
+  existing?: boolean;
   disabled: boolean;
 }) {
   const styles = useStyles();
@@ -98,7 +99,7 @@ export function CareAuthorizationFields({
         </View>
       )}
       {option?.type === 'PENDING' && (
-        <StatusMessage tone="info" message="Puedes volver o dejar el formulario abierto. La persona se agregará cuando puedas confirmar su autorización." />
+        <StatusMessage tone="info" message={existing ? 'Podrás registrar la declaración cuando cuentes con autorización.' : 'Para agregar a esta persona, primero debes contar con su autorización.'} />
       )}
       {option?.confirmationText && (
         <Choice
