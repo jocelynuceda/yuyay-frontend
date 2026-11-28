@@ -175,6 +175,31 @@ test('avisos: cerrar sesión mientras carga la agenda no deja avisos', async () 
   assert.deepEqual([...queue.keys()], ['toma-8-1-2026-11-27-2000']);
 });
 
+test('avisos: un permiso que tarda en responder no reemplaza los avisos de la cuenta siguiente', async () => {
+  const { queue, scheduler } = fakeScheduler();
+  const sync = createReminderSync(scheduler, async () => true);
+  // A sincroniza, pero el permiso de Expo tarda en responder
+  const permissionA = pending<boolean>();
+  const syncA = sync.sync(7, async () => ((await permissionA.load()) ? [dose('2026-11-27', '20:00:00')] : null), nineAm);
+  // A cierra sesión y B entra y programa sus avisos
+  await sync.stop();
+  assert.ok(await sync.sync(8, async () => [dose('2026-11-27', '20:00:00')], nineAm));
+  const ofB = () => [...queue.values()].map((n) => `${n.identifier} cuenta ${n.data.userId}`);
+  assert.deepEqual(ofB(), ['toma-8-1-2026-11-27-2000 cuenta 8']);
+  // Recién entonces responde el permiso de A
+  permissionA.resolve(true);
+  assert.equal(await syncA, undefined, 'la sincronización de A se descarta');
+  assert.deepEqual(ofB(), ['toma-8-1-2026-11-27-2000 cuenta 8'], 'sigue el aviso original de B');
+});
+
+test('avisos: sin permiso o con los avisos apagados, la sincronización no toca la cola', async () => {
+  const { queue, scheduler } = fakeScheduler();
+  const sync = createReminderSync(scheduler, async () => true);
+  await sync.sync(7, async () => [dose('2026-11-27', '20:00:00')], nineAm);
+  assert.equal(await sync.sync(7, async () => null, nineAm), undefined);
+  assert.equal(queue.size, 1);
+});
+
 test('avisos: los pospuestos se conservan solo mientras la toma siga pendiente', async () => {
   const { queue, scheduler } = fakeScheduler();
   const sync = createReminderSync(scheduler, async () => true);

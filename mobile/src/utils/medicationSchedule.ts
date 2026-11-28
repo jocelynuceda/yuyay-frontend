@@ -274,13 +274,21 @@ export function createReminderSync(scheduler: ReminderScheduler, isEnabled: () =
 
   /**
    * Devuelve hasta cuándo quedaron avisos (null si ninguno), o undefined si otra sincronización más
-   * reciente o `stop` la superó y no cambió nada más.
+   * reciente o `stop` la superó, o si `loadAgenda` devolvió null (sin permiso o avisos apagados).
+   *
+   * El turno se toma antes de cualquier espera: todo lo que la sincronización consulta (preferencia,
+   * permiso, agenda) va dentro de `loadAgenda`, así un cierre de sesión la invalida aunque todavía no
+   * haya llegado ni el permiso.
    */
-  async function sync(userId: number, loadAgenda: () => Promise<AgendaDose[]>, now: () => Date = () => new Date()) {
+  function sync(userId: number, loadAgenda: () => Promise<AgendaDose[] | null>, now: () => Date = () => new Date()) {
     const ticket = ++requested;
+    return run(ticket, userId, loadAgenda, now);
+  }
+
+  async function run(ticket: number, userId: number, loadAgenda: () => Promise<AgendaDose[] | null>, now: () => Date) {
     const doses = await loadAgenda();
     // Ya se aplicó una agenda pedida después (o se cerró sesión): esta respuesta es vieja
-    if (ticket < applied) return undefined;
+    if (doses === null || ticket < applied) return undefined;
     applied = ticket;
     return exclusive(async (): Promise<Date | null | undefined> => {
       const current = () => applied === ticket;

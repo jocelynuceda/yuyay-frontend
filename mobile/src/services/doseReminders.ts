@@ -131,13 +131,18 @@ const reminders = createReminderSync(
  * mientras su toma siga pendiente y la persona siga en la agenda.
  */
 export async function syncDoseReminders(userId: number) {
-  if (!doseRemindersSupported || !(await loadEnabled())) return;
+  if (!doseRemindersSupported) return;
   try {
-    const permission = await Notifications.getPermissionsAsync();
-    if (!permission.granted) return;
-    const today = todayInLima();
-    // Desde ayer: un aviso pospuesto puede ser de una toma de anoche
-    const result = await reminders.sync(userId, () => getMedicationAgenda(addDays(today, -1), addDays(today, REMINDER_HORIZON_DAYS)));
+    // La sincronización toma su turno aquí, antes de esperar nada: si mientras tanto se cierra sesión,
+    // ni la preferencia, ni el permiso, ni la agenda de esta cuenta llegan a programar avisos
+    const result = await reminders.sync(userId, async () => {
+      if (!(await loadEnabled())) return null;
+      const permission = await Notifications.getPermissionsAsync();
+      if (!permission.granted) return null;
+      const today = todayInLima();
+      // Desde ayer: un aviso pospuesto puede ser de una toma de anoche
+      return getMedicationAgenda(addDays(today, -1), addDays(today, REMINDER_HORIZON_DAYS));
+    });
     if (result !== undefined) setUntil(result);
   } catch {
     // Sin conexión: los avisos quedan como estaban hasta la próxima sincronización
