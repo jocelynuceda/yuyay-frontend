@@ -4,7 +4,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CareSubjectCard } from '../components/CareSubjectCard';
@@ -32,6 +32,7 @@ import { ApiError } from '../services/http';
 import { subjectDataIsCurrent } from '../services/subjectAccess';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import type { CareRelationship, CareSubject, Consultation, HomeStackParamList, TabNavigatorParamList } from '../types';
+import { confirmAction } from '../utils/confirm';
 import { appointmentOrder, careRoleLabel, formatTime, todayIso } from '../utils/format';
 import { loadBySubject } from '../utils/loadBySubject';
 
@@ -378,17 +379,14 @@ function Invitations({ items, onChanged }: { items: CareRelationship[]; onChange
     }
   }
 
-  function confirmDecline(r: CareRelationship) {
-    const message = `¿Rechazar la invitación para cuidar a ${r.careSubjectName}? Podrán volver a invitarte más adelante.`;
-    // Alert.alert con botones no hace nada en react-native-web
-    if (Platform.OS === 'web') {
-      if (window.confirm(message)) void decline(r.id);
-      return;
-    }
-    Alert.alert('Rechazar invitación', message, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Rechazar', style: 'destructive', onPress: () => void decline(r.id) },
-    ]);
+  async function confirmDecline(r: CareRelationship) {
+    // confirmAction ya resuelve la web (Alert no tiene botones ahí)
+    const ok = await confirmAction(
+      'Rechazar invitación',
+      `¿Rechazar la invitación para cuidar a ${r.careSubjectName}? Podrán volver a invitarte más adelante.`,
+      'Rechazar',
+    );
+    if (ok) void decline(r.id);
   }
 
   return (
