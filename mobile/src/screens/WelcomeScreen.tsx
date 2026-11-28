@@ -1,203 +1,371 @@
-import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AccountTerms } from '../components/AccountTerms';
-import { AppearancePicker } from '../components/AppearancePicker';
+import { Badge } from '../components/Badge';
+import { Dashes, Scallops, Wave } from '../components/Decor';
 import { Logo } from '../components/Logo';
-import { useAccountTerms } from '../hooks/useAccountTerms';
-import { fonts, makeStyles, radius, useTheme } from '../theme';
-import type { AuthStackParamList, RootStackParamList } from '../types';
+import { FadeIn, PressableScale } from '../components/Motion';
+import { Sparkle } from '../components/Sparkle';
+import { fonts, makeStyles, radius, useTheme, type Colors } from '../theme';
+import type { AuthStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
+
 type IconName = keyof typeof Ionicons.glyphMap;
 
-const features: { label: string; icon: IconName; description: string; example: string }[] = [
-  { label: 'Inicio', icon: 'home-outline', description: 'Reúne medicamentos, alergias, vacunas y exámenes en cada perfil.', example: 'Rosa · 3 medicamentos registrados y 1 alergia confirmada' },
-  { label: 'Medicación', icon: 'medkit-outline', description: 'Consulta quién actualizó un registro y revisa sus versiones anteriores.', example: 'Medicación · Último cambio registrado por Lucía' },
-  { label: 'Recetas', icon: 'camera-outline', description: 'Revisa y confirma los datos que Yuyay lee de una foto de tu receta.', example: 'Receta fotografiada · Datos pendientes de revisión' },
-  { label: 'Familia', icon: 'people-outline', description: 'Invita a otros cuidadores para organizar juntos la información de salud.', example: 'Lucía · Cuidadora principal · Una invitación pendiente' },
-  { label: 'Citas', icon: 'calendar-outline', description: 'Consulta la agenda y activa recordatorios en el móvil.', example: 'Próxima cita · Control con cardiología' },
-  { label: 'Resumen', icon: 'document-text-outline', description: 'Elige qué registros compartir y envía un enlace temporal al médico.', example: 'Resumen para la consulta · Medicación y alergias' },
+/** Las tres "bolas" apiladas de la portada: lo que guarda Yuyay de una persona. */
+const scoopsFor = (colors: Colors): { icon: IconName; bg: string; fg: string }[] => [
+  { icon: 'medkit', bg: colors.accent, fg: colors.onAccent },
+  { icon: 'heart', bg: colors.soft, fg: colors.softText },
+  { icon: 'calendar', bg: colors.primary, fg: colors.white },
 ];
 
-const questions = [
-  ['¿Qué es Yuyay?', 'Una aplicación para organizar la información de salud personal y familiar.'],
-  ['¿Cómo empiezo?', 'Crea una cuenta y agrega tu perfil o el de una persona a quien cuidas.'],
-  ['¿Puedo cuidar a un familiar?', 'Sí. Al crear su perfil indicas con qué autorización lo haces y puedes invitar a otros cuidadores.'],
-  ['¿El médico necesita instalar la aplicación?', 'Puede abrir el resumen desde su navegador con un enlace temporal, sin crear una cuenta.'],
-  ['¿Quién puede acceder a la información?', 'Los cuidadores que invitas y las personas con un enlace que siga vigente.'],
-  ['¿Cómo se digitaliza una receta?', 'Sube una foto y revisa los datos que Yuyay extrajo antes de confirmarlos.'],
-  ['¿Puedo dejar de compartir?', 'Puedes revocar enlaces temporales y retirar el acceso de un cuidador.'],
-  ['¿Yuyay reemplaza una consulta médica?', 'Yuyay organiza información y no sustituye el diagnóstico, el tratamiento ni las indicaciones médicas.'],
-] as const;
+const featuresFor = (colors: Colors): { icon: IconName; title: string; text: string; bg: string; fg: string; tilt: string }[] => [
+  { icon: 'time', title: 'Historial que no se borra', text: 'Cada cambio queda con autor y fecha.', bg: colors.accent, fg: colors.onAccent, tilt: '-6deg' },
+  { icon: 'people', title: 'Toda la familia al tanto', text: 'Invita a otros cuidadores por correo.', bg: colors.primary, fg: colors.white, tilt: '3deg' },
+  { icon: 'link', title: 'Listo para la consulta', text: 'Comparte un resumen con el médico.', bg: colors.soft, fg: colors.softText, tilt: '-3deg' },
+];
 
-function ProductPreview() {
+/** Círculo con borde grueso del color de tarjeta, como una calcomanía. */
+function Sticker({ icon, bg, fg, size }: { icon: IconName; bg: string; fg: string; size: number }) {
   const styles = useStyles();
-  const { colors } = useTheme();
-  const [selected, setSelected] = useState(0);
-  const feature = features[selected];
-
   return (
-    <View style={styles.section}>
-      <Text accessibilityRole="header" style={styles.heading}>Conoce tu nueva memoria de salud.</Text>
-      <View style={styles.selector} accessibilityRole="radiogroup" accessibilityLabel="Funciones de Yuyay">
-        {features.map(({ label }, index) => (
-          <Pressable
-            key={label}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: selected === index }}
-            onPress={() => setSelected(index)}
-            style={[styles.option, selected === index && styles.optionActive]}
-          >
-            <Text style={[styles.optionText, selected === index && styles.primaryText]}>{label}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <View style={styles.card} accessibilityLiveRegion="polite">
-        <View style={styles.row}>
-          <Ionicons name={feature.icon} size={22} color={colors.primary} />
-          <Text style={styles.cardTitle}>{feature.label}</Text>
-        </View>
-        <Text style={styles.body}>{feature.description}</Text>
-        <View style={styles.example}>
-          <Text style={styles.caption}>Datos de ejemplo</Text>
-          <Text style={styles.cardTitle}>{feature.example}</Text>
-        </View>
-      </View>
+    <View style={[styles.sticker, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg }]}>
+      <Ionicons name={icon} size={size * 0.38} color={fg} />
     </View>
   );
 }
 
-function Question({ title, answer }: { title: string; answer: string }) {
+/** Vista previa ilustrativa (no son datos reales). */
+function PreviewCard() {
   const styles = useStyles();
   const { colors } = useTheme();
-  const [expanded, setExpanded] = useState(false);
-
+  const items = [
+    { title: 'Metformina 850 mg', meta: 'Cada 12 h · por Lucía', ok: true },
+    { title: 'Alergia a penicilina', meta: 'Versión 2 · por Diego', ok: true },
+    { title: 'Hipertensión', meta: 'Desde 2019 · por Ana', ok: false },
+  ];
   return (
-    <View style={styles.question}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        onPress={() => setExpanded((value) => !value)}
-        style={styles.questionButton}
-      >
-        <Text style={styles.questionText}>{title}</Text>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.primary} />
-      </Pressable>
-      {expanded && <Text style={[styles.body, styles.answer]}>{answer}</Text>}
+    <View style={styles.previewWrap}>
+      <Scallops color={colors.card} count={10} height={12} up />
+      <View style={styles.preview}>
+        <View style={styles.previewHeader}>
+          <View style={styles.previewAvatar}>
+            <Text style={styles.previewInitial}>R</Text>
+          </View>
+          <View>
+            <Text style={styles.previewName}>Rosa, 78 años</Text>
+            <Text style={styles.previewMeta}>Persona a tu cuidado</Text>
+          </View>
+        </View>
+        {items.map((item) => (
+          <View key={item.title} style={styles.previewRow}>
+            <Sparkle size={14} />
+            <View style={styles.flex}>
+              <Text style={styles.previewTitle} numberOfLines={1}>
+                {item.title}
+              </Text>
+              <Text style={styles.previewMeta}>{item.meta}</Text>
+            </View>
+            <Badge label={item.ok ? 'Confirmado' : 'Por confirmar'} tone={item.ok ? 'accent' : 'amber'} />
+          </View>
+        ))}
+      </View>
+      <Scallops color={colors.card} count={10} height={12} />
     </View>
   );
 }
 
 export function WelcomeScreen({ navigation }: Props) {
   const styles = useStyles();
-  const terms = useAccountTerms();
-  const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const login = () => navigation.navigate('Login');
-  const register = () => navigation.navigate('Register');
+  const { colors } = useTheme();
+  const scoops = scoopsFor(colors);
+  const features = featuresFor(colors);
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.topBar}>
-        <Logo />
-        <Pressable accessibilityRole="button" onPress={login} style={styles.topAction}>
-          <Text style={styles.optionText}>Iniciar sesión</Text>
-        </Pressable>
-      </View>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.section}>
-          <Text style={styles.eyebrow}>Yuyay · «recordar» en quechua</Text>
-          <Text accessibilityRole="header" style={styles.title}>La salud de tu familia, en un solo lugar.</Text>
-          <Text style={styles.body}>Organiza medicamentos, recetas y citas. Comparte el cuidado con tu familia y llega preparado a cada consulta.</Text>
-          <View style={styles.heroActions}>
-            <Pressable accessibilityRole="button" onPress={register} style={styles.primary}>
-              <Text style={styles.primaryText}>Crear cuenta</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => rootNavigation.navigate('Delegate')} style={styles.topAction}>
-              <Text style={styles.optionText}>Tengo un código</Text>
-            </Pressable>
+    <View style={styles.screen}>
+      <SafeAreaView edges={['top']} style={styles.topBar}>
+        <View style={styles.topRow}>
+          <Logo />
+          <PressableScale
+            onPress={() => navigation.navigate('Login')}
+            style={styles.topButton}
+            accessibilityRole="button"
+            accessibilityLabel="Ya tengo cuenta"
+          >
+            <Text style={styles.topButtonText}>Entrar</Text>
+          </PressableScale>
+        </View>
+      </SafeAreaView>
+      <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
+        <Scallops color={colors.cream} style={styles.topScallops} />
+
+        {/* Portada */}
+        <View style={styles.hero}>
+          <View style={styles.heroBlob} />
+          <View style={styles.heroCircle} />
+          <FadeIn>
+            <Text style={styles.title}>El cuidado,{'\n'}compartido.</Text>
+            <Text style={styles.subtitle}>
+              Un solo lugar para la salud de quien cuidas, y un toque de calma para toda la familia.
+            </Text>
+            <PressableScale
+              onPress={() => navigation.navigate('Register')}
+              style={styles.cta}
+              accessibilityRole="button"
+              accessibilityLabel="Empieza gratis"
+            >
+              <Text style={styles.ctaText}>Empieza gratis</Text>
+              <Ionicons name="arrow-forward" size={18} color={colors.onInk} />
+            </PressableScale>
+          </FadeIn>
+
+          <FadeIn delay={150} style={styles.stackArea}>
+            <View style={styles.stack}>
+              {scoops.map((s, i) => (
+                <View key={s.icon} style={i > 0 && styles.scoopOverlap}>
+                  <Sticker icon={s.icon} bg={s.bg} fg={s.fg} size={92 - i * 4} />
+                </View>
+              ))}
+              <View style={styles.cone}>
+                <Text style={styles.coneText}>Rosa · 78</Text>
+              </View>
+            </View>
+            <View style={styles.note}>
+              <Ionicons name="arrow-undo-outline" size={22} color={colors.ink} style={styles.noteArrow} />
+              <Text style={styles.noteText}>¡Todo en{'\n'}un lugar!</Text>
+            </View>
+          </FadeIn>
+        </View>
+
+        {/* Tarjetas inclinadas */}
+        <Wave from={colors.surface} to={colors.soft} />
+        <View style={styles.cardsSection}>
+          <View style={styles.cardsRow}>
+            {features.map((f, i) => (
+              <View key={f.title} style={[styles.featureSlot, { transform: [{ rotate: f.tilt }] }, i === 1 && styles.featureCardRaised]}>
+                <FadeIn delay={200 + i * 100} style={styles.featureCard}>
+                  <Sticker icon={f.icon} bg={f.bg} fg={f.fg} size={58} />
+                  <Text style={styles.featureTitle}>{f.title}</Text>
+                  <Text style={styles.featureText}>{f.text}</Text>
+                </FadeIn>
+              </View>
+            ))}
           </View>
-          <Image
-            source={require('../../assets/landing/abuelo-hija.webp')}
-            accessible
-            accessibilityLabel="Una persona mayor sonríe junto a su hija."
-            resizeMode="contain"
-            style={styles.heroImage}
-          />
+        </View>
+        <Wave from={colors.soft} to={colors.cream} />
+
+        {/* Idea */}
+        <View style={styles.story}>
+          <View style={styles.storyBlobA} />
+          <View style={styles.storyBlobB} />
+          <Text style={styles.eyebrow}>YUYAY SIGNIFICA «RECORDAR»</Text>
+          <Text style={styles.storyTitle}>Hecho para no olvidar lo que importa.</Text>
+          <Text style={styles.storyText}>
+            Qué toma, qué cambió y quién lo anotó. Cada registro guarda su historia para que nadie tenga que
+            acordarse de todo.
+          </Text>
+          <PreviewCard />
         </View>
 
-        <ProductPreview />
-
-        <View style={styles.section}>
-          <Text accessibilityRole="header" style={styles.heading}>Tu salud. Tus datos. Tú decides.</Text>
-          <Text style={styles.body}>Administra quién tiene acceso, elige qué compartir y revoca los enlaces temporales cuando lo necesites.</Text>
-          <AccountTerms terms={terms} />
-        </View>
-
-        <View style={styles.section}>
-          <Text accessibilityRole="header" style={styles.heading}>Preguntas frecuentes</Text>
-          <Image
-            source={require('../../assets/landing/preguntas-frecuentes.webp')}
-            resizeMode="contain"
-            accessible={false}
-            style={styles.faqImage}
-          />
-          <View style={styles.questions}>
-            {questions.map(([title, answer]) => <Question key={title} title={title} answer={answer} />)}
+        {/* Boleto final */}
+        <Wave from={colors.cream} to={colors.primary} />
+        <View style={styles.final}>
+          <View style={styles.finalCircle} />
+          <Text style={styles.finalTitle}>Lleva el cuidado{'\n'}contigo</Text>
+          <View style={styles.ticketWrap}>
+            <Scallops color={colors.card} count={12} height={10} up />
+            <View style={styles.ticket}>
+              <Text style={styles.ticketTitle}>Únete a Yuyay</Text>
+              <Dashes color={colors.line} style={styles.dashes} />
+              <Text style={styles.ticketLine}>Gratis para toda la familia</Text>
+              <Text style={styles.ticketMeta}>Sin anuncios · Tus datos son tuyos</Text>
+              <Dashes color={colors.line} style={styles.dashes} />
+              <PressableScale
+                onPress={() => navigation.navigate('Register')}
+                style={[styles.cta, styles.ticketCta]}
+                accessibilityRole="button"
+                accessibilityLabel="Crear mi cuenta"
+              >
+                <Text style={styles.ctaText}>Crear mi cuenta</Text>
+                <Ionicons name="arrow-forward" size={18} color={colors.onInk} />
+              </PressableScale>
+              <PressableScale
+                onPress={() => navigation.navigate('Login')}
+                style={styles.ticketSecondary}
+                accessibilityRole="button"
+                accessibilityLabel="Ya tengo cuenta"
+              >
+                <Text style={styles.ticketSecondaryText}>Ya tengo cuenta</Text>
+              </PressableScale>
+              <View style={styles.stars}>
+                {[0, 1, 2].map((i) => (
+                  <Sparkle key={i} size={16} color={colors.muted} />
+                ))}
+              </View>
+            </View>
+            <Scallops color={colors.card} count={12} height={10} />
           </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text accessibilityRole="header" style={styles.heading}>Apariencia</Text>
-          <AppearancePicker />
-        </View>
-
-        <View style={styles.closing}>
-          <Text accessibilityRole="header" style={styles.heading}>En tu próxima consulta, recuerda lo que importa.</Text>
-          <Pressable accessibilityRole="button" onPress={register} style={styles.primary}>
-            <Text style={styles.primaryText}>Crear cuenta</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={login} style={styles.topAction}>
-            <Text style={styles.optionText}>Iniciar sesión</Text>
-          </Pressable>
-          <Text style={styles.caption}>Recordar, juntos · Desarrollo Basado en Plataformas, UTEC</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const useStyles = makeStyles(({ colors }) => ({
-  screen: { flex: 1, backgroundColor: colors.surface },
-  topBar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderBottomWidth: 1, borderColor: colors.line, paddingHorizontal: 18, paddingVertical: 6 },
-  topAction: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 48, paddingHorizontal: 12 },
-  scroll: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: 18, paddingBottom: 24, gap: 28 },
-  section: { gap: 12 },
-  eyebrow: { color: colors.accentText, fontFamily: fonts.semibold, fontSize: 14 },
-  title: { color: colors.ink, fontFamily: fonts.display, fontSize: 40, lineHeight: 44 },
-  heading: { color: colors.ink, fontFamily: fonts.display, fontSize: 28, lineHeight: 32 },
-  body: { color: colors.muted, fontFamily: fonts.regular, fontSize: 16, lineHeight: 24 },
-  primary: { minHeight: 48, alignSelf: 'flex-start', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 10, backgroundColor: colors.ink, borderRadius: radius.pill },
-  primaryText: { color: colors.onInk, fontFamily: fonts.semibold, fontSize: 16 },
-  heroImage: { width: '100%', aspectRatio: 758 / 576, borderRadius: 24, backgroundColor: colors.soft },
-  faqImage: { width: '100%', maxWidth: 480, aspectRatio: 1.5, borderRadius: 20, alignSelf: 'center' },
-  selector: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  option: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  optionActive: { backgroundColor: colors.ink, borderColor: colors.ink },
-  optionText: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 15 },
-  card: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, padding: 16, gap: 10 },
-  heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardTitle: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 16, flexShrink: 1 },
-  example: { backgroundColor: colors.soft, padding: 12, borderRadius: 14, gap: 4 },
-  caption: { color: colors.muted, fontFamily: fonts.regular, fontSize: 13 },
-  questions: { borderWidth: 1, borderColor: colors.line, borderRadius: 20, backgroundColor: colors.card, overflow: 'hidden' },
-  question: { borderBottomWidth: 1, borderColor: colors.line },
-  questionButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, padding: 14, gap: 10 },
-  questionText: { flex: 1, color: colors.ink, fontFamily: fonts.semibold, fontSize: 16 },
-  answer: { paddingHorizontal: 14, paddingBottom: 14 },
-  closing: { padding: 18, gap: 8, borderRadius: 24, backgroundColor: colors.soft },
+const useStyles = makeStyles(({ colors, shadow }) => ({
+  flex: { flex: 1 },
+  screen: { flex: 1, backgroundColor: colors.primary },
+  scroll: { backgroundColor: colors.surface, paddingBottom: 0 },
+  topBar: { backgroundColor: colors.cream, zIndex: 2 },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  topScallops: { marginTop: -1 },
+  topButton: { backgroundColor: colors.ink, borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 9 },
+  topButtonText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.onInk },
+
+  hero: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 8, overflow: 'hidden' },
+  heroBlob: {
+    position: 'absolute',
+    top: 210,
+    right: -90,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: colors.primaryTint,
+  },
+  heroCircle: {
+    position: 'absolute',
+    top: 300,
+    right: 30,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: colors.soft,
+  },
+  title: { fontFamily: fonts.display, fontSize: 50, lineHeight: 52, color: colors.ink, letterSpacing: -1 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 24, color: colors.muted, marginTop: 16, maxWidth: 320 },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    backgroundColor: colors.ink,
+    borderRadius: radius.pill,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    marginTop: 22,
+  },
+  ctaText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.onInk },
+  stackArea: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', marginTop: 28, gap: 8 },
+  stack: { alignItems: 'center', marginLeft: 70 },
+  scoopOverlap: { marginTop: -22 },
+  sticker: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 5,
+    borderColor: colors.card,
+    ...shadow,
+  },
+  cone: {
+    marginTop: -10,
+    width: 76,
+    paddingTop: 22,
+    paddingBottom: 26,
+    borderBottomLeftRadius: 38,
+    borderBottomRightRadius: 38,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    backgroundColor: colors.amberBg,
+    alignItems: 'center',
+    zIndex: -1,
+  },
+  coneText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.amberText },
+  note: { width: 80, marginBottom: 40 },
+  noteArrow: { transform: [{ rotate: '-20deg' }], marginBottom: 2 },
+  noteText: { fontFamily: fonts.displayMedium, fontSize: 15, lineHeight: 18, color: colors.ink, transform: [{ rotate: '-8deg' }] },
+
+  cardsSection: { backgroundColor: colors.soft, paddingHorizontal: 20, paddingVertical: 20 },
+  cardsRow: { flexDirection: 'row', justifyContent: 'center' },
+  featureSlot: { flex: 1, maxWidth: 140, marginHorizontal: -4 },
+  featureCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingTop: 16,
+    paddingBottom: 18,
+    alignItems: 'center',
+    gap: 8,
+    ...shadow,
+  },
+  featureCardRaised: { marginTop: -14, zIndex: 1 },
+  featureTitle: { fontFamily: fonts.display, fontSize: 15, lineHeight: 18, textAlign: 'center', color: colors.ink },
+  featureText: { fontFamily: fonts.regular, fontSize: 11, lineHeight: 15, textAlign: 'center', color: colors.muted },
+
+  story: { backgroundColor: colors.cream, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 28, overflow: 'hidden' },
+  storyBlobA: { position: 'absolute', top: -10, right: 40, width: 70, height: 60, borderRadius: 30, backgroundColor: colors.accentTint },
+  storyBlobB: { position: 'absolute', top: 40, right: -30, width: 120, height: 110, borderRadius: 55, backgroundColor: colors.accentTint },
+  eyebrow: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 1, color: colors.accentText },
+  storyTitle: { fontFamily: fonts.display, fontSize: 28, lineHeight: 32, color: colors.ink, marginTop: 8 },
+  storyText: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted, marginTop: 10 },
+  previewWrap: { marginTop: 24, ...shadow, shadowOpacity: shadow.shadowOpacity / 2 },
+  preview: { backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 6, gap: 10 },
+  previewHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 2 },
+  previewAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewInitial: { fontFamily: fonts.display, fontSize: 18, color: colors.softText },
+  previewName: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
+  previewMeta: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 10,
+  },
+  previewTitle: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
+
+  final: { backgroundColor: colors.primary, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 56, overflow: 'hidden' },
+  finalCircle: {
+    position: 'absolute',
+    top: -20,
+    left: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  finalTitle: { fontFamily: fonts.display, fontSize: 34, lineHeight: 38, color: colors.white },
+  ticketWrap: { marginTop: 24, marginHorizontal: 12, transform: [{ rotate: '2deg' }], ...shadow },
+  ticket: { backgroundColor: colors.card, paddingHorizontal: 22, paddingVertical: 10 },
+  ticketTitle: { fontFamily: fonts.display, fontSize: 26, color: colors.ink, textAlign: 'center' },
+  dashes: { alignSelf: 'stretch', marginVertical: 12 },
+  ticketLine: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink, textAlign: 'center' },
+  ticketMeta: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginTop: 2, textAlign: 'center' },
+  ticketCta: { alignSelf: 'stretch', justifyContent: 'center', marginTop: 4 },
+  ticketSecondary: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    paddingVertical: 13,
+    marginTop: 10,
+  },
+  ticketSecondaryText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.ink },
+  stars: { flexDirection: 'row', alignSelf: 'center', gap: 8, marginTop: 14, marginBottom: 4 },
 }));
