@@ -139,8 +139,8 @@ export function PillAction({
   return (
     <View
       onLayout={(e) => {
-        // Recorrido: ancho total menos el círculo (46) y el margen interno (8 a cada lado)
-        max.current = Math.max(e.nativeEvent.layout.width - 46 - 16, 0);
+        // Recorrido: ancho total menos el círculo y sus márgenes (14 a la izquierda, 8 a la derecha)
+        max.current = Math.max(e.nativeEvent.layout.width - KNOB - KNOB_LEFT - KNOB_RIGHT, 0);
       }}
       accessible
       accessibilityRole="button"
@@ -188,6 +188,11 @@ export function PillAction({
     </View>
   );
 }
+
+const KNOB = 46;
+// Más espacio a la izquierda para que el pulgar no quede pegado al borde
+const KNOB_LEFT = 14;
+const KNOB_RIGHT = 8;
 
 const useStyles = makeStyles(({ colors, shadow }) => ({
   flex: { flex: 1 },
@@ -247,10 +252,10 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   },
   pillIcon: {
     position: 'absolute',
-    left: 8,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    left: KNOB_LEFT,
+    width: KNOB,
+    height: KNOB,
+    borderRadius: KNOB / 2,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
