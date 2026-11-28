@@ -1,4 +1,4 @@
-import { ApiError } from '../services/http';
+import { ApiError } from '../services/client.ts';
 import type { Attachment } from '../types';
 
 export const isAudio = (a: Pick<Attachment, 'contentType'>) => a.contentType.startsWith('audio/');
@@ -15,4 +15,11 @@ export function deleteErrorMessage(error: unknown) {
     return 'Solo quien subió el archivo o el cuidador principal puede borrarlo.';
   }
   return error instanceof ApiError ? error.message : 'No pudimos borrar el archivo.';
+}
+
+/** Separa el nombre de su extensión (con punto). El último punto manda; sin extensión devuelve ''. */
+export function splitFilename(name: string): { stem: string; extension: string } {
+  const dot = name.lastIndexOf('.');
+  if (dot < 0) return { stem: name, extension: '' };
+  return { stem: name.slice(0, dot), extension: name.slice(dot) };
 }

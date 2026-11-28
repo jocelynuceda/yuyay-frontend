@@ -20,6 +20,7 @@ const typeStyleFor = (colors: Colors): Record<NotificationType, { icon: keyof ty
   DELEGATION: { icon: 'link-outline', bg: colors.accentTint, fg: colors.accentText },
   CAREGIVER_JOINED: { icon: 'person-add-outline', bg: colors.accentTint, fg: colors.accentText },
   APPOINTMENT_REMINDER: { icon: 'calendar-outline', bg: colors.primaryTint, fg: colors.primary },
+  PROFILE_CLAIMED: { icon: 'person-circle-outline', bg: colors.primaryTint, fg: colors.primary },
 });
 
 type Filter = 'all' | 'unread';
@@ -78,6 +79,7 @@ export function NotificationsScreen() {
       ListEmptyComponent={
         notifications.error ? undefined : (
           <EmptyState
+            image={require('../../assets/notifications-bell.png')}
             title={filter === 'unread' ? 'Todo al día' : 'Sin notificaciones'}
             description={
               filter === 'unread'

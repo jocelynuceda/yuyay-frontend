@@ -87,14 +87,6 @@ export function RegisterScreen({ navigation }: Props) {
       onSwitchMode={() => navigation.replace('Login')}
       title="Crea tu cuenta"
       subtitle="Empieza a cuidar en equipo, paso a paso."
-      footer={
-        <Text style={styles.footer}>
-          ¿Primera vez aquí?{' '}
-          <Text style={styles.link} onPress={() => navigation.navigate('Welcome')}>
-            Conoce Yuyay
-          </Text>
-        </Text>
-      }
     >
       <GoogleSignInSection disabled={loading}>
         <StatusMessage message={error} />
@@ -170,8 +162,6 @@ export function RegisterScreen({ navigation }: Props) {
 }
 
 const useStyles = makeStyles(({ colors }) => ({
-  footer: { fontFamily: fonts.regular, color: colors.muted, fontSize: 14 },
-  link: { fontFamily: fonts.semibold, color: colors.primary },
   checks: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: -2, marginBottom: 6, paddingLeft: 4 },
   check: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   checkText: { fontFamily: fonts.medium, fontSize: 12, color: colors.muted },

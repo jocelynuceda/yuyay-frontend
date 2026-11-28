@@ -278,6 +278,11 @@
     --color-white: #16152E;
   }
 
+  .band-lilac .landing-closing-primary {
+    --control-hover: color-mix(in srgb, var(--color-primary) 75%, var(--landing-lilac));
+    --control-pressed: color-mix(in srgb, var(--color-primary) 65%, var(--landing-lilac));
+  }
+
   /* Trama de puntos de la presentación, hecha con CSS para que pese poco y siga el tema */
   .landing-dots {
     background-image: radial-gradient(currentColor 1.7px, transparent 2px);

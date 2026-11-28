@@ -1,25 +1,31 @@
-import { useState } from 'react';
 import { ActivityIndicator, Image, Text, View } from 'react-native';
 import { useAttachmentSource } from '../hooks/useAttachmentSource';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 
 /** Muestra la foto guardada para compararla con el texto leído. */
-export function AttachmentPreview({ subjectId, attachmentId }: { subjectId: number; attachmentId: number }) {
+type Props = { subjectId: number; attachmentId: number };
+
+export function AttachmentPreview(props: Props) {
+  return <AttachmentImage key={`${props.subjectId}:${props.attachmentId}`} {...props} />;
+}
+
+function AttachmentImage({ subjectId, attachmentId }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { source, failed } = useAttachmentSource(subjectId, attachmentId, true);
-  const [broken, setBroken] = useState(false);
+  const { state, onImageError } = useAttachmentSource(subjectId, attachmentId);
+
   return (
     <View style={styles.frame}>
-      {failed || broken ? <Text style={styles.message}>No pudimos cargar la imagen.</Text> : null}
-      {!failed && !broken && !source ? <ActivityIndicator color={colors.primary} /> : null}
-      {source && !broken ? (
+      {state.status === 'failed' ? <Text accessibilityRole="alert" style={styles.message}>No pudimos cargar la imagen.</Text> : null}
+      {state.status === 'loading' ? <ActivityIndicator color={colors.primary} /> : null}
+      {state.status === 'ready' ? (
         <Image
-          source={source}
+          key={state.origin}
+          source={state.source}
           style={styles.image}
           resizeMode="contain"
           accessibilityLabel="Documento guardado"
-          onError={() => setBroken(true)}
+          onError={onImageError}
         />
       ) : null}
     </View>

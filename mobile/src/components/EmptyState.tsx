@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { Image, Text, View, type ImageSourcePropType } from 'react-native';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import { Sparkle } from './Sparkle';
 
@@ -7,18 +7,25 @@ export function EmptyState({
   title,
   description,
   action,
+  image,
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
+  /** Ilustración que reemplaza a la estrella. */
+  image?: ImageSourcePropType;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
     <View style={styles.box}>
-      <View style={styles.icon}>
-        <Sparkle size={24} color={colors.emptyStar} />
-      </View>
+      {image ? (
+        <Image source={image} style={styles.image} resizeMode="contain" accessible={false} />
+      ) : (
+        <View style={styles.icon}>
+          <Sparkle size={24} color={colors.emptyStar} />
+        </View>
+      )}
       <Text style={styles.title}>{title}</Text>
       {description ? <Text style={styles.description}>{description}</Text> : null}
       {action ? <View style={styles.action}>{action}</View> : null}
@@ -45,6 +52,7 @@ const useStyles = makeStyles(({ colors }) => ({
     justifyContent: 'center',
     marginBottom: 12,
   },
+  image: { width: 96, height: 96, marginBottom: 12 },
   title: { fontFamily: fonts.display, fontSize: 18, color: colors.ink, textAlign: 'center' },
   description: {
     fontFamily: fonts.regular,
