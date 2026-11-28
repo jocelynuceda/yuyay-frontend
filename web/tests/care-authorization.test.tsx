@@ -220,6 +220,53 @@ test('retoma un borrador pendiente en la misma cuenta, sin crearlo ni confirmar 
   await close()
 })
 
+test('descartar desde una copia antigua conserva la edición guardada por otra pestaña', async (t) => {
+  const key = 'yuyay.pendingPerson.v1.91'
+  const original = { requestId: 'mismo-intento', name: 'Alex', birthDate: '', notes: '', gender: '' }
+  window.localStorage.setItem(key, JSON.stringify(original))
+  t.after(() => window.localStorage.removeItem(key))
+  api.defaults.adapter = async (config) => {
+    assert.equal(config.method, 'get')
+    return ok(config, policy)
+  }
+  const open = () => mount(<CareSubjectForm account={{ ...account, id: 91 }} onSaved={() => {}} />)
+  let close = await open()
+  assert.equal(name().value, 'Alex')
+  const updated = JSON.stringify({ ...original, name: 'Alex actualizado' })
+  window.localStorage.setItem(key, updated)
+  await click(button('Descartar borrador'))
+  assert.equal(window.localStorage.getItem(key), updated)
+  assert.match(document.body.textContent ?? '', /cambió en otra pestaña/)
+  await enterName('Cambio desde la copia antigua')
+  assert.equal(window.localStorage.getItem(key), updated)
+  await close()
+  close = await open()
+  assert.equal(name().value, 'Alex actualizado')
+  await click(button('Descartar borrador'))
+  assert.equal(window.localStorage.getItem(key), null)
+  await close()
+})
+
+test('confirmar el alta conserva una edición del borrador llegada mientras respondía el servidor', async (t) => {
+  const key = 'yuyay.pendingPerson.v1.92'
+  const draft = { requestId: 'intento-92', name: 'Alex', birthDate: '', gender: '', notes: '' }
+  const updated = JSON.stringify({ ...draft, notes: 'Nota guardada en la otra pestaña' })
+  window.localStorage.setItem(key, JSON.stringify(draft))
+  t.after(() => window.localStorage.removeItem(key))
+  api.defaults.adapter = async (config) => {
+    if (config.method === 'get') return ok(config, policy)
+    window.localStorage.setItem(key, updated)
+    return ok(config, { id: 92, name: 'Alex' })
+  }
+  const savedIds: number[] = []
+  t.after(await mount(<CareSubjectForm account={{ ...account, id: 92 }} onSaved={p => savedIds.push(p.id)} />))
+  await click(radio('HOLDER_PERMISSION'))
+  await click(checkbox())
+  await click(submit())
+  assert.deepEqual(savedIds, [92])
+  assert.equal(window.localStorage.getItem(key), updated)
+})
+
 test('el perfil propio muestra Yo y usa el nombre, la fecha y el género de la cuenta', async (t) => {
   let sent: Record<string, unknown> | undefined
   api.defaults.adapter = async (config) => {

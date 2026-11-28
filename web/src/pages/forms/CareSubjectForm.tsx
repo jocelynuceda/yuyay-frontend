@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useController, useForm } from 'react-hook-form'
-import { readPendingPerson } from '../../utils/pendingPersonDraft'
+import { openPendingPerson } from '../../utils/pendingPersonDraft'
 import type { z } from 'zod'
 import {
   careSubjectFields,
@@ -45,11 +45,12 @@ export function CareSubjectForm({
 }) {
   const [serverError, setServerError] = useState<string | null>(null)
   const draftKey = !subject && account ? `yuyay.pendingPerson.v1.${account.id}` : undefined
-  const [savedDraft] = useState(() => readPendingPerson(draftKey))
+  const [draftStore] = useState(() => openPendingPerson(draftKey))
+  const savedDraft = draftStore?.draft
   const draftRequestId = useRef(savedDraft?.requestId)
   const authorization = useCareAuthorization(!subject, Boolean(savedDraft))
   const [trackDraft, setTrackDraft] = useState(Boolean(savedDraft))
-  const [draftError, setDraftError] = useState(false)
+  const [draftError, setDraftError] = useState<string | null>(null)
   const attempt = useRef<CreationAttempt<CareSubjectRequest> | null>(null)
   const posting = useRef(false)
   const [checking, setChecking] = useState(false)
@@ -73,15 +74,22 @@ export function CareSubjectForm({
 
   const { field: birthDate } = useController({ control, name: 'birthDate' })
   const savingDraft = trackDraft && authorization.profileKind === 'THIRD_PARTY'
-  const persistDraft = useCallback(() => {
-    if (!draftKey) return
+  const updateDraft = useCallback(async (next: string | null) => {
+    if (!draftStore) return 'unavailable'
     try {
-      const values = getValues()
-      draftRequestId.current ??= newRequestId()
-      window.localStorage.setItem(draftKey, JSON.stringify({ ...values, requestId: draftRequestId.current, gender: values.gender || '', birthDate: values.birthDate || '' }))
-      setDraftError(false)
-    } catch { setDraftError(true) }
-  }, [draftKey, getValues])
+      const updated = await draftStore.update(next)
+      setDraftError(updated ? null : 'El borrador cambió en otra pestaña. Cierra este formulario y vuelve a «Agregar persona» para ver la versión actual.')
+      return updated ? 'saved' : 'conflict'
+    } catch {
+      setDraftError('No pudimos actualizar el borrador en este navegador.')
+      return 'unavailable'
+    }
+  }, [draftStore])
+  const persistDraft = useCallback(() => {
+    const values = getValues()
+    draftRequestId.current ??= newRequestId()
+    return updateDraft(JSON.stringify({ ...values, requestId: draftRequestId.current, gender: values.gender || '', birthDate: values.birthDate || '' }))
+  }, [getValues, updateDraft])
   useEffect(() => {
     if (!savingDraft) return
     return subscribe({ formState: { values: true }, callback: (change) => { if (change.name) persistDraft() } })
@@ -95,11 +103,9 @@ export function CareSubjectForm({
     authorization.chooseThirdPartyType(next)
   }
 
-  function discardDraft() {
-    if (!draftKey) return
-    try { window.localStorage.removeItem(draftKey) } catch { setDraftError(true); return }
+  async function discardDraft() {
+    if (await updateDraft(null) !== 'saved') return
     setTrackDraft(false)
-    setDraftError(false)
     delete drafts.current.THIRD_PARTY
     draftRequestId.current = undefined
     attempt.current = null
@@ -137,7 +143,7 @@ export function CareSubjectForm({
       const saved = await createCareSubject(request)
       if (draftKey && savingDraft) {
         setTrackDraft(false)
-        try { window.localStorage.removeItem(draftKey) } catch { /* El alta ya se confirmó. */ }
+        await updateDraft(null)
       }
       attempt.current = null
       onCreationLockChange?.(false)
@@ -161,6 +167,7 @@ export function CareSubjectForm({
   async function saveForm(values: z.output<typeof careSubjectSchema>) {
     if (!subject) {
       if (mustCheck || !authorization.declaration) return
+      if (savingDraft && await persistDraft() === 'conflict') return
       const requestId = savingDraft ? draftRequestId.current : undefined
       await submitCreation(prepareCareSubjectCreation(attempt.current, authorization.declaration, values, () => requestId ?? newRequestId()))
       return
@@ -210,7 +217,7 @@ export function CareSubjectForm({
 
       {savingDraft && draftKey && <div className="grid justify-items-start gap-2">
         <p role="status" className={draftError ? 'text-sm text-danger' : 'text-sm text-muted'}>
-          {draftError ? 'No pudimos guardar el borrador en este navegador.' : 'Borrador guardado en este navegador. Puedes cerrar y retomarlo desde Agregar persona.'}
+          {draftError ?? 'Borrador guardado en este navegador. Puedes cerrar y retomarlo desde Agregar persona.'}
         </p>
         {!mustCheck && <Button type="button" variant="secondary" disabled={checking} onClick={discardDraft}>Descartar borrador</Button>}
       </div>}

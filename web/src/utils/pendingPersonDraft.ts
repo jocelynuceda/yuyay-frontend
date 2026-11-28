@@ -6,10 +6,27 @@ const draftSchema = z.object({
   gender: z.enum(['', 'MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY']),
 })
 
-export function readPendingPerson(key?: string) {
-  if (!key) return
+/** Cada formulario compara sus cambios con la copia que abrió o guardó por última vez. */
+export function openPendingPerson(draftKey?: string) {
+  if (!draftKey) return
+  const key = draftKey
+  let seen: string | null = null
+  let draft: z.infer<typeof draftSchema> | undefined
   try {
-    const raw = window.localStorage.getItem(key)
-    if (raw) return draftSchema.parse(JSON.parse(raw))
-  } catch { return }
+    seen = window.localStorage.getItem(key)
+    if (seen) draft = draftSchema.parse(JSON.parse(seen))
+  } catch { /* Un borrador ilegible no impide abrir el formulario. */ }
+
+  async function update(next: string | null) {
+    const apply = () => {
+      if (window.localStorage.getItem(key) !== seen) return false
+      if (next === null) window.localStorage.removeItem(key)
+      else window.localStorage.setItem(key, next)
+      seen = next
+      return true
+    }
+    // Serializa lectura y escritura entre pestañas cuando ambas actúan a la vez.
+    return window.navigator.locks ? window.navigator.locks.request(key, apply) : apply()
+  }
+  return { draft, update }
 }
