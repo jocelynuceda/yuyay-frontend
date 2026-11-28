@@ -18,7 +18,7 @@ export function CareAuthorizationStatus({ subjectId }: { subjectId: number }) {
 
   const latest = data?.[0]
   return (
-    <Card as="section" className="grid gap-2">
+    <Card as="section" className="@container grid gap-2">
       <h2 className="font-semibold">Declaración de autorización</h2>
       {loading ? (
         <p role="status" className="text-sm text-muted">Consultando la declaración…</p>
@@ -75,15 +75,20 @@ function FirstDeclaration({ subjectId, reload }: { subjectId: number; reload: ()
     }
   }
 
+  if (!editing) return <>
+    <p className="text-sm text-muted">Sin declaración registrada</p>
+    <Button variant="secondary" className="justify-self-start @md:col-start-2 @md:row-span-2 @md:row-start-1 @md:self-center @md:justify-self-end" onClick={() => setEditing(true)}>
+      Registrar declaración
+    </Button>
+  </>
+
   return <div className="grid justify-items-start gap-3">
     <p className="text-sm text-muted">Sin declaración registrada</p>
-    {editing ? <>
-      <CareAuthorizationFields authorization={authorization} disabled={saving} existing />
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <div className="flex flex-wrap gap-2">
-        <Button disabled={!authorization.declaration || saving} onClick={save}>Guardar declaración</Button>
-        <Button variant="secondary" disabled={saving} onClick={() => { setEditing(false); authorization.confirm(false); setError('') }}>Cancelar</Button>
-      </div>
-    </> : <Button variant="secondary" onClick={() => setEditing(true)}>Registrar declaración</Button>}
+    <CareAuthorizationFields authorization={authorization} disabled={saving} existing />
+    {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+    <div className="flex flex-wrap gap-2">
+      <Button disabled={!authorization.declaration || saving} onClick={save}>Guardar declaración</Button>
+      <Button variant="secondary" disabled={saving} onClick={() => { setEditing(false); authorization.confirm(false); setError('') }}>Cancelar</Button>
+    </div>
   </div>
 }
