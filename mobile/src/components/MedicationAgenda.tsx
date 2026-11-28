@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -27,6 +27,7 @@ import {
   peopleIn,
   shortTime,
   startOfWeek,
+  statusToSend,
   STATUS_LABELS,
   WEEK_DAYS,
   type DoseState,
@@ -81,14 +82,14 @@ export function MedicationAgenda({
   const doses = allDoses.filter((dose) => matchesWho(dose, who));
   const ofDay = doses.filter((dose) => dose.date === selected);
   const taken = ofDay.filter(isTaken).length;
-  const now = new Date();
+  const now = useNow();
 
   async function setStatus(dose: AgendaDose, status: DoseStatus | null) {
     const key = doseKey(dose);
     setBusy(key);
     try {
       const updated = status
-        ? await markDose(dose.scheduleId, { date: dose.date, time: shortTime(dose.time), status })
+        ? await markDose(dose.scheduleId, { date: dose.date, time: shortTime(dose.time), status: statusToSend(dose, status) })
         : (await unmarkDose(dose.scheduleId, dose.date, shortTime(dose.time)),
           { ...dose, status: null, markedByName: null, markedAt: null });
       setSaved((current) => ({
@@ -369,3 +370,13 @@ const useStyles = makeStyles(({ colors, shadow }) => ({
   remindersTitle: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
   remindersText: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
 }));
+
+/** La hora actual, renovada cada 30 s: una toma pasa sola de «Es hora» a «No tomada» sin recargar. */
+function useNow() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  return now;
+}

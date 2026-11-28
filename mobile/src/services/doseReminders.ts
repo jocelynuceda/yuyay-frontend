@@ -5,17 +5,13 @@ import { useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 import {
   addDays,
-  createSyncGuard,
+  createReminderSync,
   doseReminderContent,
   isDoseReminderData,
-  planDoseReminders,
   REMINDER_HORIZON_DAYS,
-  remindersUntil,
   SNOOZE_MINUTES,
-  staleSnoozed,
   takenStatusFor,
   todayInLima,
-  type DoseReminderData,
 } from '../utils/medicationSchedule';
 import { getMedicationAgenda, markDose } from './api';
 
@@ -76,9 +72,6 @@ const setUntil = (value: Date | null) => {
   notifyAll();
 };
 
-// Cerrar sesión o apagar los avisos invalida la sincronización en curso
-const syncGuard = createSyncGuard();
-
 let loaded: Promise<boolean> | null = null;
 function loadEnabled() {
   loaded ??= SecureStore.getItemAsync(ENABLED_KEY)
@@ -113,18 +106,24 @@ export function useDoseRemindersEnabled() {
   );
 }
 
-async function scheduledDoseReminders() {
-  const all = await Notifications.getAllScheduledNotificationsAsync();
-  return all.filter((n) => isDoseReminderData(n.content.data));
-}
-
-const isSnoozed = (data: unknown) => !!(data as { snoozed?: boolean } | null)?.snoozed;
-
-/** Cancela todos los avisos de tomas de este celular, también los pospuestos. */
-async function cancelScheduled() {
-  const scheduled = await scheduledDoseReminders();
-  await Promise.all(scheduled.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
-}
+// La sincronización (la más reciente manda, de a una) vive en utils y se prueba sin el celular
+const reminders = createReminderSync(
+  {
+    list: async () =>
+      (await Notifications.getAllScheduledNotificationsAsync()).map((n) => ({ identifier: n.identifier, data: n.content.data })),
+    cancel: (identifier) => Notifications.cancelScheduledNotificationAsync(identifier),
+    schedule: async ({ identifier, fire, data, snoozed }) => {
+      await configure();
+      await Notifications.scheduleNotificationAsync({
+        identifier,
+        content: { ...doseReminderContent(data, snoozed), data: { ...data, snoozed }, categoryIdentifier: CATEGORY_ID },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fire, channelId: CHANNEL_ID },
+      });
+    },
+  },
+  // La preferencia vigente en el momento de actuar, no la de cuando empezó
+  () => (doseRemindersSupported ? loadEnabled() : Promise.resolve(false)),
+);
 
 /**
  * Vuelve a programar los avisos de los próximos 14 días con la agenda del servidor: las tomas ya marcadas
@@ -133,39 +132,13 @@ async function cancelScheduled() {
  */
 export async function syncDoseReminders(userId: number) {
   if (!doseRemindersSupported || !(await loadEnabled())) return;
-  const started = syncGuard.start();
   try {
     const permission = await Notifications.getPermissionsAsync();
-    if (!permission.granted || !syncGuard.isCurrent(started)) return;
+    if (!permission.granted) return;
     const today = todayInLima();
     // Desde ayer: un aviso pospuesto puede ser de una toma de anoche
-    const doses = await getMedicationAgenda(addDays(today, -1), addDays(today, REMINDER_HORIZON_DAYS));
-    // Si mientras tanto se cerró sesión o se apagaron los avisos, esta respuesta ya no vale
-    if (!syncGuard.isCurrent(started)) return;
-    await configure();
-    const scheduled = await scheduledDoseReminders();
-    const snoozed = scheduled
-      .filter((n) => isSnoozed(n.content.data))
-      .map((n) => ({ identifier: n.identifier, data: n.content.data as unknown as DoseReminderData }));
-    const toCancel = [
-      ...scheduled.filter((n) => !isSnoozed(n.content.data)).map((n) => n.identifier),
-      ...staleSnoozed(snoozed, doses).map((n) => n.identifier),
-    ];
-    await Promise.all(toCancel.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
-    const plan = planDoseReminders(userId, doses);
-    for (const reminder of plan) {
-      await Notifications.scheduleNotificationAsync({
-        identifier: reminder.identifier,
-        content: { ...doseReminderContent(reminder.data), data: { ...reminder.data }, categoryIdentifier: CATEGORY_ID },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: reminder.fire, channelId: CHANNEL_ID },
-      });
-      // Se cerró sesión mientras se programaba este aviso: se quita y no se sigue
-      if (!syncGuard.isCurrent(started)) {
-        await Notifications.cancelScheduledNotificationAsync(reminder.identifier);
-        return;
-      }
-    }
-    setUntil(remindersUntil(plan));
+    const result = await reminders.sync(userId, () => getMedicationAgenda(addDays(today, -1), addDays(today, REMINDER_HORIZON_DAYS)));
+    if (result !== undefined) setUntil(result);
   } catch {
     // Sin conexión: los avisos quedan como estaban hasta la próxima sincronización
   }
@@ -189,18 +162,16 @@ export async function disableDoseReminders() {
   await SecureStore.deleteItemAsync(ENABLED_KEY).catch(() => undefined);
   loaded = Promise.resolve(false);
   setEnabled(false);
-  syncGuard.invalidate();
   setUntil(null);
-  if (doseRemindersSupported) await cancelScheduled().catch(() => undefined);
+  if (doseRemindersSupported) await reminders.stop().catch(() => undefined);
 }
 
 /** Al cerrar sesión: los avisos son de esta cuenta y no deben sonar para la siguiente. */
 export async function cancelAllDoseReminders() {
-  // Antes de cancelar: una sincronización que todavía esperaba la agenda ya no programará nada
-  syncGuard.invalidate();
+  // Una sincronización que todavía esperaba la agenda ya no programará nada
   setUntil(null);
   if (!doseRemindersSupported) return;
-  await cancelScheduled().catch(() => undefined);
+  await reminders.stop().catch(() => undefined);
 }
 
 /**
@@ -214,8 +185,9 @@ export async function handleDoseReminderResponse(
   const data = response.notification.request.content.data;
   if (!isDoseReminderData(data) || data.userId !== userId) return null;
   if (response.actionIdentifier === ACTION_SNOOZE) {
-    await snooze(data);
-    return `Te lo recordamos en ${SNOOZE_MINUTES} minutos.`;
+    // Si se apagaron los avisos después de que llegó esta notificación, ya no se pospone
+    const snoozed = await reminders.snooze(data).catch(() => false);
+    return snoozed ? `Te lo recordamos en ${SNOOZE_MINUTES} minutos.` : 'Los avisos están apagados en este celular.';
   }
   if (response.actionIdentifier === ACTION_TAKEN) {
     try {
@@ -227,19 +199,6 @@ export async function handleDoseReminderResponse(
     }
   }
   return null;
-}
-
-async function snooze(data: DoseReminderData) {
-  await configure();
-  await Notifications.scheduleNotificationAsync({
-    identifier: `toma-pospuesta-${data.userId}-${data.scheduleId}-${data.date}-${data.time.replace(':', '')}`,
-    content: { ...doseReminderContent(data, true), data: { ...data, snoozed: true }, categoryIdentifier: CATEGORY_ID },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: new Date(Date.now() + SNOOZE_MINUTES * 60_000),
-      channelId: CHANNEL_ID,
-    },
-  });
 }
 
 // Una misma respuesta puede llegar por el listener y por getLastNotificationResponseAsync al abrir la app

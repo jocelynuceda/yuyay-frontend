@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   addDays,
-  createSyncGuard,
+  createReminderSync,
   describeDays,
   doseReminderContent,
   doseReminderId,
@@ -14,9 +14,12 @@ import {
   remindersUntil,
   staleSnoozed,
   startOfWeek,
+  statusToSend,
   takenStatusFor,
   todayInLima,
   type DoseReminderData,
+  type ReminderScheduler,
+  type ReminderToSchedule,
 } from '../src/utils/medicationSchedule.ts';
 import type { AgendaDose } from '../src/types/index.ts';
 
@@ -108,14 +111,100 @@ test('staleSnoozed: un aviso pospuesto se va si otro cuidador ya marcó la toma 
   assert.deepEqual(staleSnoozed(snoozed, agenda).map((n) => n.identifier), ['pospuesto-0800', 'pospuesto-2000']);
 });
 
-test('createSyncGuard: una sincronización que empezó antes de cerrar sesión ya no programa avisos', () => {
-  const guard = createSyncGuard();
-  const started = guard.start();
-  // Mientras se espera la agenda, la persona cierra sesión
-  guard.invalidate();
-  assert.equal(guard.isCurrent(started), false, 'la respuesta lenta se descarta');
-  const next = guard.start();
-  assert.equal(guard.isCurrent(next), true, 'la siguiente sesión sincroniza normalmente');
+/** Cola de notificaciones simulada, como la del celular. */
+function fakeScheduler() {
+  const queue = new Map<string, ReminderToSchedule>();
+  const scheduler: ReminderScheduler = {
+    list: async () => [...queue.values()].map((n) => ({ identifier: n.identifier, data: { ...n.data, snoozed: n.snoozed } })),
+    cancel: async (id) => void queue.delete(id),
+    schedule: async (n) => void queue.set(n.identifier, n),
+  };
+  return { queue, scheduler };
+}
+
+/** Una consulta de la agenda que responde cuando la prueba quiere. */
+function pending<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { load: () => promise, resolve };
+}
+
+const nineAm = () => at('2026-11-27', '09:00');
+
+test('avisos: una respuesta vieja no revive el aviso de una toma ya marcada (manda la más reciente)', async () => {
+  const { queue, scheduler } = fakeScheduler();
+  const sync = createReminderSync(scheduler, async () => true);
+  const first = pending<AgendaDose[]>();
+  const second = pending<AgendaDose[]>();
+  // Al volver a la app empieza una sincronización y, mientras carga, se marca la toma y empieza otra
+  const older = sync.sync(7, first.load, nineAm);
+  const newer = sync.sync(7, second.load, nineAm);
+  second.resolve([dose('2026-11-27', '20:00:00', { status: 'TAKEN' })]);
+  assert.equal(await newer, null);
+  assert.equal(queue.size, 0);
+  // Llega tarde la primera respuesta, con la toma todavía sin marcar
+  first.resolve([dose('2026-11-27', '20:00:00')]);
+  assert.equal(await older, undefined, 'se descarta');
+  assert.equal(queue.size, 0, 'no vuelve a quedar un aviso programado');
+});
+
+test('avisos: si la respuesta vieja llega primero, la más reciente la reemplaza', async () => {
+  const { queue, scheduler } = fakeScheduler();
+  const sync = createReminderSync(scheduler, async () => true);
+  const first = pending<AgendaDose[]>();
+  const second = pending<AgendaDose[]>();
+  const older = sync.sync(7, first.load, nineAm);
+  const newer = sync.sync(7, second.load, nineAm);
+  first.resolve([dose('2026-11-27', '20:00:00'), dose('2026-11-27', '22:00:00')]);
+  second.resolve([dose('2026-11-27', '20:00:00', { status: 'TAKEN' }), dose('2026-11-27', '22:00:00')]);
+  await Promise.all([older, newer]);
+  assert.deepEqual([...queue.keys()], ['toma-7-1-2026-11-27-2200']);
+});
+
+test('avisos: cerrar sesión mientras carga la agenda no deja avisos', async () => {
+  const { queue, scheduler } = fakeScheduler();
+  const sync = createReminderSync(scheduler, async () => true);
+  const agenda = pending<AgendaDose[]>();
+  const running = sync.sync(7, agenda.load, nineAm);
+  await sync.stop();
+  agenda.resolve([dose('2026-11-27', '20:00:00')]);
+  assert.equal(await running, undefined);
+  assert.equal(queue.size, 0);
+  // La siguiente sesión sincroniza normalmente
+  assert.ok(await sync.sync(8, async () => [dose('2026-11-27', '20:00:00')], nineAm));
+  assert.deepEqual([...queue.keys()], ['toma-8-1-2026-11-27-2000']);
+});
+
+test('avisos: los pospuestos se conservan solo mientras la toma siga pendiente', async () => {
+  const { queue, scheduler } = fakeScheduler();
+  const sync = createReminderSync(scheduler, async () => true);
+  const data = (time: string): DoseReminderData => ({ kind: 'dose-reminder', userId: 7, scheduleId: 1, date: '2026-11-27', time, mine: false });
+  assert.equal(await sync.snooze(data('08:00'), nineAm()), true);
+  assert.equal(await sync.snooze(data('08:30'), nineAm()), true);
+  await sync.sync(7, async () => [dose('2026-11-27', '08:00:00', { status: 'TAKEN' }), dose('2026-11-27', '08:30:00')], nineAm);
+  assert.deepEqual([...queue.keys()], ['toma-pospuesta-7-1-2026-11-27-0830']);
+  assert.equal(queue.get('toma-pospuesta-7-1-2026-11-27-0830')?.fire.toISOString(), at('2026-11-27', '09:10').toISOString());
+});
+
+test('avisos: «Posponer» no programa nada si los avisos se apagaron después de mostrar la notificación', async () => {
+  const { queue, scheduler } = fakeScheduler();
+  let enabled = true;
+  const sync = createReminderSync(scheduler, async () => enabled);
+  enabled = false;
+  await sync.stop();
+  const data: DoseReminderData = { kind: 'dose-reminder', userId: 7, scheduleId: 1, date: '2026-11-27', time: '08:00', mine: true };
+  assert.equal(await sync.snooze(data, nineAm()), false);
+  assert.equal(queue.size, 0);
+  // Y una sincronización tampoco programa avisos con el interruptor apagado
+  assert.equal(await sync.sync(7, async () => [dose('2026-11-27', '20:00:00')], nineAm), undefined);
+  assert.equal(queue.size, 0);
+});
+
+test('statusToSend: con la pantalla abierta al pasar las 8:30, «Tomada» se envía como tarde', () => {
+  const d = dose('2026-11-27', '08:00:00');
+  assert.equal(statusToSend(d, 'TAKEN', at('2026-11-27', '08:30:00')), 'TAKEN');
+  assert.equal(statusToSend(d, 'TAKEN', at('2026-11-27', '08:30:01')), 'LATE');
+  assert.equal(statusToSend(d, 'SKIPPED', at('2026-11-27', '08:30:01')), 'SKIPPED');
 });
 
 test('el texto del aviso no dice el medicamento ni la persona', () => {

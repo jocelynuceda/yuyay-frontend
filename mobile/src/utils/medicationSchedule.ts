@@ -118,6 +118,13 @@ export function doseState(dose: Pick<AgendaDose, 'date' | 'time' | 'status'>, no
 export const takenStatusFor = (dose: Pick<AgendaDose, 'date' | 'time'>, now: Date = new Date()): DoseStatus =>
   doseState({ ...dose, status: null }, now) === 'missed' ? 'LATE' : 'TAKEN';
 
+/**
+ * Lo que se envía al tocar un botón, calculado con la hora del momento del toque: si la pantalla quedó
+ * abierta y pasó el plazo, «Tomada» se envía como «se tomó tarde», como exige el servidor.
+ */
+export const statusToSend = (dose: Pick<AgendaDose, 'date' | 'time'>, chosen: DoseStatus, now: Date = new Date()): DoseStatus =>
+  chosen === 'SKIPPED' ? chosen : takenStatusFor(dose, now);
+
 export const isTaken = (dose: Pick<AgendaDose, 'status'>) => dose.status === 'TAKEN' || dose.status === 'LATE';
 
 // ---- Filtro por persona ----
@@ -219,17 +226,104 @@ export function staleSnoozed<T extends { identifier: string; data: DoseReminderD
   return snoozed.filter((reminder) => !pending.has(doseKey(reminder.data)));
 }
 
+/** Un aviso ya programado en el celular. */
+export interface ScheduledReminder {
+  identifier: string;
+  data: unknown;
+}
+
+/** Un aviso por programar: el de la hora de la toma o uno pospuesto. */
+export interface ReminderToSchedule {
+  identifier: string;
+  fire: Date;
+  data: DoseReminderData;
+  snoozed: boolean;
+}
+
+/** Lo que la sincronización necesita del sistema de notificaciones (expo-notifications en la app). */
+export interface ReminderScheduler {
+  list(): Promise<ScheduledReminder[]>;
+  cancel(identifier: string): Promise<void>;
+  schedule(reminder: ReminderToSchedule): Promise<void>;
+}
+
+export const isSnoozedReminder = (data: unknown) => !!(data as { snoozed?: boolean } | null)?.snoozed;
+
+export const snoozedReminderId = (data: DoseReminderData) =>
+  `toma-pospuesta-${data.userId}-${data.scheduleId}-${data.date}-${shortTime(data.time).replace(':', '')}`;
+
 /**
- * Evita que una sincronización vieja programe avisos después de cerrar sesión o de apagarlos: cada
- * sincronización guarda la versión con la que empezó, y cerrar sesión o apagar los avisos la cambia.
+ * Sincroniza los avisos de tomas con la agenda del servidor sin que dos sincronizaciones se pisen:
+ * - Manda la más reciente: si una agenda llega después de otra pedida más tarde, se descarta. Así una
+ *   respuesta lenta con la toma sin marcar no revive el aviso de una toma ya marcada.
+ * - Los cambios en el celular se hacen de a uno; una sincronización superada se detiene y la siguiente
+ *   deja todo en orden.
+ * - Cerrar sesión o apagar los avisos (`stop`) supera a todas las que estén en curso.
+ * - «Posponer» solo programa un aviso si los avisos siguen activos en este celular.
  */
-export function createSyncGuard() {
-  let version = 0;
-  return {
-    start: () => version,
-    isCurrent: (started: number) => started === version,
-    invalidate: () => {
-      version += 1;
-    },
+export function createReminderSync(scheduler: ReminderScheduler, isEnabled: () => Promise<boolean>) {
+  let requested = 0;
+  let applied = 0;
+  let lock: Promise<unknown> = Promise.resolve();
+  const exclusive = <T>(task: () => Promise<T>): Promise<T> => {
+    const run = lock.then(task, task);
+    lock = run.catch(() => undefined);
+    return run;
   };
+  const doseReminders = async () => (await scheduler.list()).filter((n) => isDoseReminderData(n.data));
+
+  /**
+   * Devuelve hasta cuándo quedaron avisos (null si ninguno), o undefined si otra sincronización más
+   * reciente o `stop` la superó y no cambió nada más.
+   */
+  async function sync(userId: number, loadAgenda: () => Promise<AgendaDose[]>, now: () => Date = () => new Date()) {
+    const ticket = ++requested;
+    const doses = await loadAgenda();
+    // Ya se aplicó una agenda pedida después (o se cerró sesión): esta respuesta es vieja
+    if (ticket < applied) return undefined;
+    applied = ticket;
+    return exclusive(async (): Promise<Date | null | undefined> => {
+      const current = () => applied === ticket;
+      if (!current() || !(await isEnabled())) return undefined;
+      const scheduled = await doseReminders();
+      const snoozed = scheduled
+        .filter((n) => isSnoozedReminder(n.data))
+        .map((n) => ({ identifier: n.identifier, data: n.data as DoseReminderData }));
+      const toCancel = [
+        ...scheduled.filter((n) => !isSnoozedReminder(n.data)).map((n) => n.identifier),
+        ...staleSnoozed(snoozed, doses).map((n) => n.identifier),
+      ];
+      for (const identifier of toCancel) await scheduler.cancel(identifier);
+      const plan = planDoseReminders(userId, doses, now());
+      for (const reminder of plan) {
+        if (!current()) return undefined;
+        await scheduler.schedule({ ...reminder, snoozed: false });
+      }
+      return current() ? remindersUntil(plan) : undefined;
+    });
+  }
+
+  /** Cerrar sesión o apagar los avisos: supera a las sincronizaciones en curso y cancela todos los avisos. */
+  function stop() {
+    applied = ++requested;
+    return exclusive(async () => {
+      for (const n of await doseReminders()) await scheduler.cancel(n.identifier);
+    });
+  }
+
+  /** «Posponer»: vuelve a avisar en unos minutos, solo si los avisos siguen activos. */
+  function snooze(data: DoseReminderData, now: Date = new Date()) {
+    return exclusive(async () => {
+      if (!(await isEnabled())) return false;
+      await scheduler.schedule({
+        identifier: snoozedReminderId(data),
+        fire: new Date(now.getTime() + SNOOZE_MINUTES * 60_000),
+        data,
+        snoozed: true,
+      });
+      return true;
+    });
+  }
+
+  return { sync, stop, snooze };
 }

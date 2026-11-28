@@ -21,6 +21,7 @@ import {
   PART_OF_DAY_LABELS,
   shortTime,
   startOfWeek,
+  statusToSend,
   todayInLima,
   WEEK_DAYS,
 } from '../../utils/medicationSchedule'
@@ -72,7 +73,7 @@ export function TodayAgenda({ accessible }: { accessible: ReadonlySet<number> | 
     setBusy(key)
     try {
       const updated = status
-        ? await markDose(dose.scheduleId, { date: dose.date, time: shortTime(dose.time), status })
+        ? await markDose(dose.scheduleId, { date: dose.date, time: shortTime(dose.time), status: statusToSend(dose, status) })
         : (await unmarkDose(dose.scheduleId, dose.date, shortTime(dose.time)),
           { ...dose, status: null, markedByName: null, markedAt: null })
       setSaved((current) => ({

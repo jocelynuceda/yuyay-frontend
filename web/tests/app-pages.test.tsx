@@ -889,6 +889,22 @@ test('Dashboard: saludo, próxima cita más cercana entre todas las personas e i
   assert.ok(document.querySelector('a[href="/invitations/7"]'), 'enlace a la invitación pendiente')
 })
 
+test('Inicio: si la agenda quedó abierta y pasó el plazo, «Tomada» se envía como «se tomó tarde»', async (t) => {
+  // 4:20 p. m.: el Paracetamol de las 4 todavía está a tiempo
+  t.mock.timers.enable({ apis: ['Date'], now: limaInstant(todayInLima(), '16:20') })
+  const { b, unmount } = await mountApp('/', { loggedIn: true })
+  t.after(unmount)
+  await waitFor(() => /Paracetamol/.test(text()), 'tomas del día')
+  const agenda = () => document.getElementById('agenda-title')!.closest('section')!
+  const take = agenda().querySelector('button[aria-label^="Marcar Paracetamol de las 4:00 p. m. como tomada"]')
+  assert.ok(take, 'a tiempo: botón «Tomada»')
+  // La pantalla sigue abierta y el reloj pasa las 4:30 antes de que la agenda se refresque
+  t.mock.timers.setTime(limaInstant(todayInLima(), '16:30') + 1000)
+  await click(take, 'Tomada pasado el plazo')
+  await waitFor(() => b.db.agenda[2].status !== null, 'toma marcada')
+  assert.equal(b.db.agenda[2].status, 'LATE', 'se recalcula al tocar, como lo exige el servidor')
+})
+
 test('Inicio: agenda de medicamentos; se marca desde 2 h antes hasta 30 min después, luego solo «se tomó tarde»', async (t) => {
   // Son las 3:00 p. m.: lo de la mañana y la 1 ya pasó, lo de las 4 está por tocar y lo de las 8 aún no
   // En hora de Lima, como el servidor (las tomas no dependen de la zona de la computadora)

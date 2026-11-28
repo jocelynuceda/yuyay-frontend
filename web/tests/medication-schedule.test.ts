@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { addDays, describeDays, groupByPartOfDay, doseState, limaInstant, partOfDay, startOfWeek, todayInLima } from '../src/utils/medicationSchedule'
+import { addDays, describeDays, groupByPartOfDay, doseState, limaInstant, partOfDay, startOfWeek, statusToSend, todayInLima } from '../src/utils/medicationSchedule'
 import type { AgendaDose } from '../src/types'
 
 const dose = (time: string, extra: Partial<AgendaDose> = {}): AgendaDose => ({
@@ -54,4 +54,11 @@ test('las tomas se calculan en hora de Lima aunque la computadora esté en otra 
   assert.equal(new Date(limaInstant('2026-11-27', '08:00')).toISOString(), '2026-11-27T13:00:00.000Z')
   assert.equal(doseState(dose('08:00:00'), new Date('2026-11-27T13:30:01Z')), 'missed')
   assert.equal(doseState(dose('08:00:00'), new Date('2026-11-27T13:30:00Z')), 'due')
+})
+
+test('statusToSend: se calcula al tocar; pasado el plazo «Tomada» va como «se tomó tarde»', () => {
+  const d = { date: '2026-11-27', time: '08:00:00' }
+  assert.equal(statusToSend(d, 'TAKEN', lima('2026-11-27', '08:30:00')), 'TAKEN')
+  assert.equal(statusToSend(d, 'TAKEN', lima('2026-11-27', '08:30:01')), 'LATE')
+  assert.equal(statusToSend(d, 'SKIPPED', lima('2026-11-27', '08:30:01')), 'SKIPPED')
 })

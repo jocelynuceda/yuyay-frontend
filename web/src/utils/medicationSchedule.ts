@@ -1,4 +1,4 @@
-import type { AgendaDose, DayOfWeek, MedicationSchedule } from '../types'
+import type { AgendaDose, DayOfWeek, DoseStatus, MedicationSchedule } from '../types'
 import { formatDate, formatTime } from './format'
 
 /** Lunes primero, como en el calendario peruano. */
@@ -122,4 +122,15 @@ export function doseState(dose: Pick<AgendaDose, 'date' | 'time' | 'status'>, no
 }
 
 /** ¿Se tomó? A tiempo o tarde. Sin marcar y pasado el plazo, cuenta como no tomada. */
+/** Lo que se marca al tocar «Tomada»: a tiempo o, pasado el plazo, «se tomó tarde». */
+export const takenStatusFor = (dose: Pick<AgendaDose, 'date' | 'time'>, now: Date = new Date()): DoseStatus =>
+  doseState({ ...dose, status: null }, now) === 'missed' ? 'LATE' : 'TAKEN'
+
+/**
+ * Lo que se envía al tocar un botón, calculado con la hora del momento del toque: si la pantalla quedó
+ * abierta y pasó el plazo, «Tomada» se envía como «se tomó tarde», como exige el servidor.
+ */
+export const statusToSend = (dose: Pick<AgendaDose, 'date' | 'time'>, chosen: DoseStatus, now: Date = new Date()): DoseStatus =>
+  chosen === 'SKIPPED' ? chosen : takenStatusFor(dose, now)
+
 export const isTaken = (dose: Pick<AgendaDose, 'status'>) => dose.status === 'TAKEN' || dose.status === 'LATE'
