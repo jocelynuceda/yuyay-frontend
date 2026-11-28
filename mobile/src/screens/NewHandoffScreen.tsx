@@ -4,12 +4,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { ConfidenceBadge } from '../components/ConfidenceBadge';
 import { EmptyState } from '../components/EmptyState';
 import { FormCard, formStyles, SubmitButton, TextArea } from '../components/FormKit';
 import { FormField } from '../components/FormField';
 import { FormScroll } from '../components/FormScroll';
 import { LoadingView } from '../components/LoadingView';
 import { StatusMessage } from '../components/StatusMessage';
+import { TextSheet } from '../components/TextSheet';
 import { useFetch } from '../hooks/useFetch';
 import { createHandoff, getHealthCategories, getHealthEntries } from '../services/api';
 import { ApiError } from '../services/http';
@@ -20,6 +22,7 @@ import { createAttemptKey } from '../utils/attemptKey';
 import { formatDate } from '../utils/format';
 import { manualHandoffInput } from '../utils/manualHandoff';
 import { newSummaryRequestId } from '../utils/summaryRequestId';
+import { isLongText } from '../utils/text';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'NewHandoff'>;
 
@@ -37,6 +40,8 @@ function ManualHandoffScreen({ route, navigation }: Props) {
   const entries = useFetch(() => getHealthEntries(subjectId), [subjectId]);
   // null = todavía no se tocó: se marcan todos los registros
   const [picked, setPicked] = useState<Set<number> | null>(null);
+  // Detalle completo abierto en el panel inferior
+  const [reading, setReading] = useState<{ title: string; text: string } | null>(null);
   const [reason, setReason] = useState('');
   const [questions, setQuestions] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -124,6 +129,8 @@ function ManualHandoffScreen({ route, navigation }: Props) {
                 </Pressable>
                 {items.map((e) => {
                   const on = selected.has(e.id);
+                  const title = e.latestVersion.title;
+                  const extra = [e.latestVersion.details, e.latestVersion.notes].filter(Boolean).join('\n');
                   return (
                     <Pressable
                       key={e.id}
@@ -136,18 +143,35 @@ function ManualHandoffScreen({ route, navigation }: Props) {
                         name={on ? 'checkbox' : 'square-outline'}
                         size={22}
                         color={on ? colors.primary : colors.muted}
+                        style={{ marginTop: 1 }}
                       />
                       <View style={formStyles.flex}>
-                        <Text style={styles.itemTitle}>{e.latestVersion.title}</Text>
+                        <Text style={styles.itemTitle}>{title}</Text>
                         {e.latestVersion.dose || e.latestVersion.frequency ? (
                           <Text style={styles.itemMeta}>
                             {[e.latestVersion.dose, e.latestVersion.frequency].filter(Boolean).join(' · ')}
                           </Text>
                         ) : null}
-                        <Text style={styles.itemMeta}>{e.latestVersion.confidenceLevel === 'CONFIRMED' ? 'Confirmado' : 'Por confirmar'}</Text>
+                        <View style={{ marginTop: 4 }}>
+                          <ConfidenceBadge level={e.latestVersion.confidenceLevel} />
+                        </View>
                         {e.latestVersion.occurredOn ? <Text style={styles.itemMeta}>{formatDate(e.latestVersion.occurredOn)}</Text> : null}
-                        {e.latestVersion.details ? <Text style={styles.itemMeta}>{e.latestVersion.details}</Text> : null}
-                        {e.latestVersion.notes ? <Text style={styles.itemMeta}>{e.latestVersion.notes}</Text> : null}
+                        {extra ? (
+                          <>
+                            <Text style={styles.itemMeta} numberOfLines={3}>{extra}</Text>
+                            {isLongText(extra) ? (
+                              // Al ser un Pressable interno, captura el toque y no alterna la selección
+                              <Pressable
+                                onPress={() => setReading({ title, text: extra })}
+                                hitSlop={8}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Ver todo el detalle de ${title}`}
+                              >
+                                <Text style={styles.more}>Ver todo</Text>
+                              </Pressable>
+                            ) : null}
+                          </>
+                        ) : null}
                       </View>
                     </Pressable>
                   );
@@ -170,6 +194,8 @@ function ManualHandoffScreen({ route, navigation }: Props) {
       ) : (
         <SubmitButton label="Crear resumen" onPress={handleSave} loading={saving || entries.loading || categories.loading} />
       )}
+
+      <TextSheet title={reading?.title ?? ''} text={reading?.text ?? null} onClose={() => setReading(null)} />
     </FormScroll>
   );
 }
@@ -182,7 +208,7 @@ const useStyles = makeStyles(({ colors }) => ({
   groupToggle: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary },
   item: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
     backgroundColor: colors.surface,
     borderRadius: radius.sm,
@@ -191,4 +217,5 @@ const useStyles = makeStyles(({ colors }) => ({
   },
   itemTitle: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
   itemMeta: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  more: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary, marginTop: 4, alignSelf: 'flex-start' },
 }));

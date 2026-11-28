@@ -4,8 +4,8 @@ import { Pressable, Text, View } from 'react-native';
 import type { HealthEntry } from '../types';
 import { fonts, makeStyles, radius, useTheme } from '../theme';
 import { formatDate, formatDateTime } from '../utils/format';
-import { Badge } from './Badge';
 import { CategoryIcon } from './CategoryIcon';
+import { ConfidenceBadge } from './ConfidenceBadge';
 import { VersionAttachment } from './VersionAttachment';
 
 export function HealthEntryCard({
@@ -37,10 +37,7 @@ export function HealthEntryCard({
           <Text style={styles.category}>{entry.categoryName.toUpperCase()}</Text>
           <Text style={styles.title}>{v.title}</Text>
         </View>
-        <Badge
-          label={v.confidenceLevel === 'CONFIRMED' ? 'Confirmado' : 'Por confirmar'}
-          tone={v.confidenceLevel === 'CONFIRMED' ? 'accent' : 'amber'}
-        />
+        <ConfidenceBadge level={v.confidenceLevel} />
       </View>
       {facts ? <Text style={styles.facts}>{facts}</Text> : null}
       {v.details ? <Text style={styles.details}>{v.details}</Text> : null}
