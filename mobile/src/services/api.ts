@@ -2,6 +2,7 @@ import type { ConsultationPreparation, ConfirmPreparation } from '../types/consu
 import { Platform } from 'react-native';
 import { API_URL, ApiError, CLIENT_HEADERS, http, session } from './http';
 import { attachmentUploadOptions } from './attachmentUpload';
+import { loadAndroidPreviewImage } from './androidPreviewImage';
 import { createHandoffAccessApi, type HandoffSessionRequest } from './security/handoffAccessCodeApi';
 import { collectPages, type Page } from './pagination';
 import { createSubjectAccess } from './subjectAccess';
@@ -258,6 +259,9 @@ export const uploadAttachment = (subjectId: number, form: FormData) =>
 export const getAttachmentAccess = (subjectId: number, attachmentId: number) =>
   readSubject(subjectId, () => http.get<AttachmentAccess>(`/care-subjects/${subjectId}/attachments/${attachmentId}/access`).then((r) => r.data));
 
+export const renameAttachment = (subjectId: number, attachmentId: number, filename: string) =>
+  restrictedSubject(subjectId, () => http.patch<Attachment>(`/care-subjects/${subjectId}/attachments/${attachmentId}`, { filename }).then((r) => r.data));
+
 export const deleteAttachment = (subjectId: number, attachmentId: number) =>
   restrictedSubject(subjectId, () => http.delete(`/care-subjects/${subjectId}/attachments/${attachmentId}`));
 
@@ -274,6 +278,12 @@ export async function getAttachmentSource(subjectId: number, attachmentId: numbe
     uri: `${API_URL}/api/v1${path}/content`,
     headers: { ...CLIENT_HEADERS, Authorization: `Bearer ${session.accessToken}` },
   };
+}
+
+export function getPreviewImageSource(subjectId: number, attachmentId: number, signal: AbortSignal) {
+  if (Platform.OS !== 'android') return getAttachmentSource(subjectId, attachmentId);
+  const path = `/care-subjects/${subjectId}/attachments/${attachmentId}/content`;
+  return readSubject(subjectId, () => loadAndroidPreviewImage(http, path, signal));
 }
 
 export const retryOcr = (subjectId: number, attachmentId: number) =>
